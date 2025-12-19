@@ -2,23 +2,23 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 
 interface DashboardHeaderProps {
-  name: string
-  role: string
-  department: string
-  greeting?: string
+  nombre: string
+  rol: string
+  facultad: string
+  saludo?: string
 }
 
 export default function DashboardHeader({
-  name,
-  role,
-  department,
-  greeting = 'Buenas noches,',
+  nombre,
+  rol,
+  facultad,
+  saludo = 'Buenas noches,',
 }: DashboardHeaderProps) {
   // Generamos la URL de DiceBear dinámicamente con el nombre
-  const dicebearUrl = `https://api.dicebear.com/9.x/initials/svg?seed=${encodeURIComponent(name)}`
+  const dicebearUrl = `https://api.dicebear.com/9.x/initials/svg?seed=${encodeURIComponent(nombre)}`
 
   // Calculamos iniciales de respaldo por si falla la imagen
-  const initials = name
+  const initials = nombre
     .split(' ')
     .map((n) => n[0])
     .slice(0, 2)
@@ -30,17 +30,17 @@ export default function DashboardHeader({
       <div className="flex flex-row items-center gap-4">
         {/* 1. Avatar de DiceBear usando el componente de Shadcn */}
         <Avatar className="border-background h-12 w-12 border-2 shadow-sm">
-          <AvatarImage src={dicebearUrl} alt={name} />
+          <AvatarImage src={dicebearUrl} alt={nombre} />
           <AvatarFallback>{initials}</AvatarFallback>
         </Avatar>
 
         <div className="flex flex-col">
           {/* Saludo con texto secundario */}
-          <p className="text-muted-foreground text-sm">{greeting}</p>
+          <p className="text-muted-foreground text-sm">{saludo}</p>
 
           {/* Nombre destacado */}
           <h2 className="text-foreground text-lg font-bold tracking-tight">
-            {name}
+            {nombre}
           </h2>
 
           <div className="mt-1 flex flex-wrap items-center gap-2">
@@ -49,17 +49,17 @@ export default function DashboardHeader({
               variant="secondary"
               className="rounded-md px-2 py-0 text-xs font-semibold"
             >
-              {role}
+              {rol}
             </Badge>
 
             {/* Departamento */}
             <span className="text-muted-foreground text-xs font-medium">
-              {department}
+              {facultad}
             </span>
           </div>
         </div>
       </div>
-      <div className="xs:flex-nowrap flex flex-row flex-wrap gap-6">
+      <div className="flex flex-row flex-wrap gap-6 sm:flex-nowrap">
         <div className="bg-muted flex flex-row items-center gap-3 rounded-lg px-4 py-2">
           <div className="bg-primary/10 flex h-10 w-10 items-center justify-center rounded-lg">
             Icono

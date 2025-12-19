@@ -1,4 +1,4 @@
-import DashboardHeader from '@/components/dashboard/DashboardHeader'
+import { createFileRoute } from '@tanstack/react-router'
 import {
   ArrowRight,
   BookOpenText,
@@ -11,8 +11,9 @@ import {
   PencilRuler,
   ClipboardCheck,
 } from 'lucide-react'
+
+import DashboardHeader from '@/components/dashboard/DashboardHeader'
 import PlanEstudiosCard from '@/components/plan_estudios/PlanEstudiosCard'
-import { createFileRoute } from '@tanstack/react-router'
 
 export const Route = createFileRoute('/dashboard')({
   component: RouteComponent,
@@ -31,9 +32,9 @@ function RouteComponent() {
       */}
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-4 py-6 md:px-6 lg:px-8">
         <DashboardHeader
-          name="Dr. Carlos Mendoza"
-          role="Jefe de Carrera"
-          department="Facultad de Ingeniería"
+          nombre="Dr. Carlos Mendoza"
+          rol="Jefe de Carrera"
+          facultad="Facultad de Ingeniería"
         />
 
         <div className="mt-6 grid gap-6 lg:grid-cols-3">
