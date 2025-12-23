@@ -13,7 +13,7 @@ import {
 } from 'lucide-react'
 
 import DashboardHeader from '@/components/dashboard/DashboardHeader'
-import PlanEstudiosCard from '@/components/plan_estudios/PlanEstudiosCard'
+import PlanEstudiosCard from '@/components/planes/PlanEstudiosCard'
 
 export const Route = createFileRoute('/dashboard')({
   component: RouteComponent,

@@ -5,6 +5,7 @@ const config = {
   semi: false,
   singleQuote: true,
   trailingComma: 'all',
+  tabWidth: 2,
   plugins: ['prettier-plugin-tailwindcss'],
   tailwindFunctions: ['clsx', 'cn', 'cva'],
   endOfLine: 'lf',

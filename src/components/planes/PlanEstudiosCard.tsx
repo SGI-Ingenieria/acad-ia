@@ -1,6 +1,6 @@
-import { ArrowRight  } from 'lucide-react'
+import { ArrowRight } from 'lucide-react'
 
-import type {LucideIcon} from 'lucide-react';
+import type { LucideIcon } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card'
@@ -36,7 +36,7 @@ export default function PlanEstudiosCard({
     <Card
       onClick={onClick}
       className={cn(
-        'group relative flex h-full cursor-pointer flex-col justify-between overflow-hidden border-l-4 transition-all hover:shadow-lg',
+        'group relative flex h-full cursor-pointer flex-col justify-between gap-2 overflow-hidden border-l-4 transition-all hover:shadow-lg',
       )}
       // Aplicamos el color de la facultad dinámicamente al borde y un fondo muy sutil
       style={{
@@ -61,14 +61,14 @@ export default function PlanEstudiosCard({
         </h4>
       </CardHeader>
 
-      <CardContent className="text-muted-foreground space-y-1 pb-4 text-sm">
+      <CardContent className="text-muted-foreground space-y-1 text-sm">
         <p className="text-foreground font-medium">
           {nivel} • {ciclos}
         </p>
         <p>{facultad}</p>
       </CardContent>
 
-      <CardFooter className="bg-background/50 flex items-center justify-between border-t px-6 py-3 backdrop-blur-sm">
+      <CardFooter className="bg-background/50 flex items-center justify-between border-t px-6 pb-3 backdrop-blur-sm [.border-t]:pt-3">
         <Badge className={`text-sm font-semibold ${claseColorEstado}`}>
           {estado}
         </Badge>
