@@ -37,9 +37,9 @@ const IndexRoute = IndexRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const PlanesIndexRoute = PlanesIndexRouteImport.update({
-  id: '/planes/',
-  path: '/planes/',
-  getParentRoute: () => rootRouteImport,
+  id: '/',
+  path: '/',
+  getParentRoute: () => PlanesRoute,
 } as any)
 const DemoTanstackQueryRoute = DemoTanstackQueryRouteImport.update({
   id: '/demo/tanstack-query',
@@ -51,15 +51,14 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
-  '/planes': typeof PlanesRoute
+  '/planes': typeof PlanesRouteWithChildren
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
-  '/planes': typeof PlanesIndexRoute
+  '/planes/': typeof PlanesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
-  '/planes': typeof PlanesRoute
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
   '/planes': typeof PlanesIndexRoute
 }
@@ -68,42 +67,37 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
-  '/planes': typeof PlanesRoute
+  '/planes': typeof PlanesRouteWithChildren
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
   '/planes/': typeof PlanesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-<<<<<<< HEAD
-  fullPaths: '/' | '/dashboard' | '/login' | '/planes' | '/demo/tanstack-query'
-  fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/dashboard' | '/login' | '/planes' | '/demo/tanstack-query'
-=======
-  fullPaths: '/' | '/dashboard' | '/login' | '/demo/tanstack-query' | '/planes'
+  fullPaths:
+    | '/'
+    | '/dashboard'
+    | '/login'
+    | '/planes'
+    | '/demo/tanstack-query'
+    | '/planes/'
   fileRoutesByTo: FileRoutesByTo
   to: '/' | '/dashboard' | '/login' | '/demo/tanstack-query' | '/planes'
->>>>>>> origin/main
   id:
     | '__root__'
     | '/'
     | '/dashboard'
     | '/login'
-<<<<<<< HEAD
     | '/planes'
     | '/demo/tanstack-query'
-=======
-    | '/demo/tanstack-query'
     | '/planes/'
->>>>>>> origin/main
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DashboardRoute: typeof DashboardRoute
   LoginRoute: typeof LoginRoute
-  PlanesRoute: typeof PlanesRoute
+  PlanesRoute: typeof PlanesRouteWithChildren
   DemoTanstackQueryRoute: typeof DemoTanstackQueryRoute
-  PlanesIndexRoute: typeof PlanesIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -138,10 +132,10 @@ declare module '@tanstack/react-router' {
     }
     '/planes/': {
       id: '/planes/'
-      path: '/planes'
-      fullPath: '/planes'
+      path: '/'
+      fullPath: '/planes/'
       preLoaderRoute: typeof PlanesIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof PlanesRoute
     }
     '/demo/tanstack-query': {
       id: '/demo/tanstack-query'
@@ -153,13 +147,23 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface PlanesRouteChildren {
+  PlanesIndexRoute: typeof PlanesIndexRoute
+}
+
+const PlanesRouteChildren: PlanesRouteChildren = {
+  PlanesIndexRoute: PlanesIndexRoute,
+}
+
+const PlanesRouteWithChildren =
+  PlanesRoute._addFileChildren(PlanesRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DashboardRoute: DashboardRoute,
   LoginRoute: LoginRoute,
-  PlanesRoute: PlanesRoute,
+  PlanesRoute: PlanesRouteWithChildren,
   DemoTanstackQueryRoute: DemoTanstackQueryRoute,
-  PlanesIndexRoute: PlanesIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
