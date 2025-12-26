@@ -1,4 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
+
 import { LoginCard } from '@/components/auth/LoginCard'
 
 export const Route = createFileRoute('/login')({
@@ -7,7 +8,7 @@ export const Route = createFileRoute('/login')({
 
 function LoginPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#7b0f1d] via-[#6b0d1a] to-[#3a050a] flex items-center justify-center">
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-[#7b0f1d] via-[#6b0d1a] to-[#3a050a]">
       <LoginCard />
     </div>
   )
