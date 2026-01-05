@@ -7,7 +7,7 @@ export type PlanPreview = {
   nivel: string;
   tipoCiclo: TipoCiclo;
   numCiclos: number;
-  numMateriasAprox?: number;
+  numAsignaturasAprox?: number;
   secciones?: Array<{ id: string; titulo: string; resumen: string }>;
 };
 
@@ -27,7 +27,7 @@ export type NewPlanWizardState = {
   clonTradicional?: {
     archivoWordPlanId: string | null;
     archivoMapaExcelId: string | null;
-    archivoMateriasExcelId: string | null;
+    archivoAsignaturasExcelId: string | null;
   };
   iaConfig?: {
     descripcionEnfoque: string;

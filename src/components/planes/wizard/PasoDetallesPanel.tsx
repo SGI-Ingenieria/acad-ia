@@ -110,7 +110,8 @@ export function PasoDetallesPanel({
             <CardHeader>
               <CardTitle>Preview IA</CardTitle>
               <CardDescription>
-                Materias aprox.: {wizard.resumen.previewPlan.numMateriasAprox}
+                Asignaturas aprox.:{' '}
+                {wizard.resumen.previewPlan.numAsignaturasAprox}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -283,9 +284,9 @@ export function PasoDetallesPanel({
           />
         </div>
         <div>
-          <Label htmlFor="materias">Excel/listado de materias</Label>
+          <Label htmlFor="asignaturas">Excel/listado de asignaturas</Label>
           <input
-            id="materias"
+            id="asignaturas"
             type="file"
             accept=".xls,.xlsx,.csv"
             className="bg-background text-foreground ring-offset-background focus-visible:ring-ring file:bg-secondary block w-full rounded-md border px-3 py-2 text-sm shadow-sm file:mr-4 file:rounded-md file:border-0 file:px-3 file:py-1.5 file:text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
@@ -294,7 +295,7 @@ export function PasoDetallesPanel({
                 ...w,
                 clonTradicional: {
                   ...(w.clonTradicional || ({} as any)),
-                  archivoMateriasExcelId: e.target.files?.[0]
+                  archivoAsignaturasExcelId: e.target.files?.[0]
                     ? `file_${e.target.files[0].name}`
                     : null,
                 },

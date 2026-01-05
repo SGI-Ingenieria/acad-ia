@@ -20,7 +20,7 @@ export function useNuevoPlanWizard() {
     clonTradicional: {
       archivoWordPlanId: null,
       archivoMapaExcelId: null,
-      archivoMateriasExcelId: null,
+      archivoAsignaturasExcelId: null,
     },
     iaConfig: {
       descripcionEnfoque: "",
@@ -62,7 +62,7 @@ export function useNuevoPlanWizard() {
         if (!t) return false;
         const tieneWord = !!t.archivoWordPlanId;
         const tieneAlMenosUnExcel = !!t.archivoMapaExcelId ||
-          !!t.archivoMateriasExcelId;
+          !!t.archivoAsignaturasExcelId;
         return tieneWord && tieneAlMenosUnExcel;
       }
     }
@@ -77,7 +77,7 @@ export function useNuevoPlanWizard() {
       nivel: wizard.datosBasicos.nivel || "Licenciatura",
       tipoCiclo: wizard.datosBasicos.tipoCiclo,
       numCiclos: wizard.datosBasicos.numCiclos,
-      numMateriasAprox: wizard.datosBasicos.numCiclos * 6,
+      numAsignaturasAprox: wizard.datosBasicos.numCiclos * 6,
       secciones: [
         { id: "obj", titulo: "Objetivos", resumen: "Borrador de objetivos…" },
         { id: "perfil", titulo: "Perfil de egreso", resumen: "Borrador…" },

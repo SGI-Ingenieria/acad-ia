@@ -63,7 +63,8 @@ export function PasoResumenCard({ wizard }: { wizard: NewPlanWizardState }) {
             <div className="bg-muted mt-2 rounded-md p-3">
               <div className="font-medium">Preview IA</div>
               <div className="text-muted-foreground">
-                Materias aprox.: {wizard.resumen.previewPlan.numMateriasAprox}
+                Asignaturas aprox.:{' '}
+                {wizard.resumen.previewPlan.numAsignaturasAprox}
               </div>
             </div>
           )}
