@@ -57,15 +57,17 @@ const defineStepper = <const Steps extends Array<Stepperize.Step>>(
         className,
         ...props
       }) => {
+        // Avoid leaking non-DOM props like `initialStep` onto the div
+        const { initialStep, initialMetadata, ...restProps } = props as {
+          initialStep?: any
+          initialMetadata?: any
+        } & Record<string, unknown>
         return (
           <StepperContext.Provider
             value={{ variant, labelOrientation, tracking }}
           >
-            <Scoped
-              initialStep={props.initialStep}
-              initialMetadata={props.initialMetadata}
-            >
-              <StepperContainer className={className} {...props}>
+            <Scoped initialStep={initialStep} initialMetadata={initialMetadata}>
+              <StepperContainer className={className} {...(restProps as any)}>
                 {children}
               </StepperContainer>
             </Scoped>

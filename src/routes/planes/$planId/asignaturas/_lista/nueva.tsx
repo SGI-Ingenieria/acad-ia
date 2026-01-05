@@ -35,7 +35,9 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 
-export const Route = createFileRoute('/asignaturas/_lista/nueva')({
+export const Route = createFileRoute(
+  '/planes/$planId/asignaturas/_lista/nueva',
+)({
   component: NuevaMateriaModal,
 })
 
@@ -54,7 +56,7 @@ type MateriaPreview = {
 
 type NewSubjectWizardState = {
   step: 1 | 2 | 3 | 4
-  // planId: string
+  planId: string
   modoCreacion: ModoCreacion | null
   subModoClonado?: SubModoClonado
   datosBasicos: {
@@ -175,12 +177,12 @@ const Wizard = defineStepper(
 
 function NuevaMateriaModal() {
   const navigate = useNavigate()
-  // const { planId } = Route.useParams()
+  const { planId } = Route.useParams()
   const role = auth_get_current_user_role()
 
   const [wizard, setWizard] = useState<NewSubjectWizardState>({
     step: 1,
-    // planId: planId,
+    planId: planId,
     modoCreacion: null,
     datosBasicos: {
       nombre: '',
@@ -207,7 +209,7 @@ function NuevaMateriaModal() {
 
   const handleClose = () => {
     // Redirige a la pestaña de materias del plan
-    navigate({ to: `/planes`, resetScroll: false })
+    navigate({ to: `/planes/${planId}/asignaturas`, resetScroll: false })
   }
 
   // --- Validaciones ---
