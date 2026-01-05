@@ -692,7 +692,7 @@ function PasoBasicos({
           ))}
         </select>
       </div> */}
-      <div className="grid gap-2">
+      <div className="grid gap-1">
         <Label htmlFor="facultad">Facultad</Label>
         <Select
           value={wizard.datosBasicos.facultadId}
@@ -725,70 +725,87 @@ function PasoBasicos({
 
       <div className="grid gap-1">
         <Label htmlFor="carrera">Carrera</Label>
-        <select
-          id="carrera"
-          className="bg-background text-foreground ring-offset-background focus-visible:ring-ring h-10 w-full rounded-md border px-3 text-sm shadow-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+        <Select
           value={wizard.datosBasicos.carreraId}
-          onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+          onValueChange={(value) =>
             onChange((w) => ({
               ...w,
-              datosBasicos: { ...w.datosBasicos, carreraId: e.target.value },
+              datosBasicos: { ...w.datosBasicos, carreraId: value },
             }))
           }
+          disabled={!wizard.datosBasicos.facultadId}
         >
-          <option value="">Selecciona carrera…</option>
-          {carrerasFiltradas.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.nombre}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger
+            id="carrera"
+            className="w-full min-w-0 [&>span]:block! [&>span]:truncate!"
+          >
+            <SelectValue placeholder="Selecciona carrera…" />
+          </SelectTrigger>
+          <SelectContent>
+            {carrerasFiltradas.map((c) => (
+              <SelectItem key={c.id} value={c.id}>
+                {c.nombre}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="grid gap-1">
         <Label htmlFor="nivel">Nivel</Label>
-        <select
-          id="nivel"
-          className="bg-background text-foreground ring-offset-background focus-visible:ring-ring h-10 w-full rounded-md border px-3 text-sm shadow-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+        <Select
           value={wizard.datosBasicos.nivel}
-          onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+          onValueChange={(value) =>
             onChange((w) => ({
               ...w,
-              datosBasicos: { ...w.datosBasicos, nivel: e.target.value },
+              datosBasicos: { ...w.datosBasicos, nivel: value },
             }))
           }
         >
-          <option value="">Selecciona nivel…</option>
-          {NIVELES.map((n) => (
-            <option key={n} value={n}>
-              {n}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger
+            id="nivel"
+            className="w-full min-w-0 [&>span]:block! [&>span]:truncate!"
+          >
+            <SelectValue placeholder="Selecciona nivel…" />
+          </SelectTrigger>
+          <SelectContent>
+            {NIVELES.map((n) => (
+              <SelectItem key={n} value={n}>
+                {n}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="grid gap-1">
         <Label htmlFor="tipoCiclo">Tipo de ciclo</Label>
-        <select
-          id="tipoCiclo"
-          className="bg-background text-foreground ring-offset-background focus-visible:ring-ring h-10 w-full rounded-md border px-3 text-sm shadow-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+        <Select
           value={wizard.datosBasicos.tipoCiclo}
-          onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+          onValueChange={(value) =>
             onChange((w) => ({
               ...w,
               datosBasicos: {
                 ...w.datosBasicos,
-                tipoCiclo: e.target.value as TipoCiclo,
+                tipoCiclo: value as TipoCiclo,
               },
             }))
           }
         >
-          {TIPOS_CICLO.map((t) => (
-            <option key={t.value} value={t.value}>
-              {t.label}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger
+            id="tipoCiclo"
+            className="w-full min-w-0 [&>span]:block! [&>span]:truncate!"
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {TIPOS_CICLO.map((t) => (
+              <SelectItem key={t.value} value={t.value}>
+                {t.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="grid gap-1">
@@ -803,7 +820,7 @@ function PasoBasicos({
               ...w,
               datosBasicos: {
                 ...w.datosBasicos,
-                numCiclos: Number(e.target.value || 0),
+                numCiclos: Number(e.target.value || 1),
               },
             }))
           }

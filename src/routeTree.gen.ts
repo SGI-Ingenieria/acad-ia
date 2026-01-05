@@ -17,7 +17,10 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as DemoTanstackQueryRouteImport } from './routes/demo/tanstack-query'
 import { Route as PlanesListaRouteRouteImport } from './routes/planes/_lista/route'
 import { Route as PlanesPlanIdRouteRouteImport } from './routes/planes/$planId/route'
+import { Route as AsignaturasListaRouteRouteImport } from './routes/asignaturas/_lista/route'
+import { Route as AsignaturasAsignaturaIdRouteRouteImport } from './routes/asignaturas/$asignaturaId/route'
 import { Route as PlanesListaNuevoRouteImport } from './routes/planes/_lista/nuevo'
+import { Route as AsignaturasListaNuevaRouteImport } from './routes/asignaturas/_lista/nueva'
 
 const Stepper2Route = Stepper2RouteImport.update({
   id: '/stepper2',
@@ -59,10 +62,26 @@ const PlanesPlanIdRouteRoute = PlanesPlanIdRouteRouteImport.update({
   path: '/planes/$planId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AsignaturasListaRouteRoute = AsignaturasListaRouteRouteImport.update({
+  id: '/asignaturas/_lista',
+  path: '/asignaturas',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AsignaturasAsignaturaIdRouteRoute =
+  AsignaturasAsignaturaIdRouteRouteImport.update({
+    id: '/asignaturas/$asignaturaId',
+    path: '/asignaturas/$asignaturaId',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const PlanesListaNuevoRoute = PlanesListaNuevoRouteImport.update({
   id: '/nuevo',
   path: '/nuevo',
   getParentRoute: () => PlanesListaRouteRoute,
+} as any)
+const AsignaturasListaNuevaRoute = AsignaturasListaNuevaRouteImport.update({
+  id: '/nueva',
+  path: '/nueva',
+  getParentRoute: () => AsignaturasListaRouteRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
@@ -71,9 +90,12 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/stepper': typeof StepperRoute
   '/stepper2': typeof Stepper2Route
+  '/asignaturas/$asignaturaId': typeof AsignaturasAsignaturaIdRouteRoute
+  '/asignaturas': typeof AsignaturasListaRouteRouteWithChildren
   '/planes/$planId': typeof PlanesPlanIdRouteRoute
   '/planes': typeof PlanesListaRouteRouteWithChildren
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
+  '/asignaturas/nueva': typeof AsignaturasListaNuevaRoute
   '/planes/nuevo': typeof PlanesListaNuevoRoute
 }
 export interface FileRoutesByTo {
@@ -82,9 +104,12 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/stepper': typeof StepperRoute
   '/stepper2': typeof Stepper2Route
+  '/asignaturas/$asignaturaId': typeof AsignaturasAsignaturaIdRouteRoute
+  '/asignaturas': typeof AsignaturasListaRouteRouteWithChildren
   '/planes/$planId': typeof PlanesPlanIdRouteRoute
   '/planes': typeof PlanesListaRouteRouteWithChildren
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
+  '/asignaturas/nueva': typeof AsignaturasListaNuevaRoute
   '/planes/nuevo': typeof PlanesListaNuevoRoute
 }
 export interface FileRoutesById {
@@ -94,9 +119,12 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/stepper': typeof StepperRoute
   '/stepper2': typeof Stepper2Route
+  '/asignaturas/$asignaturaId': typeof AsignaturasAsignaturaIdRouteRoute
+  '/asignaturas/_lista': typeof AsignaturasListaRouteRouteWithChildren
   '/planes/$planId': typeof PlanesPlanIdRouteRoute
   '/planes/_lista': typeof PlanesListaRouteRouteWithChildren
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
+  '/asignaturas/_lista/nueva': typeof AsignaturasListaNuevaRoute
   '/planes/_lista/nuevo': typeof PlanesListaNuevoRoute
 }
 export interface FileRouteTypes {
@@ -107,9 +135,12 @@ export interface FileRouteTypes {
     | '/login'
     | '/stepper'
     | '/stepper2'
+    | '/asignaturas/$asignaturaId'
+    | '/asignaturas'
     | '/planes/$planId'
     | '/planes'
     | '/demo/tanstack-query'
+    | '/asignaturas/nueva'
     | '/planes/nuevo'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -118,9 +149,12 @@ export interface FileRouteTypes {
     | '/login'
     | '/stepper'
     | '/stepper2'
+    | '/asignaturas/$asignaturaId'
+    | '/asignaturas'
     | '/planes/$planId'
     | '/planes'
     | '/demo/tanstack-query'
+    | '/asignaturas/nueva'
     | '/planes/nuevo'
   id:
     | '__root__'
@@ -129,9 +163,12 @@ export interface FileRouteTypes {
     | '/login'
     | '/stepper'
     | '/stepper2'
+    | '/asignaturas/$asignaturaId'
+    | '/asignaturas/_lista'
     | '/planes/$planId'
     | '/planes/_lista'
     | '/demo/tanstack-query'
+    | '/asignaturas/_lista/nueva'
     | '/planes/_lista/nuevo'
   fileRoutesById: FileRoutesById
 }
@@ -141,6 +178,8 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   StepperRoute: typeof StepperRoute
   Stepper2Route: typeof Stepper2Route
+  AsignaturasAsignaturaIdRouteRoute: typeof AsignaturasAsignaturaIdRouteRoute
+  AsignaturasListaRouteRoute: typeof AsignaturasListaRouteRouteWithChildren
   PlanesPlanIdRouteRoute: typeof PlanesPlanIdRouteRoute
   PlanesListaRouteRoute: typeof PlanesListaRouteRouteWithChildren
   DemoTanstackQueryRoute: typeof DemoTanstackQueryRoute
@@ -204,6 +243,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PlanesPlanIdRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/asignaturas/_lista': {
+      id: '/asignaturas/_lista'
+      path: '/asignaturas'
+      fullPath: '/asignaturas'
+      preLoaderRoute: typeof AsignaturasListaRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/asignaturas/$asignaturaId': {
+      id: '/asignaturas/$asignaturaId'
+      path: '/asignaturas/$asignaturaId'
+      fullPath: '/asignaturas/$asignaturaId'
+      preLoaderRoute: typeof AsignaturasAsignaturaIdRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/planes/_lista/nuevo': {
       id: '/planes/_lista/nuevo'
       path: '/nuevo'
@@ -211,8 +264,28 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PlanesListaNuevoRouteImport
       parentRoute: typeof PlanesListaRouteRoute
     }
+    '/asignaturas/_lista/nueva': {
+      id: '/asignaturas/_lista/nueva'
+      path: '/nueva'
+      fullPath: '/asignaturas/nueva'
+      preLoaderRoute: typeof AsignaturasListaNuevaRouteImport
+      parentRoute: typeof AsignaturasListaRouteRoute
+    }
   }
 }
+
+interface AsignaturasListaRouteRouteChildren {
+  AsignaturasListaNuevaRoute: typeof AsignaturasListaNuevaRoute
+}
+
+const AsignaturasListaRouteRouteChildren: AsignaturasListaRouteRouteChildren = {
+  AsignaturasListaNuevaRoute: AsignaturasListaNuevaRoute,
+}
+
+const AsignaturasListaRouteRouteWithChildren =
+  AsignaturasListaRouteRoute._addFileChildren(
+    AsignaturasListaRouteRouteChildren,
+  )
 
 interface PlanesListaRouteRouteChildren {
   PlanesListaNuevoRoute: typeof PlanesListaNuevoRoute
@@ -231,6 +304,8 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   StepperRoute: StepperRoute,
   Stepper2Route: Stepper2Route,
+  AsignaturasAsignaturaIdRouteRoute: AsignaturasAsignaturaIdRouteRoute,
+  AsignaturasListaRouteRoute: AsignaturasListaRouteRouteWithChildren,
   PlanesPlanIdRouteRoute: PlanesPlanIdRouteRoute,
   PlanesListaRouteRoute: PlanesListaRouteRouteWithChildren,
   DemoTanstackQueryRoute: DemoTanstackQueryRoute,
