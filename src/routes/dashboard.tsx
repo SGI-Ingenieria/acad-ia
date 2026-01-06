@@ -58,7 +58,7 @@ function RouteComponent() {
                 className="group text-muted-foreground hover:text-primary flex items-center gap-1.5 text-sm font-medium transition-colors"
               >
                 <span>Ver todos</span>
-                {/* La flecha se mueve a la derecha al hacer hover en el grupo */}
+                {/* La flecha se mueve a la derecha al hacer hover en el grupoo */}
                 <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
               </a>
             </div>
