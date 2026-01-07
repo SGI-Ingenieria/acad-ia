@@ -1,5 +1,0 @@
-[phases.install]
-cmds = ["bun install --frozen-lockfile"]
-
-[phases.build]
-cmds = ["bunx --bun vite build"]
