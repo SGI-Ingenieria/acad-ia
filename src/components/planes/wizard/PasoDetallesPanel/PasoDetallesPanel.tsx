@@ -1,4 +1,4 @@
-import ReferenciasParaIA from './PasoDetallesPanel/ReferenciasParaIA'
+import ReferenciasParaIA from './ReferenciasParaIA'
 
 import type { NewPlanWizardState } from '@/features/planes/nuevo/types'
 

@@ -3,8 +3,8 @@ import * as Icons from 'lucide-react'
 
 import { useNuevoPlanWizard } from './hooks/useNuevoPlanWizard'
 
-import { PasoBasicosForm } from '@/components/planes/wizard/PasoBasicosForm'
-import { PasoDetallesPanel } from '@/components/planes/wizard/PasoDetallesPanel'
+import { PasoBasicosForm } from '@/components/planes/wizard/PasoBasicosForm/PasoBasicosForm'
+import { PasoDetallesPanel } from '@/components/planes/wizard/PasoDetallesPanel/PasoDetallesPanel'
 import { PasoModoCardGroup } from '@/components/planes/wizard/PasoModoCardGroup'
 import { PasoResumenCard } from '@/components/planes/wizard/PasoResumenCard'
 import { WizardControls } from '@/components/planes/wizard/WizardControls'

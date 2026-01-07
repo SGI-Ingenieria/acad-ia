@@ -114,3 +114,53 @@ export const REPOSITORIOS = [
     cantidadArchivos: 23,
   },
 ];
+
+export const ESTRUCTURAS_PLAN_ESTUDIO = [
+  {
+    id: "estruc-1",
+    nombre: "Estructura RVOE 2017.docx",
+    versiones: ["v1.0", "v1.1", "v2.0"],
+  },
+  {
+    id: "estruc-2",
+    nombre: "Estructura RVOE 2026.docx",
+    versiones: ["v1.0", "v1.1"],
+  },
+  { id: "estruc-3", nombre: "Estructura ULSA 2022.docx", versiones: ["v1.0"] },
+];
+
+export const PLANTILLAS_ANEXO_1 = [
+  {
+    id: "sep-2025",
+    name: "Licenciatura RVOE SEP.docx",
+    versions: ["v2025.2 (Vigente)", "v2025.1", "v2024.Final"],
+  },
+  {
+    id: "interno-mix",
+    name: "Estándar Institucional Mixto.docx",
+    versions: ["v2.0", "v1.5", "v1.0-beta"],
+  },
+  {
+    id: "conacyt",
+    name: "Formato Posgrado CONAHCYT.docx",
+    versions: ["v3.0 (2025)", "v2.8"],
+  },
+];
+
+export const PLANTILLAS_ANEXO_2 = [
+  {
+    id: "sep-2017-xlsx",
+    name: "Licenciatura RVOE 2017.xlsx",
+    versions: ["v2017.0", "v2018.1", "v2019.2", "v2020.Final"],
+  },
+  {
+    id: "interno-mix-xlsx",
+    name: "Estándar Institucional Mixto.xlsx",
+    versions: ["v1.0", "v1.5"],
+  },
+  {
+    id: "conacyt-xlsx",
+    name: "Formato Posgrado CONAHCYT.xlsx",
+    versions: ["v1.0", "v2.0"],
+  },
+];
