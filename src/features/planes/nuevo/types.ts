@@ -31,12 +31,25 @@ export type NewPlanWizardState = {
   clonInterno?: { planOrigenId: string | null };
   clonTradicional?: {
     archivoWordPlanId:
-      | { id: string; name: string; size: string; type: string }
+      | {
+        id: string;
+        name: string;
+        size: string;
+        type: string;
+      }
       | null;
-    archivoMapaExcelId:
-      | string
-      | null;
-    archivoAsignaturasExcelId: string | null;
+    archivoMapaExcelId: {
+      id: string;
+      name: string;
+      size: string;
+      type: string;
+    } | null;
+    archivoAsignaturasExcelId: {
+      id: string;
+      name: string;
+      size: string;
+      type: string;
+    } | null;
   };
   iaConfig?: {
     descripcionEnfoque: string;

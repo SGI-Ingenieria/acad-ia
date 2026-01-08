@@ -1,5 +1,5 @@
 import { Upload, File, X, FileText } from 'lucide-react'
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -28,33 +28,7 @@ export function FileDropzone({
 }: FileDropzoneProps) {
   const [isDragging, setIsDragging] = useState(false)
   const [files, setFiles] = useState<Array<UploadedFile>>([])
-
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault()
-    setIsDragging(true)
-  }, [])
-
-  const handleDragLeave = useCallback((e: React.DragEvent) => {
-    e.preventDefault()
-    setIsDragging(false)
-  }, [])
-
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault()
-    setIsDragging(false)
-    const droppedFiles = Array.from(e.dataTransfer.files)
-    addFiles(droppedFiles)
-  }, [])
-
-  const handleFileInput = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      if (e.target.files) {
-        const selectedFiles = Array.from(e.target.files)
-        addFiles(selectedFiles)
-      }
-    },
-    [],
-  )
+  const onFilesChangeRef = useRef<typeof onFilesChange>(onFilesChange)
 
   const addFiles = useCallback(
     (newFiles: Array<File>) => {
@@ -70,23 +44,58 @@ export function FileDropzone({
       setFiles((prev) => {
         const room = Math.max(0, maxFiles - prev.length)
         const next = [...prev, ...toUpload.slice(0, room)].slice(0, maxFiles)
-        if (onFilesChange) onFilesChange(next)
         return next
       })
     },
-    [maxFiles, onFilesChange],
+    [maxFiles],
   )
 
-  const removeFile = useCallback(
-    (fileId: string) => {
-      setFiles((prev) => {
-        const next = prev.filter((f) => f.id !== fileId)
-        if (onFilesChange) onFilesChange(next)
-        return next
-      })
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(true)
+  }, [])
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(false)
+  }, [])
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault()
+      setIsDragging(false)
+      const droppedFiles = Array.from(e.dataTransfer.files)
+      addFiles(droppedFiles)
     },
-    [onFilesChange],
+    [addFiles],
   )
+
+  const handleFileInput = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (e.target.files) {
+        const selectedFiles = Array.from(e.target.files)
+        addFiles(selectedFiles)
+      }
+    },
+    [addFiles],
+  )
+
+  const removeFile = useCallback((fileId: string) => {
+    setFiles((prev) => {
+      const next = prev.filter((f) => f.id !== fileId)
+      return next
+    })
+  }, [])
+
+  // Keep latest callback in a ref to avoid retriggering effect on identity change
+  useEffect(() => {
+    onFilesChangeRef.current = onFilesChange
+  }, [onFilesChange])
+
+  // Only emit when files actually change to avoid parent update loops
+  useEffect(() => {
+    if (onFilesChangeRef.current) onFilesChangeRef.current(files)
+  }, [files])
 
   const formatFileSize = (bytes: number): string => {
     if (bytes < 1024) return bytes + ' B'
@@ -116,7 +125,6 @@ export function FileDropzone({
           'border-border hover:border-primary/50 cursor-pointer rounded-xl border-2 border-dashed p-8 text-center transition-all duration-300',
           isDragging && 'active',
         )}
-        style={{ background: 'var(--gradient-subtle)' }}
       >
         <input
           type="file"
@@ -126,7 +134,11 @@ export function FileDropzone({
           className="hidden"
           id="file-upload"
         />
-        <label htmlFor="file-upload" className="cursor-pointer">
+        <label
+          htmlFor="file-upload"
+          className="cursor-pointer"
+          aria-label="Seleccionar archivos"
+        >
           <div className="flex flex-col items-center gap-3">
             <div
               className={cn(

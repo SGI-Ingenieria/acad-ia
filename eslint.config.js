@@ -3,6 +3,7 @@
 import { tanstackConfig } from '@tanstack/eslint-config'
 import eslintConfigPrettier from 'eslint-config-prettier'
 import jsxA11y from 'eslint-plugin-jsx-a11y'
+import reactHooks from 'eslint-plugin-react-hooks'
 import unusedImports from 'eslint-plugin-unused-imports'
 
 export default [
@@ -24,9 +25,12 @@ export default [
 
   // 3. TUS REGLAS Y CONFIGURACIÓN "PRO"
   {
+    // Opcional: Puedes ser explícito sobre dónde aplicar esto
+    files: ['**/*.{ts,tsx,js,jsx}'],
     plugins: {
       'jsx-a11y': jsxA11y,
       'unused-imports': unusedImports,
+      'react-hooks': reactHooks,
     },
     // Configuración robusta del Resolver (La versión de Copilot)
     settings: {
@@ -44,7 +48,8 @@ export default [
       // --- REGLAS DE ACCESIBILIDAD (A11Y) ---
       // Activamos las recomendadas manualmente
       ...jsxA11y.configs.recommended.rules,
-
+      'react-hooks/rules-of-hooks': 'error',
+      'react-hooks/exhaustive-deps': 'warn',
       // --- ORDEN DE IMPORTS ---
       'sort-imports': 'off', // Apagamos el nativo
       'import/order': [

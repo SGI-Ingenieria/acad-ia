@@ -17,8 +17,16 @@ import {
 import { ARCHIVOS, REPOSITORIOS } from '@/features/planes/nuevo/catalogs'
 
 const ReferenciasParaIA = ({
+  selectedArchivoIds = [],
+  selectedRepositorioIds = [],
+  onToggleArchivo,
+  onToggleRepositorio,
   onFilesChange,
 }: {
+  selectedArchivoIds?: Array<string>
+  selectedRepositorioIds?: Array<string>
+  onToggleArchivo?: (id: string, checked: boolean) => void
+  onToggleRepositorio?: (id: string, checked: boolean) => void
   onFilesChange?: (
     files: Array<{ id: string; name: string; size: string; type: string }>,
   ) => void
@@ -72,7 +80,13 @@ const ReferenciasParaIA = ({
                 key={archivo.id}
                 className="border-border hover:border-primary/30 hover:bg-accent/50 m-0.5 flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition-colors has-aria-checked:border-blue-600 has-aria-checked:bg-blue-50 dark:has-aria-checked:border-blue-900 dark:has-aria-checked:bg-blue-950"
               >
-                <Checkbox className="peer border-primary ring-offset-background data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground focus-visible:ring-ring h-5 w-5 shrink-0 rounded-sm border focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50" />
+                <Checkbox
+                  checked={selectedArchivoIds.includes(archivo.id)}
+                  onCheckedChange={(checked) =>
+                    onToggleArchivo?.(archivo.id, !!checked)
+                  }
+                  className="peer border-primary ring-offset-background data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground focus-visible:ring-ring h-5 w-5 shrink-0 rounded-sm border focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+                />
 
                 <FileText className="text-muted-foreground h-4 w-4" />
 
@@ -113,7 +127,13 @@ const ReferenciasParaIA = ({
                 key={repositorio.id}
                 className="border-border hover:border-primary/30 hover:bg-accent/50 m-0.5 flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition-colors has-aria-checked:border-blue-600 has-aria-checked:bg-blue-50 dark:has-aria-checked:border-blue-900 dark:has-aria-checked:bg-blue-950"
               >
-                <Checkbox className="peer border-primary ring-offset-background data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground focus-visible:ring-ring h-5 w-5 shrink-0 rounded-sm border focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50" />
+                <Checkbox
+                  checked={selectedRepositorioIds.includes(repositorio.id)}
+                  onCheckedChange={(checked) =>
+                    onToggleRepositorio?.(repositorio.id, !!checked)
+                  }
+                  className="peer border-primary ring-offset-background data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground focus-visible:ring-ring h-5 w-5 shrink-0 rounded-sm border focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+                />
 
                 <FolderOpen className="text-muted-foreground h-4 w-4" />
                 <div className="min-w-0 flex-1">
