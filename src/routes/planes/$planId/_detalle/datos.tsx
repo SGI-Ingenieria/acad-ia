@@ -1,6 +1,6 @@
 import { usePlan } from '@/data';
 import { createFileRoute } from '@tanstack/react-router'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import type { DatosGeneralesField } from '@/types/plan'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -17,23 +17,40 @@ export const Route = createFileRoute('/planes/$planId/_detalle/datos')({
   component: DatosGeneralesPage,
 })
 
-function DatosGeneralesPage() {
-  const {data, isFetching} = usePlan('0e0aea4d-b8b4-4e75-8279-6224c3ac769f');
-  if(!isFetching && !data) {
-    return <div>No se encontró el plan de estudios.</div>
-  }
-  console.log(data);
-  
-  // 1. Definimos los DATOS iniciales (Lo que antes venía por props)
-  const [campos, setCampos] = useState<DatosGeneralesField[]>([
-    { id: '1', label: 'Objetivo General', value: 'Formar profesionales...', requerido: true, tipo: 'texto' },
-    { id: '2', label: 'Perfil de Ingreso', value: 'Interés por la tecnología...', requerido: true, tipo: 'lista' },
-    { id: '3', label: 'Perfil de Egreso', value: '', requerido: true, tipo: 'texto' },
-  ])
+const formatLabel = (key: string) => {
+  const result = key.replace(/_/g, ' ');
+  return result.charAt(0).toUpperCase() + result.slice(1);
+};
 
-  // 2. Estados de edición
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [editValue, setEditValue] = useState('')
+function DatosGeneralesPage() {
+  const { data, isFetching } = usePlan('0e0aea4d-b8b4-4e75-8279-6224c3ac769f');
+  
+   // Inicializamos campos como un arreglo vacío
+  const [campos, setCampos] = useState<DatosGeneralesField[]>([]);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState('');
+  
+  
+  // Efecto para transformar data?.datos en el arreglo de campos
+  useEffect(() => {
+    if (data) {
+      // Si data es directamente el objeto que mostraste, usamos data. 
+      // Si viene dentro de .datos, usamos data.datos.
+      const sourceData = data?.datos; 
+
+      const datosTransformados: DatosGeneralesField[] = Object.entries(sourceData).map(
+        ([key, value], index) => ({
+          id: (index + 1).toString(), // Id basado en index (1, 2, 3...)
+          label: formatLabel(key),    // "perfil_de_ingreso" -> "Perfil de ingreso"
+          value: value?.toString() || '', // Manejo de nulls
+          requerido: true,
+          tipo: 'texto' // Todos como texto según tu instrucción
+        })
+      );
+
+      setCampos(datosTransformados);
+    }
+  }, [data]);
 
   // 3. Manejadores de acciones (Ahora como funciones locales)
   const handleEdit = (campo: DatosGeneralesField) => {

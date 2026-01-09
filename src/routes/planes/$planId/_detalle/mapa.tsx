@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { 
@@ -20,22 +20,14 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { usePlanAsignaturas, usePlanLineas } from '@/data';
+
 
 export const Route = createFileRoute('/planes/$planId/_detalle/mapa')({
   component: MapaCurricularPage,
 })
 
-// --- Constantes de Estilo y Datos ---
-const INITIAL_LINEAS: LineaCurricular[] = [
-  { id: 'l1', nombre: 'Formación Básica', orden: 1 },
-  { id: 'l2', nombre: 'Ciencias de la Computación', orden: 2 },
-];
 
-const INITIAL_MATERIAS: Materia[] = [
-  { id: "1", clave: 'MAT101', nombre: 'Cálculo Diferencial', creditos: 8, hd: 4, hi: 4, ciclo: 1, lineaCurricularId: 'l1', tipo: 'obligatoria', estado: 'aprobada' },
-  { id: "2", clave: 'FIS101', nombre: 'Física Mecánica', creditos: 6, hd: 3, hi: 3, ciclo: 1, lineaCurricularId: 'l1', tipo: 'obligatoria', estado: 'aprobada' },
-  { id: "3", clave: 'PRO101', nombre: 'Fundamentos de Programación', creditos: 8, hd: 4, hi: 4, ciclo: null, lineaCurricularId: null, tipo: 'obligatoria', estado: 'borrador' },
-];
 
 const lineColors = [
   'bg-blue-50 border-blue-200 text-blue-700',
@@ -94,6 +86,24 @@ function MateriaCardItem({ materia, onDragStart, isDragging, onClick }: {
 
 // --- Componente Principal ---
 function MapaCurricularPage() {
+  
+
+  const { data: asignaturas, isFetching: loadingAsig } = usePlanAsignaturas('0e0aea4d-b8b4-4e75-8279-6224c3ac769f');
+  const { data: lineas2, isFetching: loadingLineas } = usePlanLineas('0e0aea4d-b8b4-4e75-8279-6224c3ac769f');
+  console.log(asignaturas);
+  console.log(lineas2);
+  // --- Constantes de Estilo y Datos ---
+const INITIAL_LINEAS: LineaCurricular[] = [
+  { id: 'l1', nombre: 'Formación Básica', orden: 1 },
+  { id: 'l2', nombre: 'Ciencias de la Computación', orden: 2 },
+];
+
+const INITIAL_MATERIAS: Materia[] = [
+  { id: "1", clave: 'MAT101', nombre: 'Cálculo Diferencial', creditos: 8, hd: 4, hi: 4, ciclo: 1, lineaCurricularId: 'l1', tipo: 'obligatoria', estado: 'aprobada' },
+  { id: "2", clave: 'FIS101', nombre: 'Física Mecánica', creditos: 6, hd: 3, hi: 3, ciclo: 1, lineaCurricularId: 'l1', tipo: 'obligatoria', estado: 'aprobada' },
+  { id: "3", clave: 'PRO101', nombre: 'Fundamentos de Programación', creditos: 8, hd: 4, hi: 4, ciclo: null, lineaCurricularId: null, tipo: 'obligatoria', estado: 'borrador' },
+];
+
   const [materias, setMaterias] = useState<Materia[]>(INITIAL_MATERIAS);
   const [lineas, setLineas] = useState<LineaCurricular[]>(INITIAL_LINEAS);
   const [draggedMateria, setDraggedMateria] = useState<string | null>(null);
@@ -102,6 +112,46 @@ function MapaCurricularPage() {
   
   const ciclosTotales = 9;
   const ciclosArray = Array.from({ length: ciclosTotales }, (_, i) => i + 1);
+
+  const mapLineasToLineaCurricular = (lineasApi = []): LineaCurricular[] => {
+  return lineasApi.map((linea: any) => ({
+    id: linea.id,
+    nombre: linea.nombre,
+    orden: linea.orden ?? 0,
+    color: '#1976d2', // default aceptado
+  }));
+};
+
+const mapAsignaturasToMaterias = (asigApi = []): Materia[] => {
+  return asigApi.map((asig: any) => ({
+    id: asig.id,
+    clave: asig.codigo,
+    nombre: asig.nombre,
+    creditos: asig.creditos ?? 0,
+    ciclo: asig.numero_ciclo ?? null,
+    lineaCurricularId: asig.linea_plan_id ?? null,
+    tipo: asig.tipo === 'OBLIGATORIA' ? 'obligatoria' : 'optativa',
+    estado: 'borrador', // default válido
+    orden: asig.orden_celda ?? 0,
+    hd: Math.floor((asig.horas_semana ?? 0) / 2),
+    hi: Math.ceil((asig.horas_semana ?? 0) / 2),
+  }));
+};
+
+const lineasFinales: LineaCurricular[] = useMemo(() => {
+  return [
+    ...INITIAL_LINEAS,
+    ...mapLineasToLineaCurricular(lineas2),
+  ];
+}, [lineas2]);
+
+const materiasFinales: Materia[] = useMemo(() => {
+  return [
+    ...INITIAL_MATERIAS,
+    ...mapAsignaturasToMaterias(asignaturas),
+  ];
+}, [asignaturas]);
+
 
   // --- Lógica de Gestión ---
   const agregarLinea = (nombre: string) => {
@@ -192,7 +242,7 @@ function MapaCurricularPage() {
           </div>
 
           {/* Filas por Línea */}
-          {lineas.map((linea, idx) => {
+          {lineasFinales.map((linea, idx) => {
             const sub = getSubtotalLinea(linea.id);
             return (
               <div key={linea.id} className="grid gap-3 mb-3" style={{ gridTemplateColumns: `220px repeat(${ciclosTotales}, 1fr) 120px` }}>
@@ -208,7 +258,7 @@ function MapaCurricularPage() {
                     onDrop={(e) => handleDrop(e, ciclo, linea.id)}
                     className="min-h-[140px] p-2 rounded-xl border-2 border-dashed border-slate-100 bg-slate-50/20 space-y-2"
                   >
-                    {materias.filter(m => m.ciclo === ciclo && m.lineaCurricularId === linea.id).map(m => (
+                    {materiasFinales.filter(m => m.ciclo === ciclo && m.lineaCurricularId === linea.id).map(m => (
                       <MateriaCardItem key={m.id} materia={m} isDragging={draggedMateria === m.id} onDragStart={handleDragStart} onClick={() => { setSelectedMateria(m); setIsEditModalOpen(true); }} />
                     ))}
                   </div>
