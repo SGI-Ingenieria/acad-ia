@@ -2,9 +2,10 @@ import { RouterProvider, createRouter } from '@tanstack/react-router'
 import { StrictMode } from 'react'
 import ReactDOM from 'react-dom/client'
 
-import * as TanStackQueryProvider from './integrations/tanstack-query/root-provider.tsx'
 import reportWebVitals from './reportWebVitals.ts'
 import { routeTree } from './routeTree.gen'
+
+import * as TanStackQueryProvider from '@/data/query/queryClient.tsx'
 
 import './styles.css'
 

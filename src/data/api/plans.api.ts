@@ -1,6 +1,8 @@
 import { supabaseBrowser } from "../supabase/client";
 import { invokeEdge } from "../supabase/invokeEdge";
-import { buildRange, throwIfError, requireData } from "./_helpers";
+
+import { buildRange, requireData, throwIfError } from "./_helpers";
+
 import type {
   Asignatura,
   CambioPlan,
@@ -18,6 +20,7 @@ const EDGE = {
   ai_generate_plan: "ai_generate_plan",
   plans_persist_from_ai: "plans_persist_from_ai",
   plans_clone_from_existing: "plans_clone_from_existing",
+
   plans_import_from_files: "plans_import_from_files",
 
   plans_update_fields: "plans_update_fields",
@@ -39,23 +42,33 @@ export type PlanListFilters = {
   offset?: number;
 };
 
-export async function plans_list(filters: PlanListFilters = {}): Promise<Paged<PlanEstudio>> {
+export async function plans_list(
+  filters: PlanListFilters = {},
+): Promise<Paged<PlanEstudio>> {
   const supabase = supabaseBrowser();
 
+  // 1. Construimos la query.
+  // TypeScript validará que "planes_estudio" existe en Database
   let q = supabase
     .from("planes_estudio")
     .select(
       `
-      id,carrera_id,estructura_id,nombre,nivel,tipo_ciclo,numero_ciclos,datos,estado_actual_id,activo,tipo_origen,meta_origen,creado_por,actualizado_por,creado_en,actualizado_en,
-      carreras(id,facultad_id,nombre,nombre_corto,clave_sep,activa, facultades(id,nombre,nombre_corto,color,icono)),
-      estructuras_plan(id,nombre,tipo,version,definicion),
-      estados_plan(id,clave,etiqueta,orden,es_final)
-    `,
-      { count: "exact" }
+      *,
+      carreras (
+        *,
+        facultades (*)
+      ),
+      estructuras_plan (*),
+      estados_plan (*)
+      `,
+      { count: "exact" },
     )
     .order("actualizado_en", { ascending: false });
 
-  if (filters.search?.trim()) q = q.ilike("nombre", `%${filters.search.trim()}%`);
+  // 2. Aplicamos filtros dinámicos
+  if (filters.search?.trim()) {
+    q = q.ilike("nombre", `%${filters.search.trim()}%`);
+  }
   if (filters.carreraId) q = q.eq("carrera_id", filters.carreraId);
   if (filters.estadoId) q = q.eq("estado_actual_id", filters.estadoId);
   if (typeof filters.activo === "boolean") q = q.eq("activo", filters.activo);
@@ -63,13 +76,19 @@ export async function plans_list(filters: PlanListFilters = {}): Promise<Paged<P
   // filtro por FK “hacia arriba” (PostgREST soporta filtros en recursos embebidos)
   if (filters.facultadId) q = q.eq("carreras.facultad_id", filters.facultadId);
 
+  // 3. Paginación
   const { from, to } = buildRange(filters.limit, filters.offset);
-  if (typeof from === "number" && typeof to === "number") q = q.range(from, to);
+  if (from !== undefined && to !== undefined) q = q.range(from, to);
 
   const { data, error, count } = await q;
   throwIfError(error);
 
-  return { data: data ?? [], count: count ?? null };
+  return {
+    // 1. Si data es null, usa [].
+    // 2. Luego dile a TS que el resultado es tu Array tipado.
+    data: (data ?? []) as unknown as Array<PlanEstudio>,
+    count: count ?? 0,
+  };
 }
 
 export async function plans_get(planId: UUID): Promise<PlanEstudio> {
@@ -79,11 +98,11 @@ export async function plans_get(planId: UUID): Promise<PlanEstudio> {
     .from("planes_estudio")
     .select(
       `
-      id,carrera_id,estructura_id,nombre,nivel,tipo_ciclo,numero_ciclos,datos,estado_actual_id,activo,tipo_origen,meta_origen,creado_por,actualizado_por,creado_en,actualizado_en,
-      carreras(id,facultad_id,nombre,nombre_corto,clave_sep,activa, facultades(id,nombre,nombre_corto,color,icono)),
-      estructuras_plan(id,nombre,tipo,version,definicion),
-      estados_plan(id,clave,etiqueta,orden,es_final)
-    `
+      *,
+      carreras (*, facultades(*)),
+      estructuras_plan (*),
+      estados_plan (*)
+    `,
     )
     .eq("id", planId)
     .single();
@@ -92,7 +111,9 @@ export async function plans_get(planId: UUID): Promise<PlanEstudio> {
   return requireData(data, "Plan no encontrado.");
 }
 
-export async function plan_lineas_list(planId: UUID): Promise<LineaPlan[]> {
+export async function plan_lineas_list(
+  planId: UUID,
+): Promise<Array<LineaPlan>> {
   const supabase = supabaseBrowser();
   const { data, error } = await supabase
     .from("lineas_plan")
@@ -104,12 +125,14 @@ export async function plan_lineas_list(planId: UUID): Promise<LineaPlan[]> {
   return data ?? [];
 }
 
-export async function plan_asignaturas_list(planId: UUID): Promise<Asignatura[]> {
+export async function plan_asignaturas_list(
+  planId: UUID,
+): Promise<Array<Asignatura>> {
   const supabase = supabaseBrowser();
   const { data, error } = await supabase
     .from("asignaturas")
     .select(
-      "id,plan_estudio_id,estructura_id,facultad_propietaria_id,codigo,nombre,tipo,creditos,horas_semana,numero_ciclo,linea_plan_id,orden_celda,datos,contenido_tematico,tipo_origen,meta_origen,creado_por,actualizado_por,creado_en,actualizado_en"
+      "id,plan_estudio_id,estructura_id,facultad_propietaria_id,codigo,nombre,tipo,creditos,horas_semana,numero_ciclo,linea_plan_id,orden_celda,datos,contenido_tematico,tipo_origen,meta_origen,creado_por,actualizado_por,creado_en,actualizado_en",
     )
     .eq("plan_estudio_id", planId)
     .order("numero_ciclo", { ascending: true, nullsFirst: false })
@@ -120,11 +143,13 @@ export async function plan_asignaturas_list(planId: UUID): Promise<Asignatura[]>
   return data ?? [];
 }
 
-export async function plans_history(planId: UUID): Promise<CambioPlan[]> {
+export async function plans_history(planId: UUID): Promise<Array<CambioPlan>> {
   const supabase = supabaseBrowser();
   const { data, error } = await supabase
     .from("cambios_plan")
-    .select("id,plan_estudio_id,cambiado_por,cambiado_en,tipo,campo,valor_anterior,valor_nuevo,interaccion_ia_id")
+    .select(
+      "id,plan_estudio_id,cambiado_por,cambiado_en,tipo,campo,valor_anterior,valor_nuevo,interaccion_ia_id",
+    )
     .eq("plan_estudio_id", planId)
     .order("cambiado_en", { ascending: false });
 
@@ -143,7 +168,9 @@ export type PlansCreateManualInput = {
   datos?: Partial<PlanDatosSep> & Record<string, any>;
 };
 
-export async function plans_create_manual(input: PlansCreateManualInput): Promise<PlanEstudio> {
+export async function plans_create_manual(
+  input: PlansCreateManualInput,
+): Promise<PlanEstudio> {
   return invokeEdge<PlanEstudio>(EDGE.plans_create_manual, input);
 }
 
@@ -161,27 +188,35 @@ export type AIGeneratePlanInput = {
     descripcionEnfoque: string;
     poblacionObjetivo?: string;
     notasAdicionales?: string;
-    archivosReferencia?: UUID[];
-    repositoriosIds?: UUID[];
+    archivosReferencia?: Array<UUID>;
+    repositoriosIds?: Array<UUID>;
     usarMCP?: boolean;
   };
 };
 
-export async function ai_generate_plan(input: AIGeneratePlanInput): Promise<any> {
+export async function ai_generate_plan(
+  input: AIGeneratePlanInput,
+): Promise<any> {
   return invokeEdge<any>(EDGE.ai_generate_plan, input);
 }
 
-export async function plans_persist_from_ai(payload: { jsonPlan: any }): Promise<PlanEstudio> {
+export async function plans_persist_from_ai(
+  payload: { jsonPlan: any },
+): Promise<PlanEstudio> {
   return invokeEdge<PlanEstudio>(EDGE.plans_persist_from_ai, payload);
 }
 
 export async function plans_clone_from_existing(payload: {
   planOrigenId: UUID;
-  overrides: Partial<Pick<PlanEstudio, "nombre" | "nivel" | "tipo_ciclo" | "numero_ciclos">> & {
-    carrera_id?: UUID;
-    estructura_id?: UUID;
-    datos?: Partial<PlanDatosSep> & Record<string, any>;
-  };
+  overrides:
+    & Partial<
+      Pick<PlanEstudio, "nombre" | "nivel" | "tipo_ciclo" | "numero_ciclos">
+    >
+    & {
+      carrera_id?: UUID;
+      estructura_id?: UUID;
+      datos?: Partial<PlanDatosSep> & Record<string, any>;
+    };
 }): Promise<PlanEstudio> {
   return invokeEdge<PlanEstudio>(EDGE.plans_clone_from_existing, payload);
 }
@@ -211,27 +246,33 @@ export type PlansUpdateFieldsPatch = {
   datos?: Partial<PlanDatosSep> & Record<string, any>;
 };
 
-export async function plans_update_fields(planId: UUID, patch: PlansUpdateFieldsPatch): Promise<PlanEstudio> {
+export async function plans_update_fields(
+  planId: UUID,
+  patch: PlansUpdateFieldsPatch,
+): Promise<PlanEstudio> {
   return invokeEdge<PlanEstudio>(EDGE.plans_update_fields, { planId, patch });
 }
 
 /** Operaciones del mapa curricular (mover/reordenar) */
 export type PlanMapOperation =
   | {
-      op: "MOVE_ASIGNATURA";
-      asignaturaId: UUID;
-      numero_ciclo: number | null;
-      linea_plan_id: UUID | null;
-      orden_celda?: number | null;
-    }
+    op: "MOVE_ASIGNATURA";
+    asignaturaId: UUID;
+    numero_ciclo: number | null;
+    linea_plan_id: UUID | null;
+    orden_celda?: number | null;
+  }
   | {
-      op: "REORDER_CELDA";
-      linea_plan_id: UUID;
-      numero_ciclo: number;
-      asignaturaIdsOrdenados: UUID[];
-    };
+    op: "REORDER_CELDA";
+    linea_plan_id: UUID;
+    numero_ciclo: number;
+    asignaturaIdsOrdenados: Array<UUID>;
+  };
 
-export async function plans_update_map(planId: UUID, ops: PlanMapOperation[]): Promise<{ ok: true }> {
+export async function plans_update_map(
+  planId: UUID,
+  ops: Array<PlanMapOperation>,
+): Promise<{ ok: true }> {
   return invokeEdge<{ ok: true }>(EDGE.plans_update_map, { planId, ops });
 }
 
@@ -251,10 +292,16 @@ export type DocumentoResult = {
   nombre?: string;
 };
 
-export async function plans_generate_document(planId: UUID): Promise<DocumentoResult> {
+export async function plans_generate_document(
+  planId: UUID,
+): Promise<DocumentoResult> {
   return invokeEdge<DocumentoResult>(EDGE.plans_generate_document, { planId });
 }
 
-export async function plans_get_document(planId: UUID): Promise<DocumentoResult | null> {
-  return invokeEdge<DocumentoResult | null>(EDGE.plans_get_document, { planId });
+export async function plans_get_document(
+  planId: UUID,
+): Promise<DocumentoResult | null> {
+  return invokeEdge<DocumentoResult | null>(EDGE.plans_get_document, {
+    planId,
+  });
 }

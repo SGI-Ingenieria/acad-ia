@@ -1,27 +1,26 @@
-import type { Json } from "./database";
+import type { Enums, Tables } from "../../types/supabase";
+import type { Json } from "src/types/supabase";
 
 export type UUID = string;
 
-export type TipoEstructuraPlan = "CURRICULAR" | "NO_CURRICULAR";
-export type NivelPlanEstudio =
-  | "LICENCIATURA"
-  | "MAESTRIA"
-  | "DOCTORADO"
-  | "ESPECIALIDAD"
-  | "DIPLOMADO"
-  | "OTRO";
+export type TipoEstructuraPlan = Enums<"tipo_estructura_plan">;
+export type NivelPlanEstudio = Enums<"nivel_plan_estudio">;
+export type TipoCiclo = Enums<"tipo_ciclo">;
 
-export type TipoCiclo = "SEMESTRE" | "CUATRIMESTRE" | "TRIMESTRE" | "OTRO";
+export type TipoOrigen = Enums<"tipo_origen">;
 
-export type TipoOrigen = "MANUAL" | "IA" | "CLONADO_INTERNO" | "TRADICIONAL" | "OTRO";
-
-export type TipoAsignatura = "OBLIGATORIA" | "OPTATIVA" | "TRONCAL" | "OTRA";
+export type TipoAsignatura = Enums<"tipo_asignatura">;
 
 export type TipoBibliografia = "BASICA" | "COMPLEMENTARIA";
 export type TipoFuenteBibliografia = "MANUAL" | "BIBLIOTECA";
 
 export type EstadoTareaRevision = "PENDIENTE" | "COMPLETADA" | "OMITIDA";
-export type TipoNotificacion = "PLAN_ASIGNADO" | "ESTADO_CAMBIADO" | "TAREA_ASIGNADA" | "COMENTARIO" | "OTRA";
+export type TipoNotificacion =
+  | "PLAN_ASIGNADO"
+  | "ESTADO_CAMBIADO"
+  | "TAREA_ASIGNADA"
+  | "COMENTARIO"
+  | "OTRA";
 
 export type TipoInteraccionIA = "GENERAR" | "MEJORAR_SECCION" | "CHAT" | "OTRA";
 
@@ -58,38 +57,12 @@ export type PlanDatosSep = {
   propuesta_de_evaluacion_periodica_del_plan_de_estudios?: string | null;
 };
 
-export type Paged<T> = { data: T[]; count: number | null };
+export type Paged<T> = { data: Array<T>; count: number | null };
 
-export type Facultad = {
-  id: UUID;
-  nombre: string;
-  nombre_corto: string | null;
-  color: string | null;
-  icono: string | null;
-  creado_en: string;
-  actualizado_en: string;
-};
+export type FacultadRow = Tables<"facultades">;
+export type CarreraRow = Tables<"carreras">;
 
-export type Carrera = {
-  id: UUID;
-  facultad_id: UUID;
-  nombre: string;
-  nombre_corto: string | null;
-  clave_sep: string | null;
-  activa: boolean;
-  creado_en: string;
-  actualizado_en: string;
-
-  facultades?: Facultad | null;
-};
-
-export type EstructuraPlan = {
-  id: UUID;
-  nombre: string;
-  tipo: TipoEstructuraPlan;
-  version: string | null;
-  definicion: Json;
-};
+export type EstructuraPlanRow = Tables<"estructuras_plan">;
 
 export type EstructuraAsignatura = {
   id: UUID;
@@ -98,41 +71,13 @@ export type EstructuraAsignatura = {
   definicion: Json;
 };
 
-export type EstadoPlan = {
-  id: UUID;
-  clave: string;
-  etiqueta: string;
-  orden: number;
-  es_final: boolean;
-};
+export type EstadoPlanRow = Tables<"estados_plan">;
+export type PlanEstudioRow = Tables<"planes_estudio">;
 
-export type PlanEstudio = {
-  id: UUID;
-  carrera_id: UUID;
-  estructura_id: UUID;
-
-  nombre: string;
-  nivel: NivelPlanEstudio;
-  tipo_ciclo: TipoCiclo;
-  numero_ciclos: number;
-
-  datos: Json;
-
-  estado_actual_id: UUID | null;
-  activo: boolean;
-
-  tipo_origen: TipoOrigen | null;
-  meta_origen: Json;
-
-  creado_por: UUID | null;
-  actualizado_por: UUID | null;
-
-  creado_en: string;
-  actualizado_en: string;
-
-  carreras?: Carrera | null;
-  estructuras_plan?: EstructuraPlan | null;
-  estados_plan?: EstadoPlan | null;
+export type PlanEstudio = PlanEstudioRow & {
+  carreras: (CarreraRow & { facultades: FacultadRow | null }) | null;
+  estructuras_plan: EstructuraPlanRow | null;
+  estados_plan: EstadoPlanRow | null;
 };
 
 export type LineaPlan = {
