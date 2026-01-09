@@ -12,11 +12,9 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as MateriasIndexRouteImport } from './routes/materias/index'
 import { Route as DemoTanstackQueryRouteImport } from './routes/demo/tanstack-query'
 import { Route as PlanesListaRouteRouteImport } from './routes/planes/_lista/route'
 import { Route as PlanesListaNuevoRouteImport } from './routes/planes/_lista/nuevo'
-import { Route as MateriasMateriaIdMateriaIdRouteImport } from './routes/materias/$materiaId/$materiaId'
 import { Route as PlanesPlanIdAsignaturasRouteRouteImport } from './routes/planes/$planId/asignaturas/route'
 import { Route as PlanesPlanIdDetalleRouteRouteImport } from './routes/planes/$planId/_detalle/route'
 import { Route as PlanesPlanIdAsignaturasIndexRouteImport } from './routes/planes/$planId/asignaturas/index'
@@ -46,11 +44,6 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const MateriasIndexRoute = MateriasIndexRouteImport.update({
-  id: '/materias/',
-  path: '/materias/',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const DemoTanstackQueryRoute = DemoTanstackQueryRouteImport.update({
   id: '/demo/tanstack-query',
   path: '/demo/tanstack-query',
@@ -66,12 +59,6 @@ const PlanesListaNuevoRoute = PlanesListaNuevoRouteImport.update({
   path: '/nuevo',
   getParentRoute: () => PlanesListaRouteRoute,
 } as any)
-const MateriasMateriaIdMateriaIdRoute =
-  MateriasMateriaIdMateriaIdRouteImport.update({
-    id: '/materias/$materiaId/$materiaId',
-    path: '/materias/$materiaId/$materiaId',
-    getParentRoute: () => rootRouteImport,
-  } as any)
 const PlanesPlanIdAsignaturasRouteRoute =
   PlanesPlanIdAsignaturasRouteRouteImport.update({
     id: '/planes/$planId/asignaturas',
@@ -155,10 +142,8 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/planes': typeof PlanesListaRouteRouteWithChildren
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
-  '/materias': typeof MateriasIndexRoute
   '/planes/$planId': typeof PlanesPlanIdDetalleRouteRouteWithChildren
   '/planes/$planId/asignaturas': typeof PlanesPlanIdAsignaturasListaRouteRouteWithChildren
-  '/materias/$materiaId/$materiaId': typeof MateriasMateriaIdMateriaIdRoute
   '/planes/nuevo': typeof PlanesListaNuevoRoute
   '/planes/$planId/asignaturas/$asignaturaId': typeof PlanesPlanIdAsignaturasAsignaturaIdRouteRoute
   '/planes/$planId/datos': typeof PlanesPlanIdDetalleDatosRoute
@@ -177,9 +162,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/planes': typeof PlanesListaRouteRouteWithChildren
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
-  '/materias': typeof MateriasIndexRoute
   '/planes/$planId': typeof PlanesPlanIdDetalleRouteRouteWithChildren
-  '/materias/$materiaId/$materiaId': typeof MateriasMateriaIdMateriaIdRoute
   '/planes/nuevo': typeof PlanesListaNuevoRoute
   '/planes/$planId/asignaturas/$asignaturaId': typeof PlanesPlanIdAsignaturasAsignaturaIdRouteRoute
   '/planes/$planId/asignaturas': typeof PlanesPlanIdAsignaturasIndexRoute
@@ -199,10 +182,8 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/planes/_lista': typeof PlanesListaRouteRouteWithChildren
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
-  '/materias/': typeof MateriasIndexRoute
   '/planes/$planId/_detalle': typeof PlanesPlanIdDetalleRouteRouteWithChildren
   '/planes/$planId/asignaturas': typeof PlanesPlanIdAsignaturasRouteRouteWithChildren
-  '/materias/$materiaId/$materiaId': typeof MateriasMateriaIdMateriaIdRoute
   '/planes/_lista/nuevo': typeof PlanesListaNuevoRoute
   '/planes/$planId/asignaturas/$asignaturaId': typeof PlanesPlanIdAsignaturasAsignaturaIdRouteRoute
   '/planes/$planId/asignaturas/_lista': typeof PlanesPlanIdAsignaturasListaRouteRouteWithChildren
@@ -224,10 +205,8 @@ export interface FileRouteTypes {
     | '/login'
     | '/planes'
     | '/demo/tanstack-query'
-    | '/materias'
     | '/planes/$planId'
     | '/planes/$planId/asignaturas'
-    | '/materias/$materiaId/$materiaId'
     | '/planes/nuevo'
     | '/planes/$planId/asignaturas/$asignaturaId'
     | '/planes/$planId/datos'
@@ -246,9 +225,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/planes'
     | '/demo/tanstack-query'
-    | '/materias'
     | '/planes/$planId'
-    | '/materias/$materiaId/$materiaId'
     | '/planes/nuevo'
     | '/planes/$planId/asignaturas/$asignaturaId'
     | '/planes/$planId/asignaturas'
@@ -267,10 +244,8 @@ export interface FileRouteTypes {
     | '/login'
     | '/planes/_lista'
     | '/demo/tanstack-query'
-    | '/materias/'
     | '/planes/$planId/_detalle'
     | '/planes/$planId/asignaturas'
-    | '/materias/$materiaId/$materiaId'
     | '/planes/_lista/nuevo'
     | '/planes/$planId/asignaturas/$asignaturaId'
     | '/planes/$planId/asignaturas/_lista'
@@ -291,10 +266,8 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   PlanesListaRouteRoute: typeof PlanesListaRouteRouteWithChildren
   DemoTanstackQueryRoute: typeof DemoTanstackQueryRoute
-  MateriasIndexRoute: typeof MateriasIndexRoute
   PlanesPlanIdDetalleRouteRoute: typeof PlanesPlanIdDetalleRouteRouteWithChildren
   PlanesPlanIdAsignaturasRouteRoute: typeof PlanesPlanIdAsignaturasRouteRouteWithChildren
-  MateriasMateriaIdMateriaIdRoute: typeof MateriasMateriaIdMateriaIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -320,13 +293,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/materias/': {
-      id: '/materias/'
-      path: '/materias'
-      fullPath: '/materias'
-      preLoaderRoute: typeof MateriasIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/demo/tanstack-query': {
       id: '/demo/tanstack-query'
       path: '/demo/tanstack-query'
@@ -347,13 +313,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/planes/nuevo'
       preLoaderRoute: typeof PlanesListaNuevoRouteImport
       parentRoute: typeof PlanesListaRouteRoute
-    }
-    '/materias/$materiaId/$materiaId': {
-      id: '/materias/$materiaId/$materiaId'
-      path: '/materias/$materiaId/$materiaId'
-      fullPath: '/materias/$materiaId/$materiaId'
-      preLoaderRoute: typeof MateriasMateriaIdMateriaIdRouteImport
-      parentRoute: typeof rootRouteImport
     }
     '/planes/$planId/asignaturas': {
       id: '/planes/$planId/asignaturas'
@@ -527,11 +486,9 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   PlanesListaRouteRoute: PlanesListaRouteRouteWithChildren,
   DemoTanstackQueryRoute: DemoTanstackQueryRoute,
-  MateriasIndexRoute: MateriasIndexRoute,
   PlanesPlanIdDetalleRouteRoute: PlanesPlanIdDetalleRouteRouteWithChildren,
   PlanesPlanIdAsignaturasRouteRoute:
     PlanesPlanIdAsignaturasRouteRouteWithChildren,
-  MateriasMateriaIdMateriaIdRoute: MateriasMateriaIdMateriaIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
