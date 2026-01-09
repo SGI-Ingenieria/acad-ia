@@ -18,6 +18,12 @@ export const Route = createFileRoute('/planes/$planId/_detalle/datos')({
 })
 
 function DatosGeneralesPage() {
+  const {data, isFetching} = usePlan('0e0aea4d-b8b4-4e75-8279-6224c3ac769f');
+  if(!isFetching && !data) {
+    return <div>No se encontró el plan de estudios.</div>
+  }
+  console.log(data);
+  
   // 1. Definimos los DATOS iniciales (Lo que antes venía por props)
   const [campos, setCampos] = useState<DatosGeneralesField[]>([
     { id: '1', label: 'Objetivo General', value: 'Formar profesionales...', requerido: true, tipo: 'texto' },
