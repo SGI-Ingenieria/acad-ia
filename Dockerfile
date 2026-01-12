@@ -1,7 +1,7 @@
 FROM oven/bun:1 AS build
 WORKDIR /app
 COPY . .
-RUN bun install --frozen-lockfile
+RUN bun install
 RUN bunx --bun vite build
 
 FROM nginx:alpine
