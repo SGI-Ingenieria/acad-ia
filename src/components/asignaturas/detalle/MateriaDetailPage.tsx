@@ -1,123 +1,117 @@
-
-import  { useCallback, useState } from 'react'
-import {  Link } from '@tanstack/react-router'
+import { useCallback, useState } from 'react'
+import { Link } from '@tanstack/react-router'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { Textarea } from '@/components/ui/textarea'
-import {
-  ArrowLeft,
-  GraduationCap,
-  Edit2, Save, 
-  Pencil
-} from 'lucide-react'
+import { ArrowLeft, GraduationCap, Edit2, Save, Pencil } from 'lucide-react'
 import { ContenidoTematico } from './ContenidoTematico'
 import { BibliographyItem } from './BibliographyItem'
 import { IAMateriaTab } from './IAMateriaTab'
-import type { 
+import type {
   CampoEstructura,
-  IAMessage, 
-  IASugerencia, 
-  UnidadTematica, 
-} from '@/types/materia';
+  IAMessage,
+  IASugerencia,
+  UnidadTematica,
+} from '@/types/materia'
 import {
   mockMateria,
   mockEstructura,
   mockDocumentoSep,
-  mockHistorial
-} from '@/data/mockMateriaData';
+  mockHistorial,
+} from '@/data/mockMateriaData'
 import { DocumentoSEPTab } from './DocumentoSEPTab'
 import { HistorialTab } from './HistorialTab'
+import { useSubject } from '@/data/hooks/useSubjects'
 
 export interface BibliografiaEntry {
-  id: string;
-  tipo: 'BASICA' | 'COMPLEMENTARIA';
-  cita: string;
-  fuenteBibliotecaId?: string;
-  fuenteBiblioteca?: any;
+  id: string
+  tipo: 'BASICA' | 'COMPLEMENTARIA'
+  cita: string
+  fuenteBibliotecaId?: string
+  fuenteBiblioteca?: any
 }
 export interface BibliografiaTabProps {
-  bibliografia: BibliografiaEntry[];
-  onSave: (bibliografia: BibliografiaEntry[]) => void;
-  isSaving: boolean;
+  bibliografia: BibliografiaEntry[]
+  onSave: (bibliografia: BibliografiaEntry[]) => void
+  isSaving: boolean
 }
 
 export default function MateriaDetailPage() {
-
   // 1. Asegúrate de tener estos estados en tu componente principal
-const [messages, setMessages] = useState<IAMessage[]>([]);
-const [datosGenerales, setDatosGenerales] = useState({});
-const [campos, setCampos] = useState<CampoEstructura[]>([]);
+  const [messages, setMessages] = useState<IAMessage[]>([])
+  const [datosGenerales, setDatosGenerales] = useState({})
+  const [campos, setCampos] = useState<CampoEstructura[]>([])
 
-// 2. Funciones de manejo para la IA
-const handleSendMessage = (text: string, campoId?: string) => {
-  const newMessage: IAMessage = {
-    id: Date.now().toString(),
-    role: 'user',
-    content: text,
-    timestamp: new Date(),
-    campoAfectado: campoId
-  };
-  setMessages([...messages, newMessage]);
-  
-  // Aquí llamarías a tu API de OpenAI/Claude
-  //toast.info("Enviando consulta a la IA...");
-};
+  // 2. Funciones de manejo para la IA
+  const handleSendMessage = (text: string, campoId?: string) => {
+    const newMessage: IAMessage = {
+      id: Date.now().toString(),
+      role: 'user',
+      content: text,
+      timestamp: new Date(),
+      campoAfectado: campoId,
+    }
+    setMessages([...messages, newMessage])
 
-const handleAcceptSuggestion = (sugerencia: IASugerencia) => {
-  // Lógica para actualizar el valor del campo en tu estado de datosGenerales
-  //toast.success(`Sugerencia aplicada a ${sugerencia.campoNombre}`);
-};
+    // Aquí llamarías a tu API de OpenAI/Claude
+    //toast.info("Enviando consulta a la IA...");
+  }
+
+  const handleAcceptSuggestion = (sugerencia: IASugerencia) => {
+    // Lógica para actualizar el valor del campo en tu estado de datosGenerales
+    //toast.success(`Sugerencia aplicada a ${sugerencia.campoNombre}`);
+  }
 
   // Dentro de tu componente principal (donde están los Tabs)
-const [bibliografia, setBibliografia] = useState<BibliografiaEntry[]>([
-  {
-    id: '1',
-    tipo: 'BASICA',
-    cita: 'Russell, S., & Norvig, P. (2020). Artificial Intelligence: A Modern Approach. Pearson.'
-  }
-]);
-const [isSaving, setIsSaving] = useState(false);
+  const [bibliografia, setBibliografia] = useState<BibliografiaEntry[]>([
+    {
+      id: '1',
+      tipo: 'BASICA',
+      cita: 'Russell, S., & Norvig, P. (2020). Artificial Intelligence: A Modern Approach. Pearson.',
+    },
+  ])
+  const [isSaving, setIsSaving] = useState(false)
 
-const handleSaveBibliografia = (data: BibliografiaEntry[]) => {
-  setIsSaving(true);
-  // Aquí iría tu llamada a la API
-  setBibliografia(data);
-  
-  // Simulamos un guardado
-  setTimeout(() => {
-    setIsSaving(false);
-    //toast.success("Cambios guardados");
-  }, 1000);
-};
+  const handleSaveBibliografia = (data: BibliografiaEntry[]) => {
+    setIsSaving(true)
+    // Aquí iría tu llamada a la API
+    setBibliografia(data)
 
- const [isRegenerating, setIsRegenerating] = useState(false);
-
-const handleRegenerateDocument = useCallback(() => {
-    setIsRegenerating(true);
+    // Simulamos un guardado
     setTimeout(() => {
-      setIsRegenerating(false);
-    }, 2000);
-  }, []);
+      setIsSaving(false)
+      //toast.success("Cambios guardados");
+    }, 1000)
+  }
+
+  const [isRegenerating, setIsRegenerating] = useState(false)
+
+  const handleRegenerateDocument = useCallback(() => {
+    setIsRegenerating(true)
+    setTimeout(() => {
+      setIsRegenerating(false)
+    }, 2000)
+  }, [])
 
   return (
     <div className="w-full">
       {/* ================= HEADER ================= */}
       <section className="bg-gradient-to-b from-[#0b1d3a] to-[#0e2a5c] text-white">
-        <div className="max-w-7xl mx-auto px-6 py-10">
+        <div className="mx-auto max-w-7xl px-6 py-10">
           <Link
             to="/planes"
-            className="flex items-center gap-2 text-sm text-blue-200 hover:text-white mb-4"
+            className="mb-4 flex items-center gap-2 text-sm text-blue-200 hover:text-white"
           >
-            <ArrowLeft className="w-4 h-4" />
+            <ArrowLeft className="h-4 w-4" />
             Volver al plan
           </Link>
 
           <div className="flex items-start justify-between gap-6">
             <div className="space-y-3">
-              <Badge className="bg-blue-900/50 border border-blue-700">
+              <Badge className="border border-blue-700 bg-blue-900/50">
                 IA-401
               </Badge>
 
@@ -127,7 +121,7 @@ const handleRegenerateDocument = useCallback(() => {
 
               <div className="flex flex-wrap gap-4 text-sm text-blue-200">
                 <span className="flex items-center gap-1">
-                  <GraduationCap className="w-4 h-4" />
+                  <GraduationCap className="h-4 w-4" />
                   Ingeniería en Sistemas Computacionales
                 </span>
 
@@ -136,13 +130,13 @@ const handleRegenerateDocument = useCallback(() => {
 
               <p className="text-sm text-blue-300">
                 Pertenece al plan:{' '}
-                <span className="underline cursor-pointer">
+                <span className="cursor-pointer underline">
                   Licenciatura en Ingeniería en Sistemas Computacionales 2024
                 </span>
               </p>
             </div>
 
-            <div className="flex flex-col gap-2 items-end">
+            <div className="flex flex-col items-end gap-2">
               <Badge variant="secondary">8 créditos</Badge>
               <Badge variant="secondary">7° semestre</Badge>
               <Badge variant="secondary">Sistemas Inteligentes</Badge>
@@ -152,10 +146,10 @@ const handleRegenerateDocument = useCallback(() => {
       </section>
 
       {/* ================= TABS ================= */}
-      <section className="bg-white border-b">
-        <div className="max-w-7xl mx-auto px-6">
+      <section className="border-b bg-white">
+        <div className="mx-auto max-w-7xl px-6">
           <Tabs defaultValue="datos">
-            <TabsList className="h-auto bg-transparent p-0 gap-6">
+            <TabsList className="h-auto gap-6 bg-transparent p-0">
               <TabsTrigger value="datos">Datos generales</TabsTrigger>
               <TabsTrigger value="contenido">Contenido temático</TabsTrigger>
               <TabsTrigger value="bibliografia">Bibliografía</TabsTrigger>
@@ -176,22 +170,27 @@ const handleRegenerateDocument = useCallback(() => {
             </TabsContent>
 
             <TabsContent value="bibliografia">
-              <BibliographyItem 
-                bibliografia={bibliografia} 
-                onSave={handleSaveBibliografia} 
-                isSaving={isSaving} 
+              <BibliographyItem
+                bibliografia={bibliografia}
+                onSave={handleSaveBibliografia}
+                isSaving={isSaving}
               />
             </TabsContent>
 
             <TabsContent value="ia">
-              <IAMateriaTab 
-              campos={campos}
-              datosGenerales={datosGenerales}
-              messages={messages}
-              onSendMessage={handleSendMessage}
-              onAcceptSuggestion={handleAcceptSuggestion}
-              onRejectSuggestion={(id) => console.log("Rechazada") /*toast.error("Sugerencia rechazada")*/}
-            />
+              <IAMateriaTab
+                campos={campos}
+                datosGenerales={datosGenerales}
+                messages={messages}
+                onSendMessage={handleSendMessage}
+                onAcceptSuggestion={handleAcceptSuggestion}
+                onRejectSuggestion={
+                  (id) =>
+                    console.log(
+                      'Rechazada',
+                    ) /*toast.error("Sugerencia rechazada")*/
+                }
+              />
             </TabsContent>
 
             <TabsContent value="sep">
@@ -206,7 +205,7 @@ const handleRegenerateDocument = useCallback(() => {
             </TabsContent>
 
             <TabsContent value="historial">
-               <HistorialTab historial={mockHistorial} />
+              <HistorialTab historial={mockHistorial} />
             </TabsContent>
           </Tabs>
         </div>
@@ -218,79 +217,93 @@ const handleRegenerateDocument = useCallback(() => {
 /* ================= TAB CONTENT ================= */
 
 function DatosGenerales() {
+  const { data: asignaturasApi, isLoading: loadingAsig } = useSubject(
+    /*planId*/ '9d4dda6a-488f-428a-8a07-38081592a641',
+  )
+
+  console.log(asignaturasApi.datos)
+
   return (
-    <div className="max-w-7xl mx-auto py-8 px-4 space-y-8 animate-in fade-in duration-500">
-      
+    <div className="animate-in fade-in mx-auto max-w-7xl space-y-8 px-4 py-8 duration-500">
       {/* Encabezado de la Sección */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-6">
+      <div className="flex flex-col justify-between gap-4 border-b pb-6 md:flex-row md:items-center">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight text-slate-900">Datos Generales</h2>
-          <p className="text-slate-500 mt-1">
+          <h2 className="text-2xl font-bold tracking-tight text-slate-900">
+            Datos Generales
+          </h2>
+          <p className="mt-1 text-slate-500">
             Información oficial estructurada bajo los lineamientos de la SEP.
           </p>
         </div>
         <div className="flex gap-3">
           <Button variant="outline" size="sm" className="gap-2">
-            <Edit2 className="w-4 h-4" /> Editar borrador
+            <Edit2 className="h-4 w-4" /> Editar borrador
           </Button>
           <Button size="sm" className="gap-2 bg-blue-600 hover:bg-blue-700">
-            <Save className="w-4 h-4" /> Guardar cambios
+            <Save className="h-4 w-4" /> Guardar cambios
           </Button>
         </div>
       </div>
 
       {/* Grid de Información */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
         {/* Columna Principal (Más ancha) */}
-        <div className="md:col-span-2 space-y-6">
-          <div className="md:col-span-2 space-y-6">
-          <InfoCard
-            title="Competencias a Desarrollar"
-            subtitle="Competencias profesionales que se desarrollarán"
-            isList={true}
-            initialContent={`• Diseñar algoritmos de machine learning para clasificación y predicción\n• Implementar redes neuronales profundas para procesamiento de imágenes\n• Evaluar y optimizar modelos de IA considerando métricas`}
-          />
-          
-          <InfoCard
-            title="Objetivo General"
-            initialContent="Formar profesionales capaces de diseñar, implementar y evaluar sistemas de inteligencia artificial que resuelvan problemas complejos."
-          />
-        </div>
-        
-        <div className="space-y-6">
-          <InfoCard
-            title="Justificación"
-            initialContent="La inteligencia artificial es una de las tecnologías más disruptivas..."
-          />
-        </div>
+        <div className="space-y-6 md:col-span-2">
+          <div className="space-y-6 md:col-span-2">
+            <InfoCard
+              title="Competencias a Desarrollar"
+              subtitle="Competencias profesionales que se desarrollarán"
+              isList={true}
+              initialContent={`• Diseñar algoritmos de machine learning para clasificación y predicción\n• Implementar redes neuronales profundas para procesamiento de imágenes\n• Evaluar y optimizar modelos de IA considerando métricas`}
+            />
+
+            <InfoCard
+              title="Objetivo General"
+              initialContent="Formar profesionales capaces de diseñar, implementar y evaluar sistemas de inteligencia artificial que resuelvan problemas complejos."
+            />
+          </div>
+
+          <div className="space-y-6">
+            <InfoCard
+              title="Justificación"
+              initialContent="La inteligencia artificial es una de las tecnologías más disruptivas..."
+            />
+          </div>
         </div>
 
         {/* Columna Lateral (Información Secundaria) */}
         <div className="space-y-6">
           <div className="space-y-6">
-          {/* Tarjeta de Requisitos */}
-          <InfoCard
-            title="Requisitos y Seriación"
-            type="requirements"
-            initialContent={[
-              { type: "Pre-requisito", code: "PA-301", name: "Programación Avanzada" },
-              { type: "Co-requisito", code: "MAT-201", name: "Matemáticas Discretas" }
-            ]}
-          />
+            {/* Tarjeta de Requisitos */}
+            <InfoCard
+              title="Requisitos y Seriación"
+              type="requirements"
+              initialContent={[
+                {
+                  type: 'Pre-requisito',
+                  code: 'PA-301',
+                  name: 'Programación Avanzada',
+                },
+                {
+                  type: 'Co-requisito',
+                  code: 'MAT-201',
+                  name: 'Matemáticas Discretas',
+                },
+              ]}
+            />
 
-          {/* Tarjeta de Evaluación */}
-          <InfoCard
-            title="Sistema de Evaluación"
-            type="evaluation"
-            initialContent={[
-              { label: "Exámenes parciales", value: "30%" },
-              { label: "Proyecto integrador", value: "35%" },
-              { label: "Prácticas de laboratorio", value: "20%" },
-              { label: "Participación", value: "15%" },
-            ]}
-          />
-        </div>
+            {/* Tarjeta de Evaluación */}
+            <InfoCard
+              title="Sistema de Evaluación"
+              type="evaluation"
+              initialContent={[
+                { label: 'Exámenes parciales', value: '30%' },
+                { label: 'Proyecto integrador', value: '35%' },
+                { label: 'Prácticas de laboratorio', value: '20%' },
+                { label: 'Participación', value: '15%' },
+              ]}
+            />
+          </div>
         </div>
       </div>
     </div>
@@ -298,9 +311,9 @@ function DatosGenerales() {
 }
 
 interface InfoCardProps {
-  title: string,
+  title: string
   subtitle?: string
-  isList?:boolean
+  isList?: boolean
   initialContent: any // Puede ser string o array de objetos
   type?: 'text' | 'list' | 'requirements' | 'evaluation'
 }
@@ -310,23 +323,30 @@ function InfoCard({ title, initialContent, type = 'text' }: InfoCardProps) {
   const [data, setData] = useState(initialContent)
   // Estado temporal para el área de texto (siempre editamos como texto por simplicidad)
   const [tempText, setTempText] = useState(
-    type === 'text' || type === 'list' 
-      ? initialContent 
-      : JSON.stringify(initialContent, null, 2) // O un formato legible
+    type === 'text' || type === 'list'
+      ? initialContent
+      : JSON.stringify(initialContent, null, 2), // O un formato legible
   )
 
   const handleSave = () => {
     // Aquí podrías parsear el texto de vuelta si es necesario
-    setData(tempText) 
+    setData(tempText)
     setIsEditing(false)
   }
 
   return (
     <Card className="transition-all hover:border-slate-300">
-      <CardHeader className="pb-3 flex flex-row items-start justify-between space-y-0">
-        <CardTitle className="text-sm font-bold text-slate-700">{title}</CardTitle>
+      <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-3">
+        <CardTitle className="text-sm font-bold text-slate-700">
+          {title}
+        </CardTitle>
         {!isEditing && (
-          <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400" onClick={() => setIsEditing(true)}>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-slate-400"
+            onClick={() => setIsEditing(true)}
+          >
             <Pencil className="h-3 w-3" />
           </Button>
         )}
@@ -335,14 +355,22 @@ function InfoCard({ title, initialContent, type = 'text' }: InfoCardProps) {
       <CardContent>
         {isEditing ? (
           <div className="space-y-3">
-            <Textarea 
-              value={tempText} 
+            <Textarea
+              value={tempText}
               onChange={(e) => setTempText(e.target.value)}
-              className="text-xs min-h-[100px]"
+              className="min-h-[100px] text-xs"
             />
             <div className="flex justify-end gap-2">
-              <Button size="sm" variant="ghost" onClick={() => setIsEditing(false)}>Cancelar</Button>
-              <Button size="sm" className="bg-[#00a878]" onClick={handleSave}>Guardar</Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setIsEditing(false)}
+              >
+                Cancelar
+              </Button>
+              <Button size="sm" className="bg-[#00a878]" onClick={handleSave}>
+                Guardar
+              </Button>
             </div>
           </div>
         ) : (
@@ -362,9 +390,16 @@ function RequirementsView({ items }: { items: any[] }) {
   return (
     <div className="space-y-3">
       {items.map((req, i) => (
-        <div key={i} className="p-3 bg-slate-50 rounded-lg border border-slate-100">
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">{req.type}</p>
-          <p className="text-sm font-medium text-slate-700">{req.code} {req.name}</p>
+        <div
+          key={i}
+          className="rounded-lg border border-slate-100 bg-slate-50 p-3"
+        >
+          <p className="text-[10px] font-bold tracking-tight text-slate-400 uppercase">
+            {req.type}
+          </p>
+          <p className="text-sm font-medium text-slate-700">
+            {req.code} {req.name}
+          </p>
         </div>
       ))}
     </div>
@@ -376,7 +411,10 @@ function EvaluationView({ items }: { items: any[] }) {
   return (
     <div className="space-y-2">
       {items.map((item, i) => (
-        <div key={i} className="flex justify-between text-sm border-b border-slate-50 pb-1.5 italic">
+        <div
+          key={i}
+          className="flex justify-between border-b border-slate-50 pb-1.5 text-sm italic"
+        >
           <span className="text-slate-500">{item.label}</span>
           <span className="font-bold text-blue-600">{item.value}</span>
         </div>
@@ -385,11 +423,9 @@ function EvaluationView({ items }: { items: any[] }) {
   )
 }
 
-
-
 function EmptyTab({ title }: { title: string }) {
   return (
-    <div className="py-16 text-center text-muted-foreground">
+    <div className="text-muted-foreground py-16 text-center">
       {title} (pendiente)
     </div>
   )
