@@ -14,6 +14,7 @@ import type {
 } from '../api/plans.api'
 import {
   ai_generate_plan,
+  getCatalogos,
   plan_asignaturas_list,
   plan_lineas_list,
   plans_clone_from_existing,
@@ -33,8 +34,13 @@ import {
 export function usePlanes(filters: PlanListFilters) {
   // 🧠 Tip: memoiza "filters" (useMemo) para que queryKey sea estable.
   return useQuery({
+    // Usamos la factory de keys para consistencia
     queryKey: qk.planesList(filters),
+
+    // La función fetch
     queryFn: () => plans_list(filters),
+
+    // UX: Mantiene los datos viejos mientras carga la paginación nueva
     placeholderData: keepPreviousData,
   })
 }

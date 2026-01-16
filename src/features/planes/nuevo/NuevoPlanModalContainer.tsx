@@ -3,6 +3,8 @@ import * as Icons from 'lucide-react'
 
 import { useNuevoPlanWizard } from './hooks/useNuevoPlanWizard'
 
+import type { NewPlanWizardState } from './types'
+
 import { PasoBasicosForm } from '@/components/planes/wizard/PasoBasicosForm/PasoBasicosForm'
 import { PasoDetallesPanel } from '@/components/planes/wizard/PasoDetallesPanel/PasoDetallesPanel'
 import { PasoModoCardGroup } from '@/components/planes/wizard/PasoModoCardGroup'
@@ -49,7 +51,6 @@ export default function NuevoPlanModalContainer() {
   const {
     wizard,
     setWizard,
-    carrerasFiltradas,
     canContinueDesdeModo,
     canContinueDesdeBasicos,
     canContinueDesdeDetalles,
@@ -61,12 +62,20 @@ export default function NuevoPlanModalContainer() {
   }
 
   const crearPlan = async () => {
-    setWizard((w) => ({ ...w, isLoading: true, errorMessage: null }))
+    setWizard((w: NewPlanWizardState) => ({
+      ...w,
+      isLoading: true,
+      errorMessage: null,
+    }))
     await new Promise((r) => setTimeout(r, 900))
     const nuevoId = (() => {
-      if (wizard.modoCreacion === 'MANUAL') return 'plan_new_manual_001'
-      if (wizard.modoCreacion === 'IA') return 'plan_new_ai_001'
-      if (wizard.subModoClonado === 'INTERNO') return 'plan_new_clone_001'
+      if (wizard.tipoOrigen === 'MANUAL') return 'plan_new_manual_001'
+      if (wizard.tipoOrigen === 'IA') return 'plan_new_ai_001'
+      if (
+        wizard.tipoOrigen === 'CLONADO_INTERNO' ||
+        wizard.tipoOrigen === 'CLONADO_TRADICIONAL'
+      )
+        return 'plan_new_clone_001'
       return 'plan_new_import_001'
     })()
     navigate({ to: `/planes/${nuevoId}` })
@@ -115,7 +124,10 @@ export default function NuevoPlanModalContainer() {
             {({ methods }) => {
               const currentIndex = Wizard.utils.getIndex(methods.current.id) + 1
               const totalSteps = Wizard.steps.length
-              const nextStep = Wizard.steps[currentIndex]
+              const nextStep = Wizard.steps[currentIndex] ?? {
+                title: '',
+                description: '',
+              }
 
               return (
                 <>
@@ -124,7 +136,7 @@ export default function NuevoPlanModalContainer() {
                     totalSteps={totalSteps}
                     currentTitle={methods.current.title}
                     currentDescription={methods.current.description}
-                    nextTitle={nextStep?.title}
+                    nextTitle={nextStep.title}
                     onClose={handleClose}
                     Wizard={Wizard}
                   />
@@ -144,7 +156,6 @@ export default function NuevoPlanModalContainer() {
                           <PasoBasicosForm
                             wizard={wizard}
                             onChange={setWizard}
-                            carrerasFiltradas={carrerasFiltradas}
                           />
                         </Wizard.Stepper.Panel>
                       )}

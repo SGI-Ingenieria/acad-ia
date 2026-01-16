@@ -32,7 +32,7 @@ export function StepWithTooltip({
             {title}
           </span>
         </TooltipTrigger>
-        <TooltipContent className="max-w-[200px] text-xs">
+        <TooltipContent className="max-w-50 text-xs">
           <p>{desc}</p>
         </TooltipContent>
       </Tooltip>

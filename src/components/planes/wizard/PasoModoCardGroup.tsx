@@ -1,10 +1,7 @@
 import * as Icons from 'lucide-react'
 
-import type {
-  NewPlanWizardState,
-  ModoCreacion,
-  SubModoClonado,
-} from '@/features/planes/nuevo/types'
+import type { TipoOrigen } from '@/data/types/domain'
+import type { NewPlanWizardState } from '@/features/planes/nuevo/types'
 
 import {
   Card,
@@ -21,8 +18,7 @@ export function PasoModoCardGroup({
   wizard: NewPlanWizardState
   onChange: React.Dispatch<React.SetStateAction<NewPlanWizardState>>
 }) {
-  const isSelected = (m: ModoCreacion) => wizard.modoCreacion === m
-  const isSubSelected = (s: SubModoClonado) => wizard.subModoClonado === s
+  const isSelected = (m: TipoOrigen) => wizard.tipoOrigen === m
   const handleKeyActivate = (e: React.KeyboardEvent, cb: () => void) => {
     const key = e.key
     if (
@@ -41,19 +37,21 @@ export function PasoModoCardGroup({
       <Card
         className={isSelected('MANUAL') ? 'ring-ring ring-2' : ''}
         onClick={() =>
-          onChange((w) => ({
-            ...w,
-            modoCreacion: 'MANUAL',
-            subModoClonado: undefined,
-          }))
+          onChange(
+            (w): NewPlanWizardState => ({
+              ...w,
+              tipoOrigen: 'MANUAL',
+            }),
+          )
         }
         onKeyDown={(e: React.KeyboardEvent) =>
           handleKeyActivate(e, () =>
-            onChange((w) => ({
-              ...w,
-              modoCreacion: 'MANUAL',
-              subModoClonado: undefined,
-            })),
+            onChange(
+              (w): NewPlanWizardState => ({
+                ...w,
+                tipoOrigen: 'MANUAL',
+              }),
+            ),
           )
         }
         role="button"
@@ -70,19 +68,21 @@ export function PasoModoCardGroup({
       <Card
         className={isSelected('IA') ? 'ring-ring ring-2' : ''}
         onClick={() =>
-          onChange((w) => ({
-            ...w,
-            modoCreacion: 'IA',
-            subModoClonado: undefined,
-          }))
+          onChange(
+            (w): NewPlanWizardState => ({
+              ...w,
+              tipoOrigen: 'IA',
+            }),
+          )
         }
         onKeyDown={(e: React.KeyboardEvent) =>
           handleKeyActivate(e, () =>
-            onChange((w) => ({
-              ...w,
-              modoCreacion: 'IA',
-              subModoClonado: undefined,
-            })),
+            onChange(
+              (w): NewPlanWizardState => ({
+                ...w,
+                tipoOrigen: 'IA',
+              }),
+            ),
           )
         }
         role="button"
@@ -99,11 +99,13 @@ export function PasoModoCardGroup({
       </Card>
 
       <Card
-        className={isSelected('CLONADO') ? 'ring-ring ring-2' : ''}
-        onClick={() => onChange((w) => ({ ...w, modoCreacion: 'CLONADO' }))}
+        className={isSelected('OTRO') ? 'ring-ring ring-2' : ''}
+        onClick={() =>
+          onChange((w): NewPlanWizardState => ({ ...w, tipoOrigen: 'OTRO' }))
+        }
         onKeyDown={(e: React.KeyboardEvent) =>
           handleKeyActivate(e, () =>
-            onChange((w) => ({ ...w, modoCreacion: 'CLONADO' })),
+            onChange((w): NewPlanWizardState => ({ ...w, tipoOrigen: 'OTRO' })),
           )
         }
         role="button"
@@ -115,22 +117,34 @@ export function PasoModoCardGroup({
           </CardTitle>
           <CardDescription>Desde un plan existente o archivos.</CardDescription>
         </CardHeader>
-        {wizard.modoCreacion === 'CLONADO' && (
+        {(wizard.tipoOrigen === 'OTRO' ||
+          wizard.tipoOrigen === 'CLONADO_INTERNO' ||
+          wizard.tipoOrigen === 'CLONADO_TRADICIONAL') && (
           <CardContent className="flex flex-col gap-3">
             <div
               role="button"
               tabIndex={0}
               onClick={(e) => {
                 e.stopPropagation()
-                onChange((w) => ({ ...w, subModoClonado: 'INTERNO' }))
+                onChange(
+                  (w): NewPlanWizardState => ({
+                    ...w,
+                    tipoOrigen: 'CLONADO_INTERNO',
+                  }),
+                )
               }}
               onKeyDown={(e: React.KeyboardEvent) =>
                 handleKeyActivate(e, () =>
-                  onChange((w) => ({ ...w, subModoClonado: 'INTERNO' })),
+                  onChange(
+                    (w): NewPlanWizardState => ({
+                      ...w,
+                      tipoOrigen: 'CLONADO_INTERNO',
+                    }),
+                  ),
                 )
               }
               className={`hover:border-primary/50 hover:bg-accent flex cursor-pointer flex-row items-center justify-center gap-2 rounded-lg border p-4 text-center transition-all sm:flex-col ${
-                isSubSelected('INTERNO')
+                isSelected('CLONADO_INTERNO')
                   ? 'border-primary bg-primary/5 ring-primary text-primary ring-1'
                   : 'border-border text-muted-foreground'
               } `}
@@ -144,15 +158,25 @@ export function PasoModoCardGroup({
               tabIndex={0}
               onClick={(e) => {
                 e.stopPropagation()
-                onChange((w) => ({ ...w, subModoClonado: 'TRADICIONAL' }))
+                onChange(
+                  (w): NewPlanWizardState => ({
+                    ...w,
+                    tipoOrigen: 'CLONADO_TRADICIONAL',
+                  }),
+                )
               }}
               onKeyDown={(e: React.KeyboardEvent) =>
                 handleKeyActivate(e, () =>
-                  onChange((w) => ({ ...w, subModoClonado: 'TRADICIONAL' })),
+                  onChange(
+                    (w): NewPlanWizardState => ({
+                      ...w,
+                      tipoOrigen: 'CLONADO_TRADICIONAL',
+                    }),
+                  ),
                 )
               }
               className={`hover:border-primary/50 hover:bg-accent flex cursor-pointer flex-row items-center justify-center gap-2 rounded-lg border p-4 text-center transition-all sm:flex-col ${
-                isSubSelected('TRADICIONAL')
+                isSelected('CLONADO_TRADICIONAL')
                   ? 'border-primary bg-primary/5 ring-primary text-primary ring-1'
                   : 'border-border text-muted-foreground'
               } `}

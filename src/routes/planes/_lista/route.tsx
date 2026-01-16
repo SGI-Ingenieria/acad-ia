@@ -1,12 +1,15 @@
 import { createFileRoute, Outlet, useNavigate } from '@tanstack/react-router'
 import * as Icons from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useState, useMemo } from 'react'
+import { useDebounce } from 'use-debounce'
 
-import type { Option } from '@/components/planes/Filtro'
-
+// Componentes
 import BarraBusqueda from '@/components/planes/BarraBusqueda'
 import Filtro from '@/components/planes/Filtro'
 import PlanEstudiosCard from '@/components/planes/PlanEstudiosCard'
+// Hooks y Utils (ajusta las rutas de importación)
+import { usePlanes, useCatalogosPlanes } from '@/data/hooks/usePlans'
+import { getIconByName } from '@/features/planes/utils/icon-utils'
 
 export const Route = createFileRoute('/planes/_lista')({
   component: RouteComponent,
@@ -14,215 +17,104 @@ export const Route = createFileRoute('/planes/_lista')({
 
 function RouteComponent() {
   const navigate = useNavigate()
-  type Facultad = { id: string; nombre: string; color: string }
-  type Carrera = { id: string; nombre: string; facultadId: string }
-  type Plan = {
-    id: string
-    icon: string
-    nombrePrograma: string
-    nivel: string
-    ciclos: string
-    facultadId: string
-    carreraId: string
-    estado:
-      | 'Aprobado'
-      | 'Pendiente'
-      | 'En proceso'
-      | 'Revisión expertos'
-      | 'Actualización'
-    claseColorEstado: string
-  }
 
-  // Simulación: datos provenientes de Supabase (hardcode)
-  const facultades: Array<Facultad> = [
-    { id: 'ing', nombre: 'Facultad de Ingeniería', color: '#2563eb' },
-    { id: 'med', nombre: 'Facultad de Medicina', color: '#dc2626' },
-    { id: 'neg', nombre: 'Facultad de Negocios', color: '#059669' },
-    {
-      id: 'arq',
-      nombre: 'Facultad Mexicana de Arquitectura, Diseño y Comunicación',
-      color: '#ea580c',
-    },
-    {
-      id: 'sal',
-      nombre: 'Escuela de Altos Estudios en Salud',
-      color: '#0891b2',
-    },
-    { id: 'der', nombre: 'Facultad de Derecho', color: '#7c3aed' },
-    { id: 'qui', nombre: 'Facultad de Ciencias Químicas', color: '#65a30d' },
-  ]
-
-  const carreras: Array<Carrera> = [
-    {
-      id: 'sis',
-      nombre: 'Ingeniería en Sistemas Computacionales',
-      facultadId: 'ing',
-    },
-    { id: 'medico', nombre: 'Médico Cirujano', facultadId: 'med' },
-    { id: 'act', nombre: 'Licenciatura en Actuaría', facultadId: 'neg' },
-    { id: 'arq', nombre: 'Licenciatura en Arquitectura', facultadId: 'arq' },
-    { id: 'fisio', nombre: 'Licenciatura en Fisioterapia', facultadId: 'sal' },
-    { id: 'der', nombre: 'Licenciatura en Derecho', facultadId: 'der' },
-    { id: 'qfb', nombre: 'Químico Farmacéutico Biólogo', facultadId: 'qui' },
-  ]
-
-  const estados: Array<Option> = [
-    { value: 'todos', label: 'Todos los estados' },
-    { value: 'Aprobado', label: 'Aprobado' },
-    { value: 'Pendiente', label: 'Pendiente' },
-    { value: 'En proceso', label: 'En proceso' },
-    { value: 'Revisión expertos', label: 'Revisión expertos' },
-    { value: 'Actualización', label: 'Actualización' },
-  ]
-
-  const planes: Array<Plan> = [
-    {
-      id: 'p1',
-      icon: 'Laptop',
-      nombrePrograma: 'Ingeniería en Sistemas Computacionales',
-      nivel: 'Licenciatura',
-      ciclos: '8 semestres',
-      facultadId: 'ing',
-      carreraId: 'sis',
-      estado: 'Revisión expertos',
-      claseColorEstado: 'bg-amber-600',
-    },
-    {
-      id: 'p2',
-      icon: 'Stethoscope',
-      nombrePrograma: 'Médico Cirujano',
-      nivel: 'Licenciatura',
-      ciclos: '10 semestres',
-      facultadId: 'med',
-      carreraId: 'medico',
-      estado: 'Aprobado',
-      claseColorEstado: 'bg-emerald-600',
-    },
-    {
-      id: 'p3',
-      icon: 'Calculator',
-      nombrePrograma: 'Licenciatura en Actuaría',
-      nivel: 'Licenciatura',
-      ciclos: '9 semestres',
-      facultadId: 'neg',
-      carreraId: 'act',
-      estado: 'Aprobado',
-      claseColorEstado: 'bg-emerald-600',
-    },
-    {
-      id: 'p4',
-      icon: 'PencilRuler',
-      nombrePrograma: 'Licenciatura en Arquitectura',
-      nivel: 'Licenciatura',
-      ciclos: '10 semestres',
-      facultadId: 'arq',
-      carreraId: 'arq',
-      estado: 'En proceso',
-      claseColorEstado: 'bg-orange-500',
-    },
-    {
-      id: 'p5',
-      icon: 'Activity',
-      nombrePrograma: 'Licenciatura en Fisioterapia',
-      nivel: 'Licenciatura',
-      ciclos: '8 semestres',
-      facultadId: 'sal',
-      carreraId: 'fisio',
-      estado: 'Revisión expertos',
-      claseColorEstado: 'bg-amber-600',
-    },
-    {
-      id: 'p6',
-      icon: 'Scale',
-      nombrePrograma: 'Licenciatura en Derecho',
-      nivel: 'Licenciatura',
-      ciclos: '10 semestres',
-      facultadId: 'der',
-      carreraId: 'der',
-      estado: 'Pendiente',
-      claseColorEstado: 'bg-yellow-500',
-    },
-    {
-      id: 'p7',
-      icon: 'FlaskConical',
-      nombrePrograma: 'Químico Farmacéutico Biólogo',
-      nivel: 'Licenciatura',
-      ciclos: '9 semestres',
-      facultadId: 'qui',
-      carreraId: 'qfb',
-      estado: 'Actualización',
-      claseColorEstado: 'bg-lime-600',
-    },
-  ]
-
-  // Estado de filtros
+  // 1. Estados de Filtros
   const [search, setSearch] = useState('')
+  // Debounce para evitar llamadas excesivas a la API
+  const [debouncedSearch] = useDebounce(search, 500)
+
   const [facultadSel, setFacultadSel] = useState<string>('todas')
   const [carreraSel, setCarreraSel] = useState<string>('todas')
   const [estadoSel, setEstadoSel] = useState<string>('todos')
 
-  // Opciones para filtros
-  const facultadesOptions: Array<Option> = useMemo(
+  // Paginación (opcional si la implementas en UI)
+  const [page, setPage] = useState(0)
+  const pageSize = 12
+
+  // 2. Carga de datos remotos
+  const { data: catalogos } = useCatalogosPlanes()
+
+  // Limpiamos el texto de búsqueda (quitar acentos) para enviarlo limpio a la API
+  // O lo puedes limpiar en el servicio. Aquí lo enviamos tal cual viene del debounce.
+  // Nota: Si usaste la solución "unaccent" en BD, envía el texto tal cual, postgres lo maneja.
+  const cleanSearchTerm = debouncedSearch.trim()
+
+  const {
+    data: planesData,
+    isLoading,
+    isError,
+  } = usePlanes({
+    search: cleanSearchTerm,
+    facultadId: facultadSel,
+    carreraId: carreraSel,
+    estadoId: estadoSel,
+    limit: pageSize,
+    offset: page * pageSize,
+  })
+
+  // 3. Preparación de Opciones para Selects (Derived State)
+  const facultadesOptions = useMemo(
     () => [
       { value: 'todas', label: 'Todas las facultades' },
-      ...facultades.map((f) => ({ value: f.id, label: f.nombre })),
+      ...(catalogos?.facultades.map((f) => ({
+        value: f.id,
+        label: f.nombre,
+      })) ?? []),
     ],
-    [facultades],
+    [catalogos?.facultades],
   )
 
-  const carrerasOptions: Array<Option> = useMemo(() => {
-    const list =
+  const carrerasOptions = useMemo(() => {
+    // Filtramos las carreras del catálogo base según la facultad seleccionada
+    const rawCarreras = catalogos?.carreras ?? []
+    const filtered =
       facultadSel === 'todas'
-        ? carreras
-        : carreras.filter((c) => c.facultadId === facultadSel)
+        ? rawCarreras
+        : rawCarreras.filter((c) => c.facultad_id === facultadSel)
+
     return [
       { value: 'todas', label: 'Todas las carreras' },
-      ...list.map((c) => ({ value: c.id, label: c.nombre })),
+      ...filtered.map((c) => ({ value: c.id, label: c.nombre })),
     ]
-  }, [carreras, facultadSel])
+  }, [catalogos?.carreras, facultadSel])
 
-  // Filtrado de planes
-  const filteredPlans = useMemo(() => {
-    // Función helper para limpiar texto (quita acentos y hace minúsculas)
-    const cleanText = (text: string) => {
-      return text
-        .normalize('NFD') // Descompone "á" en "a" + "´"
-        .replace(/[\u0300-\u036f]/g, '') // Elimina los símbolos diacríticos
-        .toLowerCase() // Convierte a minúsculas
-    }
-    // Limpiamos el término de búsqueda una sola vez antes de filtrar
-    const term = cleanText(search.trim())
-    return planes.filter((p) => {
-      const matchName = term
-        ? // Limpiamos también el nombre del programa antes de comparar
-          cleanText(p.nombrePrograma).includes(term)
-        : true
-      const matchFac =
-        facultadSel === 'todas' ? true : p.facultadId === facultadSel
-      const matchCar =
-        carreraSel === 'todas' ? true : p.carreraId === carreraSel
-      const matchEst = estadoSel === 'todos' ? true : p.estado === estadoSel
-      return matchName && matchFac && matchCar && matchEst
-    })
-  }, [planes, search, facultadSel, carreraSel, estadoSel])
+  const estadosOptions = useMemo(
+    () => [
+      { value: 'todos', label: 'Todos los estados' },
+      ...(catalogos?.estados.map((e) => ({ value: e.id, label: e.etiqueta })) ??
+        []),
+    ],
+    [catalogos?.estados],
+  )
 
+  // 4. Handlers
   const resetFilters = () => {
     setSearch('')
     setFacultadSel('todas')
     setCarreraSel('todas')
     setEstadoSel('todos')
+    setPage(0)
   }
+
+  const handleSearchChange = (val: string) => {
+    setSearch(val)
+    setPage(0) // Resetear página al buscar
+  }
+
+  // Renderizado condicional básico
+  if (isError)
+    return <div className="p-8 text-red-500">Error cargando planes.</div>
 
   return (
     <main className="bg-background min-h-screen w-full">
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-4 py-6 md:px-6 lg:px-8">
         <div className="flex flex-col gap-4 lg:col-span-3">
+          {/* Header y Botón Nuevo */}
           <div className="flex flex-col items-stretch justify-between gap-4 sm:flex-row sm:items-center">
             <div className="flex items-center gap-3">
               <div className="bg-primary/10 text-primary flex h-10 w-10 items-center justify-center rounded-xl">
                 <Icons.BookOpenText className="h-5 w-5" strokeWidth={2} />
               </div>
-
               <div>
                 <h1 className="font-display text-foreground text-2xl font-bold">
                   Planes de Estudio
@@ -232,31 +124,23 @@ function RouteComponent() {
                 </p>
               </div>
             </div>
-
             <button
-              type="button"
-              className={
-                'ring-offset-background focus-visible:ring-ring bg-primary text-primary-foreground hover:bg-primary/90 inline-flex h-11 items-center justify-center gap-2 rounded-md px-8 text-sm font-medium whitespace-nowrap shadow-md transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:h-4 [&_svg]:w-4 [&_svg]:shrink-0'
-              }
-              aria-label="Nuevo plan de estudios"
-              title="Nuevo plan de estudios"
-              onClick={() => {
-                navigate({ to: '/planes/nuevo' })
-              }}
+              onClick={() => navigate({ to: '/planes/nuevo' })}
+              className="ring-offset-background bg-primary text-primary-foreground hover:bg-primary/90 inline-flex h-11 items-center justify-center gap-2 rounded-md px-8 text-sm font-medium shadow-md transition-colors"
             >
-              <Icons.Plus className="" />
-              Nuevo plan de estudios
+              <Icons.Plus /> Nuevo plan de estudios
             </button>
           </div>
+
+          {/* Barra de Filtros */}
           <div className="flex flex-col items-stretch gap-2 lg:flex-row lg:items-center">
             <div className="min-w-0 flex-1">
               <BarraBusqueda
                 value={search}
-                onChange={setSearch}
-                placeholder="Buscar por programa…"
+                onChange={handleSearchChange}
+                placeholder="Buscar por programa..."
               />
             </div>
-
             <div className="flex flex-col items-stretch justify-between gap-2 lg:flex-row lg:items-center">
               <div className="w-full lg:w-44">
                 <Filtro
@@ -264,67 +148,93 @@ function RouteComponent() {
                   value={facultadSel}
                   onChange={(v) => {
                     setFacultadSel(v)
-                    // Reset carrera si ya no pertenece
                     setCarreraSel('todas')
+                    setPage(0)
                   }}
                   placeholder="Facultad"
-                  ariaLabel="Filtro por facultad"
                 />
               </div>
               <div className="w-full lg:w-44">
                 <Filtro
                   options={carrerasOptions}
                   value={carreraSel}
-                  onChange={setCarreraSel}
+                  onChange={(v) => {
+                    setCarreraSel(v)
+                    setPage(0)
+                  }}
                   placeholder="Carrera"
-                  ariaLabel="Filtro por carrera"
                   disabled={facultadSel === 'todas'}
                 />
               </div>
               <div className="w-full lg:w-44">
                 <Filtro
-                  options={estados}
+                  options={estadosOptions}
                   value={estadoSel}
-                  onChange={setEstadoSel}
+                  onChange={(v) => {
+                    setEstadoSel(v)
+                    setPage(0)
+                  }}
                   placeholder="Estado"
-                  ariaLabel="Filtro por estado"
                 />
               </div>
-
               <button
                 type="button"
                 onClick={resetFilters}
-                className={
-                  'ring-offset-background focus-visible:ring-ring bg-secondary text-secondary-foreground hover:bg-secondary/90 inline-flex h-9 items-center justify-center gap-2 rounded-md px-4 text-sm font-medium whitespace-nowrap shadow-md transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50'
-                }
-                title="Reiniciar filtros"
-                aria-label="Reiniciar filtros"
+                className="ring-offset-background bg-secondary text-secondary-foreground hover:bg-secondary/90 inline-flex h-9 items-center justify-center gap-2 rounded-md px-4 text-sm font-medium shadow-md transition-colors"
               >
-                <Icons.X className="h-4 w-4" />
-                Limpiar
+                <Icons.X className="h-4 w-4" /> Limpiar
               </button>
             </div>
           </div>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {filteredPlans.map((p) => {
-              const fac = facultades.find((f) => f.id === p.facultadId)!
-              const IconComp = (Icons as any)[p.icon] ?? Icons.BookOpenText
-              return (
-                <PlanEstudiosCard
-                  key={p.id}
-                  Icono={IconComp}
-                  nombrePrograma={p.nombrePrograma}
-                  nivel={p.nivel}
-                  ciclos={p.ciclos}
-                  facultad={fac.nombre}
-                  estado={p.estado}
-                  claseColorEstado={p.claseColorEstado}
-                  colorFacultad={fac.color}
-                  onClick={() => console.log('Ver', p.nombrePrograma)}
+
+          {/* Grid de Resultados */}
+          {isLoading ? (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {/* Skeleton básico o Spinner */}
+              {[...Array(8)].map((_, i) => (
+                <div
+                  key={i}
+                  className="h-64 w-full animate-pulse rounded-xl bg-gray-100/50"
                 />
-              )
-            })}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {planesData?.data.map((plan) => {
+                // Mapeo de datos: DB -> Props Componente
+                const facultad = plan.carreras?.facultades
+                const estado = plan.estados_plan
+
+                // NOTA: El color del estado no viene en BD por defecto,
+                // puedes crear un mapa de colores o agregar columna 'color' a tabla 'estados_plan'
+                // Aquí uso un fallback simple.
+                const estadoColor = estado?.es_final
+                  ? 'bg-emerald-600'
+                  : 'bg-amber-600'
+
+                return (
+                  <PlanEstudiosCard
+                    key={plan.id}
+                    Icono={getIconByName(facultad?.icono ?? null)}
+                    nombrePrograma={plan.nombre}
+                    nivel={plan.nivel}
+                    ciclos={`${plan.numero_ciclos} ${plan.tipo_ciclo.toLowerCase()}s`}
+                    facultad={facultad?.nombre ?? 'Sin Facultad'}
+                    estado={estado?.etiqueta ?? 'Desconocido'}
+                    claseColorEstado={estadoColor}
+                    colorFacultad={facultad?.color ?? '#000000'}
+                    onClick={() => console.log('Ver plan', plan.id)}
+                  />
+                )
+              })}
+
+              {planesData?.data.length === 0 && (
+                <div className="text-muted-foreground col-span-full py-10 text-center">
+                  No se encontraron planes con estos filtros.
+                </div>
+              )}
+            </div>
+          )}
         </div>
         <Outlet />
       </div>

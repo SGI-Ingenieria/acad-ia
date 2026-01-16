@@ -5,6 +5,8 @@ import BarraBusqueda from '../../BarraBusqueda'
 
 import { FileDropzone } from './FileDropZone'
 
+import type { UploadedFile } from './FileDropZone'
+
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import {
@@ -27,9 +29,7 @@ const ReferenciasParaIA = ({
   selectedRepositorioIds?: Array<string>
   onToggleArchivo?: (id: string, checked: boolean) => void
   onToggleRepositorio?: (id: string, checked: boolean) => void
-  onFilesChange?: (
-    files: Array<{ id: string; name: string; size: string; type: string }>,
-  ) => void
+  onFilesChange?: (files: Array<UploadedFile>) => void
 }) => {
   const [busquedaArchivos, setBusquedaArchivos] = useState('')
   const [busquedaRepositorios, setBusquedaRepositorios] = useState('')

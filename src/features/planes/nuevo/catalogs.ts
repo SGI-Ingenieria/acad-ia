@@ -1,4 +1,4 @@
-import type { TipoCiclo } from "./types";
+import type { NivelPlanEstudio, TipoCiclo } from "@/data/types/domain";
 
 export const FACULTADES = [
   { id: "ing", nombre: "Facultad de Ingeniería" },
@@ -16,16 +16,20 @@ export const CARRERAS = [
   { id: "act", nombre: "Actuaría", facultadId: "neg" },
 ];
 
-export const NIVELES = [
+export const NIVELES: Array<NivelPlanEstudio> = [
   "Licenciatura",
-  "Especialidad",
   "Maestría",
   "Doctorado",
+  "Especialidad",
+  "Diplomado",
+  "Otro",
 ];
-export const TIPOS_CICLO: Array<{ value: TipoCiclo; label: string }> = [
-  { value: "SEMESTRE", label: "Semestre" },
-  { value: "CUATRIMESTRE", label: "Cuatrimestre" },
-  { value: "TRIMESTRE", label: "Trimestre" },
+
+export const TIPOS_CICLO: Array<TipoCiclo> = [
+  "Semestre",
+  "Cuatrimestre",
+  "Trimestre",
+  "Otro",
 ];
 
 export const PLANES_EXISTENTES = [

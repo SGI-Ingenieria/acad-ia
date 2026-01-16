@@ -2,13 +2,13 @@ import { Upload, File, X, FileText } from 'lucide-react'
 import { useState, useCallback, useEffect, useRef } from 'react'
 
 import { Button } from '@/components/ui/button'
+import { formatFileSize } from '@/features/planes/utils/format-file-size'
 import { cn } from '@/lib/utils'
 
-interface UploadedFile {
-  id: string
-  name: string
-  size: string
-  type: string
+export interface UploadedFile {
+  id: string // Necesario para React (key)
+  file: File // La fuente de verdad (contiene name, size, type)
+  preview?: string // Opcional: si fueran imágenes
 }
 
 interface FileDropzoneProps {
@@ -37,9 +37,7 @@ export function FileDropzone({
           typeof crypto !== 'undefined' && 'randomUUID' in crypto
             ? (crypto as any).randomUUID()
             : `file-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        name: file.name,
-        size: formatFileSize(file.size),
-        type: file.name.split('.').pop() || 'file',
+        file,
       }))
       setFiles((prev) => {
         const room = Math.max(0, maxFiles - prev.length)
@@ -96,12 +94,6 @@ export function FileDropzone({
   useEffect(() => {
     if (onFilesChangeRef.current) onFilesChangeRef.current(files)
   }, [files])
-
-  const formatFileSize = (bytes: number): string => {
-    if (bytes < 1024) return bytes + ' B'
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
-    return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
-  }
 
   const getFileIcon = (type: string) => {
     switch (type.toLowerCase()) {
@@ -170,23 +162,25 @@ export function FileDropzone({
       {/* Uploaded files list */}
       {files.length > 0 && (
         <div className="space-y-2">
-          {files.map((file) => (
+          {files.map((item) => (
             <div
-              key={file.id}
+              key={item.id}
               className="bg-accent/50 border-border fade-in flex items-center gap-3 rounded-lg border p-3"
             >
-              {getFileIcon(file.type)}
+              {getFileIcon(item.file.type)}
               <div className="min-w-0 flex-1">
                 <p className="text-foreground truncate text-sm font-medium">
-                  {file.name}
+                  {item.file.name}
                 </p>
-                <p className="text-muted-foreground text-xs">{file.size}</p>
+                <p className="text-muted-foreground text-xs">
+                  {formatFileSize(item.file.size)}
+                </p>
               </div>
               <Button
                 variant="ghost"
                 size="icon"
                 className="text-muted-foreground hover:text-destructive h-8 w-8"
-                onClick={() => removeFile(file.id)}
+                onClick={() => removeFile(item.id)}
               >
                 <X className="h-4 w-4" />
               </Button>

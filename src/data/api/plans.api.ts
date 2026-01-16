@@ -1,6 +1,8 @@
 import { supabaseBrowser } from '../supabase/client'
 import { invokeEdge } from '../supabase/invokeEdge'
-import { buildRange, throwIfError, requireData } from './_helpers'
+
+import { buildRange, requireData, throwIfError } from './_helpers'
+
 import type {
   Asignatura,
   CambioPlan,
@@ -12,12 +14,14 @@ import type {
   TipoCiclo,
   UUID,
 } from '../types/domain'
+import type { UploadedFile } from '@/components/planes/wizard/PasoDetallesPanel/FileDropZone'
 
 const EDGE = {
   plans_create_manual: 'plans_create_manual',
   ai_generate_plan: 'ai_generate_plan',
   plans_persist_from_ai: 'plans_persist_from_ai',
   plans_clone_from_existing: 'plans_clone_from_existing',
+
   plans_import_from_files: 'plans_import_from_files',
 
   plans_update_fields: 'plans_update_fields',
@@ -39,40 +43,82 @@ export type PlanListFilters = {
   offset?: number
 }
 
+// Helper para limpiar texto (lo movemos fuera para reutilizar o lo dejas en un utils)
+const cleanText = (text: string) => {
+  return text
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+}
+
 export async function plans_list(
   filters: PlanListFilters = {},
 ): Promise<Paged<PlanEstudio>> {
   const supabase = supabaseBrowser()
 
+  // 1. Construimos la query base
+  // NOTA IMPORTANTE: Para filtrar planes basados en facultad (que está en carreras),
+  // necesitamos hacer un INNER JOIN. En Supabase se usa "!inner".
+  // Si filters.facultadId existe, forzamos el inner join, si no, lo dejamos normal.
+
+  const carreraModifier =
+    filters.facultadId && filters.facultadId !== 'todas' ? '!inner' : ''
+
   let q = supabase
     .from('planes_estudio')
     .select(
       `
-      id,carrera_id,estructura_id,nombre,nivel,tipo_ciclo,numero_ciclos,datos,estado_actual_id,activo,tipo_origen,meta_origen,creado_por,actualizado_por,creado_en,actualizado_en,
-      carreras(id,facultad_id,nombre,nombre_corto,clave_sep,activa, facultades(id,nombre,nombre_corto,color,icono)),
-      estructuras_plan(id,nombre,tipo,version,definicion),
-      estados_plan(id,clave,etiqueta,orden,es_final)
-    `,
+      *,
+      carreras${carreraModifier} (
+        *,
+        facultades (*)
+      ),
+      estructuras_plan (*),
+      estados_plan (*)
+      `,
       { count: 'exact' },
     )
     .order('actualizado_en', { ascending: false })
 
-  if (filters.search?.trim())
-    q = q.ilike('nombre', `%${filters.search.trim()}%`)
-  if (filters.carreraId) q = q.eq('carrera_id', filters.carreraId)
-  if (filters.estadoId) q = q.eq('estado_actual_id', filters.estadoId)
-  if (typeof filters.activo === 'boolean') q = q.eq('activo', filters.activo)
+  // 2. Aplicamos filtros dinámicos
 
-  // filtro por FK “hacia arriba” (PostgREST soporta filtros en recursos embebidos)
-  if (filters.facultadId) q = q.eq('carreras.facultad_id', filters.facultadId)
+  // SOLUCIÓN SEARCH: Limpiamos el input y buscamos en la columna generada
+  if (filters.search?.trim()) {
+    const cleanTerm = cleanText(filters.search.trim())
+    // Usamos la columna nueva creada en el Paso 1
+    q = q.ilike('nombre_search', `%${cleanTerm}%`)
+  }
 
+  if (filters.carreraId && filters.carreraId !== 'todas') {
+    q = q.eq('carrera_id', filters.carreraId)
+  }
+
+  if (filters.estadoId && filters.estadoId !== 'todos') {
+    q = q.eq('estado_actual_id', filters.estadoId)
+  }
+
+  if (typeof filters.activo === 'boolean') {
+    q = q.eq('activo', filters.activo)
+  }
+
+  // Filtro por facultad (gracias al !inner arriba, esto filtrará los planes)
+  if (filters.facultadId && filters.facultadId !== 'todas') {
+    q = q.eq('carreras.facultad_id', filters.facultadId)
+  }
+
+  // 3. Paginación
   const { from, to } = buildRange(filters.limit, filters.offset)
-  if (typeof from === 'number' && typeof to === 'number') q = q.range(from, to)
+  if (from !== undefined && to !== undefined) q = q.range(from, to)
 
   const { data, error, count } = await q
   throwIfError(error)
 
-  return { data: data ?? [], count: count ?? null }
+  return {
+    // 1. Si data es null, usa [].
+    // 2. Luego dile a TS que el resultado es tu Array tipado.
+    data: (data ?? []) as unknown as Array<PlanEstudio>,
+    count: count ?? 0,
+  }
 }
 
 export async function plans_get(planId: UUID): Promise<PlanEstudio> {
@@ -82,10 +128,10 @@ export async function plans_get(planId: UUID): Promise<PlanEstudio> {
     .from('planes_estudio')
     .select(
       `
-      id,carrera_id,estructura_id,nombre,nivel,tipo_ciclo,numero_ciclos,datos,estado_actual_id,activo,tipo_origen,meta_origen,creado_por,actualizado_por,creado_en,actualizado_en,
-      carreras(id,facultad_id,nombre,nombre_corto,clave_sep,activa, facultades(id,nombre,nombre_corto,color,icono)),
-      estructuras_plan(id,nombre,tipo,template_id,definicion),
-      estados_plan(id,clave,etiqueta,orden,es_final)
+      *,
+      carreras (*, facultades(*)),
+      estructuras_plan (*),
+      estados_plan (*)
     `,
     )
     .eq('id', planId)
@@ -95,7 +141,9 @@ export async function plans_get(planId: UUID): Promise<PlanEstudio> {
   return requireData(data, 'Plan no encontrado.')
 }
 
-export async function plan_lineas_list(planId: UUID): Promise<LineaPlan[]> {
+export async function plan_lineas_list(
+  planId: UUID,
+): Promise<Array<LineaPlan>> {
   const supabase = supabaseBrowser()
   const { data, error } = await supabase
     .from('lineas_plan')
@@ -109,7 +157,7 @@ export async function plan_lineas_list(planId: UUID): Promise<LineaPlan[]> {
 
 export async function plan_asignaturas_list(
   planId: UUID,
-): Promise<Asignatura[]> {
+): Promise<Array<Asignatura>> {
   const supabase = supabaseBrowser()
   const { data, error } = await supabase
     .from('asignaturas')
@@ -125,7 +173,7 @@ export async function plan_asignaturas_list(
   return data ?? []
 }
 
-export async function plans_history(planId: UUID): Promise<CambioPlan[]> {
+export async function plans_history(planId: UUID): Promise<Array<CambioPlan>> {
   const supabase = supabaseBrowser()
   const { data, error } = await supabase
     .from('cambios_plan')
@@ -170,8 +218,9 @@ export type AIGeneratePlanInput = {
     descripcionEnfoque: string
     poblacionObjetivo?: string
     notasAdicionales?: string
-    archivosReferencia?: UUID[]
-    repositoriosIds?: UUID[]
+    archivosReferencia?: Array<UUID>
+    repositoriosIds?: Array<UUID>
+    archivosAdjuntos: Array<UploadedFile>
     usarMCP?: boolean
   }
 }
@@ -246,12 +295,12 @@ export type PlanMapOperation =
       op: 'REORDER_CELDA'
       linea_plan_id: UUID
       numero_ciclo: number
-      asignaturaIdsOrdenados: UUID[]
+      asignaturaIdsOrdenados: Array<UUID>
     }
 
 export async function plans_update_map(
   planId: UUID,
-  ops: PlanMapOperation[],
+  ops: Array<PlanMapOperation>,
 ): Promise<{ ok: true }> {
   return invokeEdge<{ ok: true }>(EDGE.plans_update_map, { planId, ops })
 }
@@ -281,5 +330,28 @@ export async function plans_generate_document(
 export async function plans_get_document(
   planId: UUID,
 ): Promise<DocumentoResult | null> {
-  return invokeEdge<DocumentoResult | null>(EDGE.plans_get_document, { planId })
+  return invokeEdge<DocumentoResult | null>(EDGE.plans_get_document, {
+    planId,
+  })
+}
+
+export async function getCatalogos() {
+  const supabase = supabaseBrowser()
+
+  const [facultadesRes, carrerasRes, estadosRes, estructurasPlanRes] =
+    await Promise.all([
+      supabase.from('facultades').select('*').order('nombre'),
+      supabase.from('carreras').select('*').order('nombre'),
+      supabase.from('estados_plan').select('*').order('orden'),
+      supabase.from('estructuras_plan').select('*').order('creado_en', {
+        ascending: true,
+      }),
+    ])
+
+  return {
+    facultades: facultadesRes.data ?? [],
+    carreras: carrerasRes.data ?? [],
+    estados: estadosRes.data ?? [],
+    estructurasPlan: estructurasPlanRes.data ?? [],
+  }
 }

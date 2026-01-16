@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as PlanesPlanesListRouteRouteImport } from './routes/planes/PlanesListRoute'
 import { Route as DemoTanstackQueryRouteImport } from './routes/demo/tanstack-query'
 import { Route as PlanesListaRouteRouteImport } from './routes/planes/_lista/route'
 import { Route as PlanesListaNuevoRouteImport } from './routes/planes/_lista/nuevo'
@@ -42,6 +43,11 @@ const DashboardRoute = DashboardRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PlanesPlanesListRouteRoute = PlanesPlanesListRouteRouteImport.update({
+  id: '/planes/PlanesListRoute',
+  path: '/planes/PlanesListRoute',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DemoTanstackQueryRoute = DemoTanstackQueryRouteImport.update({
@@ -142,6 +148,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/planes': typeof PlanesListaRouteRouteWithChildren
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
+  '/planes/PlanesListRoute': typeof PlanesPlanesListRouteRoute
   '/planes/$planId': typeof PlanesPlanIdDetalleRouteRouteWithChildren
   '/planes/$planId/asignaturas': typeof PlanesPlanIdAsignaturasListaRouteRouteWithChildren
   '/planes/nuevo': typeof PlanesListaNuevoRoute
@@ -162,6 +169,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/planes': typeof PlanesListaRouteRouteWithChildren
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
+  '/planes/PlanesListRoute': typeof PlanesPlanesListRouteRoute
   '/planes/$planId': typeof PlanesPlanIdDetalleRouteRouteWithChildren
   '/planes/nuevo': typeof PlanesListaNuevoRoute
   '/planes/$planId/asignaturas/$asignaturaId': typeof PlanesPlanIdAsignaturasAsignaturaIdRouteRoute
@@ -182,6 +190,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/planes/_lista': typeof PlanesListaRouteRouteWithChildren
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
+  '/planes/PlanesListRoute': typeof PlanesPlanesListRouteRoute
   '/planes/$planId/_detalle': typeof PlanesPlanIdDetalleRouteRouteWithChildren
   '/planes/$planId/asignaturas': typeof PlanesPlanIdAsignaturasRouteRouteWithChildren
   '/planes/_lista/nuevo': typeof PlanesListaNuevoRoute
@@ -205,6 +214,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/planes'
     | '/demo/tanstack-query'
+    | '/planes/PlanesListRoute'
     | '/planes/$planId'
     | '/planes/$planId/asignaturas'
     | '/planes/nuevo'
@@ -225,6 +235,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/planes'
     | '/demo/tanstack-query'
+    | '/planes/PlanesListRoute'
     | '/planes/$planId'
     | '/planes/nuevo'
     | '/planes/$planId/asignaturas/$asignaturaId'
@@ -244,6 +255,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/planes/_lista'
     | '/demo/tanstack-query'
+    | '/planes/PlanesListRoute'
     | '/planes/$planId/_detalle'
     | '/planes/$planId/asignaturas'
     | '/planes/_lista/nuevo'
@@ -266,6 +278,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   PlanesListaRouteRoute: typeof PlanesListaRouteRouteWithChildren
   DemoTanstackQueryRoute: typeof DemoTanstackQueryRoute
+  PlanesPlanesListRouteRoute: typeof PlanesPlanesListRouteRoute
   PlanesPlanIdDetalleRouteRoute: typeof PlanesPlanIdDetalleRouteRouteWithChildren
   PlanesPlanIdAsignaturasRouteRoute: typeof PlanesPlanIdAsignaturasRouteRouteWithChildren
 }
@@ -291,6 +304,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/planes/PlanesListRoute': {
+      id: '/planes/PlanesListRoute'
+      path: '/planes/PlanesListRoute'
+      fullPath: '/planes/PlanesListRoute'
+      preLoaderRoute: typeof PlanesPlanesListRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/demo/tanstack-query': {
@@ -486,6 +506,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   PlanesListaRouteRoute: PlanesListaRouteRouteWithChildren,
   DemoTanstackQueryRoute: DemoTanstackQueryRoute,
+  PlanesPlanesListRouteRoute: PlanesPlanesListRouteRoute,
   PlanesPlanIdDetalleRouteRoute: PlanesPlanIdDetalleRouteRouteWithChildren,
   PlanesPlanIdAsignaturasRouteRoute:
     PlanesPlanIdAsignaturasRouteRouteWithChildren,

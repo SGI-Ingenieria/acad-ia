@@ -67,7 +67,7 @@ export function PasoConfiguracionPanel({
                 },
               }))
             }
-            className="min-h-[100px]"
+            className="min-h-25"
           />
         </div>
         <div className="grid gap-1">
@@ -213,7 +213,7 @@ export function PasoConfiguracionPanel({
           </div>
         </div>
 
-        <div className="grid max-h-[300px] gap-2 overflow-y-auto">
+        <div className="grid max-h-75 gap-2 overflow-y-auto">
           {MATERIAS_MOCK.map((m) => (
             <div
               key={m.id}

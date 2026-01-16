@@ -124,6 +124,14 @@ export default [
     },
   },
 
-  // 5. PRETTIER AL FINAL
+  // 5. OVERRIDE: desactivar reglas para tipos generados por supabase
+  {
+    files: ['src/types/supabase.ts'],
+    rules: {
+      '@typescript-eslint/naming-convention': 'off',
+    },
+  },
+
+  // 6. PRETTIER AL FINAL
   eslintConfigPrettier,
 ]

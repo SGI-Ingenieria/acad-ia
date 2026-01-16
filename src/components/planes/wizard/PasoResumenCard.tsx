@@ -8,12 +8,11 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import {
-  PLANTILLAS_ANEXO_1,
-  PLANTILLAS_ANEXO_2,
   PLANES_EXISTENTES,
   ARCHIVOS,
   REPOSITORIOS,
 } from '@/features/planes/nuevo/catalogs'
+import { formatFileSize } from '@/features/planes/utils/format-file-size'
 
 export function PasoResumenCard({ wizard }: { wizard: NewPlanWizardState }) {
   return (
@@ -32,12 +31,6 @@ export function PasoResumenCard({ wizard }: { wizard: NewPlanWizardState }) {
             const repositoriosRef =
               wizard.iaConfig?.repositoriosReferencia ?? []
             const adjuntos = wizard.iaConfig?.archivosAdjuntos ?? []
-            const plantillaPlan = PLANTILLAS_ANEXO_1.find(
-              (x) => x.id === wizard.datosBasicos.plantillaPlanId,
-            )
-            const plantillaMapa = PLANTILLAS_ANEXO_2.find(
-              (x) => x.id === wizard.datosBasicos.plantillaMapaId,
-            )
             const contenido = (
               <>
                 <div>
@@ -69,88 +62,55 @@ export function PasoResumenCard({ wizard }: { wizard: NewPlanWizardState }) {
                   </span>
                 </div>
                 <div className="mt-2">
-                  <span className="text-muted-foreground">
-                    Plantilla plan:{' '}
-                  </span>
-                  <span className="font-medium">
-                    {(plantillaPlan?.name ||
-                      wizard.datosBasicos.plantillaPlanId ||
-                      '—') +
-                      ' · ' +
-                      (wizard.datosBasicos.plantillaPlanVersion || '—')}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">
-                    Mapa curricular:{' '}
-                  </span>
-                  <span className="font-medium">
-                    {(plantillaMapa?.name ||
-                      wizard.datosBasicos.plantillaMapaId ||
-                      '—') +
-                      ' · ' +
-                      (wizard.datosBasicos.plantillaMapaVersion || '—')}
-                  </span>
-                </div>
-                <div className="mt-2">
                   <span className="text-muted-foreground">Modo: </span>
                   <span className="font-medium">
-                    {wizard.modoCreacion === 'MANUAL' && 'Manual'}
-                    {wizard.modoCreacion === 'IA' && 'Generado con IA'}
-                    {wizard.modoCreacion === 'CLONADO' &&
-                      wizard.subModoClonado === 'INTERNO' &&
+                    {wizard.tipoOrigen === 'MANUAL' && 'Manual'}
+                    {wizard.tipoOrigen === 'IA' && 'Generado con IA'}
+                    {wizard.tipoOrigen === 'CLONADO_INTERNO' &&
                       'Clonado desde plan del sistema'}
-                    {wizard.modoCreacion === 'CLONADO' &&
-                      wizard.subModoClonado === 'TRADICIONAL' &&
+                    {wizard.tipoOrigen === 'CLONADO_TRADICIONAL' &&
                       'Importado desde documentos tradicionales'}
                   </span>
                 </div>
-                {wizard.modoCreacion === 'CLONADO' &&
-                  wizard.subModoClonado === 'INTERNO' && (
-                    <div className="mt-2">
-                      <span className="text-muted-foreground">
-                        Plan origen:{' '}
-                      </span>
-                      <span className="font-medium">
-                        {(() => {
-                          const p = PLANES_EXISTENTES.find(
-                            (x) => x.id === wizard.clonInterno?.planOrigenId,
-                          )
-                          return (
-                            p?.nombre || wizard.clonInterno?.planOrigenId || '—'
-                          )
-                        })()}
-                      </span>
-                    </div>
-                  )}
-                {wizard.modoCreacion === 'CLONADO' &&
-                  wizard.subModoClonado === 'TRADICIONAL' && (
-                    <div className="mt-2">
-                      <div className="font-medium">Documentos adjuntos</div>
-                      <ul className="text-muted-foreground list-disc pl-5 text-xs">
-                        <li>
-                          <span className="text-foreground">
-                            Word del plan:
-                          </span>{' '}
-                          {wizard.clonTradicional?.archivoWordPlanId?.name ||
-                            '—'}
-                        </li>
-                        <li>
-                          <span className="text-foreground">
-                            Mapa curricular:
-                          </span>{' '}
-                          {wizard.clonTradicional?.archivoMapaExcelId?.name ||
-                            '—'}
-                        </li>
-                        <li>
-                          <span className="text-foreground">Asignaturas:</span>{' '}
-                          {wizard.clonTradicional?.archivoAsignaturasExcelId
-                            ?.name || '—'}
-                        </li>
-                      </ul>
-                    </div>
-                  )}
-                {wizard.modoCreacion === 'IA' && (
+                {wizard.tipoOrigen === 'CLONADO_INTERNO' && (
+                  <div className="mt-2">
+                    <span className="text-muted-foreground">Plan origen: </span>
+                    <span className="font-medium">
+                      {(() => {
+                        const p = PLANES_EXISTENTES.find(
+                          (x) => x.id === wizard.clonInterno?.planOrigenId,
+                        )
+                        return (
+                          p?.nombre || wizard.clonInterno?.planOrigenId || '—'
+                        )
+                      })()}
+                    </span>
+                  </div>
+                )}
+                {wizard.tipoOrigen === 'CLONADO_TRADICIONAL' && (
+                  <div className="mt-2">
+                    <div className="font-medium">Documentos adjuntos</div>
+                    <ul className="text-muted-foreground list-disc pl-5 text-xs">
+                      <li>
+                        <span className="text-foreground">Word del plan:</span>{' '}
+                        {wizard.clonTradicional?.archivoWordPlanId?.name || '—'}
+                      </li>
+                      <li>
+                        <span className="text-foreground">
+                          Mapa curricular:
+                        </span>{' '}
+                        {wizard.clonTradicional?.archivoMapaExcelId?.name ||
+                          '—'}
+                      </li>
+                      <li>
+                        <span className="text-foreground">Asignaturas:</span>{' '}
+                        {wizard.clonTradicional?.archivoAsignaturasExcelId
+                          ?.name || '—'}
+                      </li>
+                    </ul>
+                  </div>
+                )}
+                {wizard.tipoOrigen === 'IA' && (
                   <div className="bg-muted/50 mt-2 rounded-md p-3">
                     <div>
                       <span className="text-muted-foreground">Enfoque: </span>
@@ -208,8 +168,10 @@ export function PasoResumenCard({ wizard }: { wizard: NewPlanWizardState }) {
                         <ul className="text-muted-foreground list-disc pl-5 text-xs">
                           {adjuntos.map((f) => (
                             <li key={f.id}>
-                              <span className="text-foreground">{f.name}</span>{' '}
-                              <span>· {f.size}</span>
+                              <span className="text-foreground">
+                                {f.file.name}
+                              </span>{' '}
+                              <span>· {formatFileSize(f.file.size)}</span>
                             </li>
                           ))}
                         </ul>

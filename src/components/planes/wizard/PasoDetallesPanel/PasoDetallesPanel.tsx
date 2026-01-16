@@ -1,6 +1,7 @@
 import { FileDropzone } from './FileDropZone'
 import ReferenciasParaIA from './ReferenciasParaIA'
 
+import type { UploadedFile } from './FileDropZone'
 import type { NewPlanWizardState } from '@/features/planes/nuevo/types'
 
 import { Button } from '@/components/ui/button'
@@ -30,7 +31,7 @@ export function PasoDetallesPanel({
   onGenerarIA: () => void
   isLoading: boolean
 }) {
-  if (wizard.modoCreacion === 'MANUAL') {
+  if (wizard.tipoOrigen === 'MANUAL') {
     return (
       <Card>
         <CardHeader>
@@ -43,7 +44,7 @@ export function PasoDetallesPanel({
     )
   }
 
-  if (wizard.modoCreacion === 'IA') {
+  if (wizard.tipoOrigen === 'IA') {
     return (
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-1">
@@ -116,14 +117,16 @@ export function PasoDetallesPanel({
               }
             })
           }
-          onFilesChange={(files) =>
-            onChange((w) => ({
-              ...w,
-              iaConfig: {
-                ...(w.iaConfig || ({} as any)),
-                archivosAdjuntos: files,
-              },
-            }))
+          onFilesChange={(files: Array<UploadedFile>) =>
+            onChange(
+              (w): NewPlanWizardState => ({
+                ...w,
+                iaConfig: {
+                  ...(w.iaConfig || ({} as any)),
+                  archivosAdjuntos: files,
+                },
+              }),
+            )
           }
         />
         <div className="flex items-center justify-between">
@@ -162,10 +165,7 @@ export function PasoDetallesPanel({
     )
   }
 
-  if (
-    wizard.modoCreacion === 'CLONADO' &&
-    wizard.subModoClonado === 'INTERNO'
-  ) {
+  if (wizard.tipoOrigen === 'CLONADO_INTERNO') {
     return (
       <div className="grid gap-4">
         <div className="grid gap-3 sm:grid-cols-3">
@@ -269,10 +269,7 @@ export function PasoDetallesPanel({
     )
   }
 
-  if (
-    wizard.modoCreacion === 'CLONADO' &&
-    wizard.subModoClonado === 'TRADICIONAL'
-  ) {
+  if (wizard.tipoOrigen === 'CLONADO_TRADICIONAL') {
     return (
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-1">

@@ -1,10 +1,13 @@
-export type TipoCiclo = "SEMESTRE" | "CUATRIMESTRE" | "TRIMESTRE";
-export type ModoCreacion = "MANUAL" | "IA" | "CLONADO";
-export type SubModoClonado = "INTERNO" | "TRADICIONAL";
+import type { UploadedFile } from "@/components/planes/wizard/PasoDetallesPanel/FileDropZone";
+import type {
+  NivelPlanEstudio,
+  TipoCiclo,
+  TipoOrigen,
+} from "@/data/types/domain";
 
 export type PlanPreview = {
   nombrePlan: string;
-  nivel: string;
+  nivel: NivelPlanEstudio;
   tipoCiclo: TipoCiclo;
   numCiclos: number;
   numAsignaturasAprox?: number;
@@ -13,20 +16,16 @@ export type PlanPreview = {
 
 export type NewPlanWizardState = {
   step: 1 | 2 | 3 | 4;
-  modoCreacion: ModoCreacion | null;
-  subModoClonado?: SubModoClonado;
+  tipoOrigen: TipoOrigen | null;
   datosBasicos: {
     nombrePlan: string;
     carreraId: string;
     facultadId: string;
-    nivel: string;
+    nivel: NivelPlanEstudio | "";
     tipoCiclo: TipoCiclo | "";
     numCiclos: number | undefined;
     // Selección de plantillas (obligatorias)
-    plantillaPlanId?: string;
-    plantillaPlanVersion?: string;
-    plantillaMapaId?: string;
-    plantillaMapaVersion?: string;
+    estructuraPlanId: string | null;
   };
   clonInterno?: { planOrigenId: string | null };
   clonTradicional?: {
@@ -53,12 +52,11 @@ export type NewPlanWizardState = {
   };
   iaConfig?: {
     descripcionEnfoque: string;
-    poblacionObjetivo: string;
     notasAdicionales: string;
     archivosReferencia: Array<string>;
     repositoriosReferencia?: Array<string>;
     archivosAdjuntos?: Array<
-      { id: string; name: string; size: string; type: string }
+      UploadedFile
     >;
   };
   resumen: { previewPlan?: PlanPreview };
