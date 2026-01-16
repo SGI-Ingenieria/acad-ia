@@ -6,7 +6,14 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { Textarea } from '@/components/ui/textarea'
-import { ArrowLeft, GraduationCap, Edit2, Save, Pencil } from 'lucide-react'
+import {
+  ArrowLeft,
+  GraduationCap,
+  Edit2,
+  Save,
+  Pencil,
+  Sparkles,
+} from 'lucide-react'
 import { ContenidoTematico } from './ContenidoTematico'
 import { BibliographyItem } from './BibliographyItem'
 import { IAMateriaTab } from './IAMateriaTab'
@@ -47,6 +54,41 @@ export interface AsignaturaResponse {
   datos: AsignaturaDatos
 }
 
+function EditableHeaderField({
+  value,
+  onSave,
+  className,
+}: {
+  value: string | number
+  onSave: (val: string) => void
+  className?: string
+}) {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      ;(e.currentTarget as HTMLElement).blur() // Quita el foco
+    }
+  }
+
+  const handleBlur = (e: React.FocusEvent<HTMLElement>) => {
+    const newValue = e.currentTarget.textContent || ''
+    if (newValue !== value.toString()) {
+      onSave(newValue)
+    }
+  }
+
+  return (
+    <span
+      contentEditable
+      suppressContentEditableWarning
+      onKeyDown={handleKeyDown}
+      onBlur={handleBlur}
+      className={`cursor-text rounded px-1 transition-all outline-none focus:ring-2 focus:ring-blue-400 ${className}`}
+    >
+      {value}
+    </span>
+  )
+}
 export default function MateriaDetailPage() {
   const { data: asignaturasApi, isLoading: loadingAsig } = useSubject(
     '9d4dda6a-488f-428a-8a07-38081592a641',
@@ -56,6 +98,31 @@ export default function MateriaDetailPage() {
   const [datosGenerales, setDatosGenerales] = useState({})
   const [campos, setCampos] = useState<CampoEstructura[]>([])
 
+  // Dentro de MateriaDetailPage
+  const [headerData, setHeaderData] = useState({
+    codigo: '',
+    nombre: '',
+    creditos: 0,
+    ciclo: 0,
+  })
+
+  // Sincronizar cuando llegue la API
+  useEffect(() => {
+    if (asignaturasApi) {
+      setHeaderData({
+        codigo: asignaturasApi?.codigo ?? '',
+        nombre: asignaturasApi?.nombre ?? '',
+        creditos: asignaturasApi?.creditos ?? '',
+        ciclo: asignaturasApi?.numero_ciclo ?? 0,
+      })
+    }
+  }, [asignaturasApi])
+
+  const handleUpdateHeader = (key: string, value: string | number) => {
+    const newData = { ...headerData, [key]: value }
+    setHeaderData(newData)
+    console.log('💾 Guardando en estado y base de datos:', key, value)
+  }
   /* ---------- sincronizar API ---------- */
   useEffect(() => {
     if (asignaturasApi?.datos) {
@@ -116,46 +183,76 @@ export default function MateriaDetailPage() {
 
   return (
     <div className="w-full">
-      {/* ================= HEADER ================= */}
+      {/* ================= HEADER ACTUALIZADO ================= */}
       <section className="bg-gradient-to-b from-[#0b1d3a] to-[#0e2a5c] text-white">
         <div className="mx-auto max-w-7xl px-6 py-10">
           <Link
             to="/planes"
             className="mb-4 flex items-center gap-2 text-sm text-blue-200 hover:text-white"
           >
-            <ArrowLeft className="h-4 w-4" />
-            Volver al plan
+            <ArrowLeft className="h-4 w-4" /> Volver al plan
           </Link>
 
           <div className="flex items-start justify-between gap-6">
             <div className="space-y-3">
+              {/* CÓDIGO EDITABLE */}
               <Badge className="border border-blue-700 bg-blue-900/50">
-                {asignaturasApi?.codigo}
+                <EditableHeaderField
+                  value={headerData.codigo}
+                  onSave={(val) => handleUpdateHeader('codigo', val)}
+                />
               </Badge>
 
-              <h1 className="text-3xl font-bold">{asignaturasApi?.nombre}</h1>
+              {/* NOMBRE EDITABLE */}
+              <h1 className="text-3xl font-bold">
+                <EditableHeaderField
+                  value={headerData.nombre}
+                  onSave={(val) => handleUpdateHeader('nombre', val)}
+                />
+              </h1>
 
               <div className="flex flex-wrap gap-4 text-sm text-blue-200">
                 <span className="flex items-center gap-1">
                   <GraduationCap className="h-4 w-4" />
                   {asignaturasApi?.planes_estudio?.datos?.nombre}
                 </span>
-
-                <span>Facultad de Ingeniería</span>
+                <span>
+                  {asignaturasApi?.planes_estudio?.carreras?.facultades?.nombre}
+                </span>
               </div>
 
               <p className="text-sm text-blue-300">
                 Pertenece al plan:{' '}
                 <span className="cursor-pointer underline">
-                  Licenciatura en Ingeniería en Sistemas Computacionales 2024
+                  {asignaturasApi?.planes_estudio?.nombre}
                 </span>
               </p>
             </div>
 
-            <div className="flex flex-col items-end gap-2">
-              <Badge variant="secondary">8 créditos</Badge>
-              <Badge variant="secondary">7° semestre</Badge>
-              <Badge variant="secondary">Sistemas Inteligentes</Badge>
+            <div className="flex flex-col items-end gap-2 text-right">
+              {/* CRÉDITOS EDITABLES */}
+              <Badge variant="secondary" className="gap-1">
+                <EditableHeaderField
+                  value={headerData.creditos}
+                  onSave={(val) =>
+                    handleUpdateHeader('creditos', parseInt(val) || 0)
+                  }
+                />
+                <span>créditos</span>
+              </Badge>
+
+              {/* SEMESTRE EDITABLE */}
+              <Badge variant="secondary" className="gap-1">
+                <EditableHeaderField
+                  value={headerData.ciclo}
+                  onSave={(val) =>
+                    handleUpdateHeader('ciclo', parseInt(val) || 0)
+                  }
+                />
+                <span>° ciclo</span>
+              </Badge>
+
+              <Badge variant="secondary">{asignaturasApi?.tipo}</Badge>
             </div>
           </div>
         </div>
@@ -224,7 +321,7 @@ export default function MateriaDetailPage() {
             </TabsContent>
 
             <TabsContent value="historial">
-              <HistorialTab historial={mockHistorial} />
+              <HistorialTab />
             </TabsContent>
           </Tabs>
         </div>
@@ -254,14 +351,6 @@ function DatosGenerales({ data, isLoading }: DatosGeneralesProps) {
             Información oficial estructurada bajo los lineamientos de la SEP.
           </p>
         </div>
-        <div className="flex gap-3">
-          <Button variant="outline" size="sm" className="gap-2">
-            <Edit2 className="h-4 w-4" /> Editar borrador
-          </Button>
-          <Button size="sm" className="gap-2 bg-blue-600 hover:bg-blue-700">
-            <Save className="h-4 w-4" /> Guardar cambios
-          </Button>
-        </div>
       </div>
 
       {/* Grid de Información */}
@@ -276,6 +365,10 @@ function DatosGenerales({ data, isLoading }: DatosGeneralesProps) {
                 key={key}
                 title={formatTitle(key)}
                 initialContent={value}
+                onEnhanceAI={(contenido) => {
+                  console.log('Llevar a IA:', contenido)
+                  // Aquí tu lógica: setPestañaActiva('mejorar-con-ia');
+                }}
               />
             ))}
         </div>
@@ -321,24 +414,24 @@ function DatosGenerales({ data, isLoading }: DatosGeneralesProps) {
 
 interface InfoCardProps {
   title: string
-  subtitle?: string
-  isList?: boolean
-  initialContent: any // Puede ser string o array de objetos
-  type?: 'text' | 'list' | 'requirements' | 'evaluation'
+  initialContent: any
+  type?: 'text' | 'requirements' | 'evaluation'
+  onEnhanceAI?: (content: any) => void // Nueva prop para la acción de IA
 }
 
-function InfoCard({ title, initialContent, type = 'text' }: InfoCardProps) {
+function InfoCard({
+  title,
+  initialContent,
+  type = 'text',
+  onEnhanceAI,
+}: InfoCardProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [data, setData] = useState(initialContent)
-  // Estado temporal para el área de texto (siempre editamos como texto por simplicidad)
   const [tempText, setTempText] = useState(
-    type === 'text' || type === 'list'
-      ? initialContent
-      : JSON.stringify(initialContent, null, 2), // O un formato legible
+    type === 'text' ? initialContent : JSON.stringify(initialContent, null, 2),
   )
 
   const handleSave = () => {
-    // Aquí podrías parsear el texto de vuelta si es necesario
     setData(tempText)
     setIsEditing(false)
   }
@@ -349,15 +442,30 @@ function InfoCard({ title, initialContent, type = 'text' }: InfoCardProps) {
         <CardTitle className="text-sm font-bold text-slate-700">
           {title}
         </CardTitle>
+
         {!isEditing && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-slate-400"
-            onClick={() => setIsEditing(true)}
-          >
-            <Pencil className="h-3 w-3" />
-          </Button>
+          <div className="flex gap-1">
+            {/* NUEVO: Botón de Mejorar con IA */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-blue-500 hover:bg-blue-50 hover:text-blue-600"
+              onClick={() => onEnhanceAI?.(data)} // Enviamos la data actual a la IA
+              title="Mejorar con IA"
+            >
+              <Sparkles className="h-4 w-4" />
+            </Button>
+
+            {/* Botón de Editar original */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-slate-400"
+              onClick={() => setIsEditing(true)}
+            >
+              <Pencil className="h-3 w-3" />
+            </Button>
+          </div>
         )}
       </CardHeader>
 
@@ -377,7 +485,11 @@ function InfoCard({ title, initialContent, type = 'text' }: InfoCardProps) {
               >
                 Cancelar
               </Button>
-              <Button size="sm" className="bg-[#00a878]" onClick={handleSave}>
+              <Button
+                size="sm"
+                className="bg-[#00a878] hover:bg-[#008f66]"
+                onClick={handleSave}
+              >
                 Guardar
               </Button>
             </div>
@@ -428,14 +540,6 @@ function EvaluationView({ items }: { items: any[] }) {
           <span className="font-bold text-blue-600">{item.value}</span>
         </div>
       ))}
-    </div>
-  )
-}
-
-function EmptyTab({ title }: { title: string }) {
-  return (
-    <div className="text-muted-foreground py-16 text-center">
-      {title} (pendiente)
     </div>
   )
 }

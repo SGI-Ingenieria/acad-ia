@@ -10,6 +10,7 @@ import {
   Filter,
   Calendar,
   Loader2,
+  Eye,
 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -21,15 +22,15 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
-import { format, formatDistanceToNow, parseISO } from 'date-fns'
+import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { useSubjectHistorial } from '@/data/hooks/useSubjects'
-
-// Mapeo de tipos de la API a los tipos del componente
-const TIPO_MAP: Record<string, string> = {
-  ACTUALIZACION_CAMPO: 'contenido', // O 'datos' según el campo
-  CREACION: 'datos',
-}
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 
 const tipoConfig: Record<string, { label: string; icon: any; color: string }> =
   {
@@ -62,23 +63,87 @@ export function HistorialTab() {
     new Set(['datos', 'contenido', 'bibliografia', 'ia', 'documento']),
   )
 
-  // 2. Transformamos los datos de la API al formato que usa el componente
+  // ESTADOS PARA EL MODAL
+  const [selectedChange, setSelectedChange] = useState<any>(null)
+  const [isModalOpen, setIsModalOpen] = useState(false)
+
+  const RenderValue = ({ value }: { value: any }) => {
+    // 1. Caso: Nulo o vacío
+    if (
+      value === null ||
+      value === undefined ||
+      value === 'Sin información previa'
+    ) {
+      return (
+        <span className="text-muted-foreground italic">Sin información</span>
+      )
+    }
+
+    // 2. Caso: Es un ARRAY (como tu lista de unidades)
+    if (Array.isArray(value)) {
+      return (
+        <div className="space-y-4">
+          {value.map((item, index) => (
+            <div
+              key={index}
+              className="rounded-lg border bg-white/50 p-3 shadow-sm"
+            >
+              <RenderValue value={item} />
+            </div>
+          ))}
+        </div>
+      )
+    }
+
+    // 3. Caso: Es un OBJETO (como cada unidad con titulo, temas, etc.)
+    if (typeof value === 'object') {
+      return (
+        <div className="grid gap-2">
+          {Object.entries(value).map(([key, val]) => (
+            <div key={key} className="flex flex-col">
+              <span className="text-[10px] font-bold tracking-wider text-slate-400 uppercase">
+                {key.replace(/_/g, ' ')}
+              </span>
+              <div className="text-sm text-slate-700">
+                {/* Llamada recursiva para manejar lo que haya dentro del valor */}
+                {typeof val === 'object' ? (
+                  <div className="mt-1 border-l-2 border-slate-100 pl-2">
+                    <RenderValue value={val} />
+                  </div>
+                ) : (
+                  String(val)
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )
+    }
+
+    // 4. Caso: Texto o número simple
+    return <span className="text-sm leading-relaxed">{String(value)}</span>
+  }
+
   const historialTransformado = useMemo(() => {
     if (!rawData) return []
-
     return rawData.map((item: any) => ({
       id: item.id,
-      // Intentamos determinar el tipo basándonos en el campo o el tipo de la API
       tipo: item.campo === 'contenido_tematico' ? 'contenido' : 'datos',
       descripcion: `Se actualizó el campo ${item.campo.replace('_', ' ')}`,
       fecha: parseISO(item.cambiado_en),
       usuario: item.fuente === 'HUMANO' ? 'Usuario Staff' : 'Sistema IA',
       detalles: {
         campo: item.campo,
+        valor_anterior: item.valor_anterior || 'Sin datos previos', // Asumiendo que existe en tu API
         valor_nuevo: item.valor_nuevo,
       },
     }))
   }, [rawData])
+
+  const openCompareModal = (cambio: any) => {
+    setSelectedChange(cambio)
+    setIsModalOpen(true)
+  }
 
   const toggleFiltro = (tipo: string) => {
     const newFiltros = new Set(filtros)
@@ -198,6 +263,16 @@ export function HistorialTab() {
                                 <p className="font-medium">
                                   {cambio.descripcion}
                                 </p>
+                                {/* BOTÓN PARA VER CAMBIOS */}
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="gap-2 text-blue-600 hover:bg-blue-50 hover:text-blue-700"
+                                  onClick={() => openCompareModal(cambio)}
+                                >
+                                  <Eye className="h-4 w-4" />
+                                  Ver cambios
+                                </Button>
                                 <span className="text-muted-foreground text-xs">
                                   {format(cambio.fecha, 'HH:mm')}
                                 </span>
@@ -225,6 +300,55 @@ export function HistorialTab() {
           ))}
         </div>
       )}
+      {/* MODAL DE COMPARACIÓN */}
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <DialogContent className="flex max-h-[90vh] max-w-4xl flex-col overflow-hidden">
+          <DialogHeader className="flex-shrink-0">
+            <DialogTitle className="flex items-center gap-2 text-xl">
+              <History className="h-5 w-5 text-blue-500" />
+              Comparación de cambios
+            </DialogTitle>
+            {/* ... info de usuario y fecha */}
+          </DialogHeader>
+
+          <div className="custom-scrollbar mt-4 flex-1 overflow-y-auto pr-2">
+            <div className="grid h-full grid-cols-2 gap-6">
+              {/* Lado Antes */}
+              <div className="flex flex-col space-y-3">
+                <div className="sticky top-0 z-10 flex items-center gap-2 bg-white pb-2">
+                  <div className="h-2 w-2 rounded-full bg-red-400" />
+                  <span className="text-xs font-bold text-slate-500 uppercase">
+                    Versión Anterior
+                  </span>
+                </div>
+                <div className="flex-1 rounded-xl border border-red-100 bg-red-50/30 p-4">
+                  <RenderValue
+                    value={selectedChange?.detalles.valor_anterior}
+                  />
+                </div>
+              </div>
+
+              {/* Lado Después */}
+              <div className="flex flex-col space-y-3">
+                <div className="sticky top-0 z-10 flex items-center gap-2 bg-white pb-2">
+                  <div className="h-2 w-2 rounded-full bg-emerald-400" />
+                  <span className="text-xs font-bold text-slate-500 uppercase">
+                    Nueva Versión
+                  </span>
+                </div>
+                <div className="flex-1 rounded-xl border border-emerald-100 bg-emerald-50/40 p-4">
+                  <RenderValue value={selectedChange?.detalles.valor_nuevo} />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-4 flex flex-shrink-0 items-center justify-center gap-2 rounded-lg border border-slate-100 bg-slate-50 p-3 text-xs text-slate-500">
+            Campo modificado:{' '}
+            <Badge variant="secondary">{selectedChange?.detalles.campo}</Badge>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

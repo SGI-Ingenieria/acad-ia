@@ -1,18 +1,27 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import {
   GitBranch,
   Edit3,
   PlusCircle,
-  FileText,
   RefreshCw,
   User,
   Loader2,
   Clock,
+  Eye,
+  History,
+  Calendar,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
 import { usePlanHistorial } from '@/data/hooks/usePlans'
 import { format, formatDistanceToNow, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -21,7 +30,6 @@ export const Route = createFileRoute('/planes/$planId/_detalle/historial')({
   component: RouteComponent,
 })
 
-// Función para determinar el icono y tipo según la respuesta de la API
 const getEventConfig = (tipo: string, campo: string) => {
   if (tipo === 'CREACION')
     return {
@@ -51,13 +59,15 @@ const getEventConfig = (tipo: string, campo: string) => {
 function RouteComponent() {
   const { planId } = Route.useParams()
   const { data: rawData, isLoading } = usePlanHistorial(
-    '0e0aea4d-b8b4-4e75-8279-6224c3ac769f' /*planId*/,
+    '0e0aea4d-b8b4-4e75-8279-6224c3ac769f',
   )
 
-  // Transformación de datos de la API al formato de la UI
+  // ESTADOS PARA EL MODAL
+  const [selectedEvent, setSelectedEvent] = useState<any>(null)
+  const [isModalOpen, setIsModalOpen] = useState(false)
+
   const historyEvents = useMemo(() => {
     if (!rawData) return []
-
     return rawData.map((item: any) => {
       const config = getEventConfig(item.tipo, item.campo)
       return {
@@ -73,115 +83,202 @@ function RouteComponent() {
             : `Se modificó el campo ${item.campo}`,
         date: parseISO(item.cambiado_en),
         icon: config.icon,
-        details:
-          item.valor_anterior && item.valor_nuevo
-            ? {
-                from: String(item.valor_anterior),
-                to: String(item.valor_nuevo),
-              }
-            : null,
+        campo: item.campo,
+        details: {
+          from: item.valor_anterior,
+          to: item.valor_nuevo,
+        },
       }
     })
   }, [rawData])
 
-  if (isLoading) {
+  const openCompareModal = (event: any) => {
+    setSelectedEvent(event)
+    setIsModalOpen(true)
+  }
+
+  const renderValue = (val: any) => {
+    if (!val) return 'Sin información'
+    if (typeof val === 'object') return JSON.stringify(val, null, 2)
+    return String(val)
+  }
+
+  if (isLoading)
     return (
       <div className="flex h-64 items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-teal-600" />
       </div>
     )
-  }
 
   return (
     <div className="mx-auto max-w-5xl p-6">
-      <div className="mb-8">
-        <h1 className="flex items-center gap-2 text-xl font-bold text-slate-800">
-          <Clock className="h-5 w-5 text-teal-600" />
-          Historial de Cambios del Plan
-        </h1>
-        <p className="text-muted-foreground text-sm">
-          Registro cronológico de modificaciones realizadas
-        </p>
+      <div className="mb-8 flex items-end justify-between">
+        <div>
+          <h1 className="flex items-center gap-2 text-xl font-bold text-slate-800">
+            <Clock className="h-5 w-5 text-teal-600" /> Historial de Cambios del
+            Plan
+          </h1>
+          <p className="text-muted-foreground text-sm">
+            Registro cronológico de modificaciones realizadas
+          </p>
+        </div>
       </div>
 
       <div className="relative space-y-0">
-        {/* Línea vertical de fondo */}
         <div className="absolute top-0 bottom-0 left-9 w-px bg-slate-200" />
-
         {historyEvents.length === 0 ? (
-          <div className="ml-20 py-10 text-slate-500">
-            No hay registros en el historial.
-          </div>
+          <div className="ml-20 py-10 text-slate-500">No hay registros.</div>
         ) : (
           historyEvents.map((event) => (
             <div key={event.id} className="group relative flex gap-6 pb-8">
-              {/* Indicador con Icono */}
               <div className="relative z-10 flex h-18 flex-col items-center">
                 <div className="flex h-[42px] w-[42px] items-center justify-center rounded-full border-4 border-white bg-slate-100 text-slate-600 shadow-sm transition-colors group-hover:bg-teal-50 group-hover:text-teal-600">
                   {event.icon}
                 </div>
               </div>
 
-              {/* Tarjeta de Contenido */}
               <Card className="flex-1 border-slate-200 shadow-none transition-colors hover:border-teal-200">
                 <CardContent className="p-4">
-                  <div className="mb-2 flex flex-col justify-between gap-2 md:flex-row md:items-center">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-bold text-slate-800">
-                        {event.type}
-                      </span>
-                      <Badge
-                        variant="outline"
-                        className="py-0 text-[10px] font-normal capitalize"
-                      >
-                        {formatDistanceToNow(event.date, {
-                          addSuffix: true,
-                          locale: es,
-                        })}
-                      </Badge>
+                  <div className="flex flex-col gap-1">
+                    {/* LÍNEA SUPERIOR: Título a la izquierda --- Usuario, Botón y Fecha a la derecha */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-bold text-slate-800">
+                          {event.type}
+                        </span>
+                        <Badge
+                          variant="outline"
+                          className="h-5 py-0 text-[10px] font-normal"
+                        >
+                          {formatDistanceToNow(event.date, {
+                            addSuffix: true,
+                            locale: es,
+                          })}
+                        </Badge>
+                      </div>
+
+                      {/* Grupo de elementos alineados a la derecha */}
+                      <div className="flex items-center gap-4 text-slate-500">
+                        {/* Usuario e Icono */}
+                        <div className="flex items-center gap-2 text-xs">
+                          <User className="h-3.5 w-3.5" />
+                          <span className="text-muted-foreground">
+                            {event.user}
+                          </span>
+                        </div>
+
+                        {/* Botón Ver Cambios */}
+                        <button
+                          onClick={() => openCompareModal(event)}
+                          className="group/btn flex items-center gap-1.5 text-xs transition-colors hover:text-teal-600"
+                        >
+                          <Eye className="h-4 w-4 text-slate-400 group-hover/btn:text-teal-600" />
+                          <span>Ver cambios</span>
+                        </button>
+
+                        {/* Fecha exacta (Solo visible en desktop para no amontonar) */}
+                        <span className="hidden text-[11px] text-slate-400 md:block">
+                          {format(event.date, 'yyyy-MM-dd HH:mm')}
+                        </span>
+                      </div>
                     </div>
-                    <div className="text-muted-foreground flex items-center gap-2 text-xs">
-                      <Avatar className="h-5 w-5 border">
-                        <AvatarFallback className="bg-slate-50 text-[8px]">
-                          <User size={10} />
-                        </AvatarFallback>
-                      </Avatar>
-                      {event.user}
+
+                    {/* LÍNEA INFERIOR: Descripción */}
+                    <div className="mt-1">
+                      <p className="text-sm text-slate-600">
+                        {event.description}
+                      </p>
+
+                      {/* Badges de transición opcionales (de estado) */}
+                      {event.details &&
+                        typeof event.details.from === 'string' &&
+                        event.campo === 'estado' && (
+                          <div className="mt-2 flex items-center gap-1.5">
+                            <Badge
+                              variant="secondary"
+                              className="bg-red-50 px-1.5 text-[9px] text-red-700"
+                            >
+                              {event.details.from}
+                            </Badge>
+                            <span className="text-[10px] text-slate-400">
+                              →
+                            </span>
+                            <Badge
+                              variant="secondary"
+                              className="bg-emerald-50 px-1.5 text-[9px] text-emerald-700"
+                            >
+                              {event.details.to}
+                            </Badge>
+                          </div>
+                        )}
                     </div>
                   </div>
-
-                  <p className="mb-1 text-sm text-slate-600">
-                    {event.description}
-                  </p>
-
-                  <p className="mb-3 text-[10px] text-slate-400">
-                    {format(event.date, "PPP 'a las' HH:mm", { locale: es })}
-                  </p>
-
-                  {/* Badges de transición (Si aplica para estados) */}
-                  {event.details && (
-                    <div className="mt-2 flex items-center gap-2">
-                      <Badge
-                        variant="secondary"
-                        className="bg-slate-100 text-[10px]"
-                      >
-                        {event.details.from}
-                      </Badge>
-                      <span className="text-xs text-slate-400">→</span>
-                      <Badge
-                        variant="secondary"
-                        className="bg-teal-50 text-[10px] text-teal-700"
-                      >
-                        {event.details.to}
-                      </Badge>
-                    </div>
-                  )}
                 </CardContent>
               </Card>
             </div>
           ))
         )}
       </div>
+
+      {/* MODAL DE COMPARACIÓN CON SCROLL INTERNO */}
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <DialogContent className="flex max-h-[90vh] max-w-4xl flex-col gap-0 overflow-hidden p-0">
+          <DialogHeader className="border-b bg-slate-50/50 p-6">
+            <DialogTitle className="flex items-center gap-2">
+              <History className="h-5 w-5 text-teal-600" /> Comparación de
+              Versiones
+            </DialogTitle>
+            <div className="text-muted-foreground flex items-center gap-4 pt-2 text-xs">
+              <span className="flex items-center gap-1">
+                <User className="h-3 w-3" /> {selectedEvent?.user}
+              </span>
+              <span className="flex items-center gap-1">
+                <Calendar className="h-3 w-3" />{' '}
+                {selectedEvent &&
+                  format(selectedEvent.date, "d 'de' MMMM, HH:mm", {
+                    locale: es,
+                  })}
+              </span>
+            </div>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-y-auto p-6">
+            <div className="grid h-full grid-cols-2 gap-6">
+              {/* Lado Antes */}
+              <div className="flex flex-col space-y-2">
+                <div className="sticky top-0 z-10 flex items-center gap-2 bg-white py-1">
+                  <div className="h-2 w-2 rounded-full bg-red-400" />
+                  <span className="text-muted-foreground text-[10px] font-bold tracking-widest uppercase">
+                    Versión Anterior
+                  </span>
+                </div>
+                <div className="max-h-[500px] min-h-[250px] flex-1 overflow-y-auto rounded-lg border border-red-100 bg-red-50/30 p-4 font-mono text-xs leading-relaxed whitespace-pre-wrap text-slate-700">
+                  {renderValue(selectedEvent?.details.from)}
+                </div>
+              </div>
+
+              {/* Lado Después */}
+              <div className="flex flex-col space-y-2">
+                <div className="sticky top-0 z-10 flex items-center gap-2 bg-white py-1">
+                  <div className="h-2 w-2 rounded-full bg-emerald-400" />
+                  <span className="text-muted-foreground text-[10px] font-bold tracking-widest uppercase">
+                    Nueva Versión
+                  </span>
+                </div>
+                <div className="max-h-[500px] min-h-[250px] flex-1 overflow-y-auto rounded-lg border border-emerald-100 bg-emerald-50/30 p-4 font-mono text-xs leading-relaxed whitespace-pre-wrap text-slate-700">
+                  {renderValue(selectedEvent?.details.to)}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex justify-center border-t bg-slate-50 p-4">
+            <Badge variant="outline" className="font-mono text-[10px]">
+              Campo: {selectedEvent?.campo}
+            </Badge>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
