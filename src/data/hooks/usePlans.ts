@@ -4,14 +4,7 @@ import {
   useQuery,
   useQueryClient,
 } from '@tanstack/react-query'
-import { qk } from '../query/keys'
-import type { PlanEstudio, UUID } from '../types/domain'
-import type {
-  PlanListFilters,
-  PlanMapOperation,
-  PlansCreateManualInput,
-  PlansUpdateFieldsPatch,
-} from '../api/plans.api'
+
 import {
   ai_generate_plan,
   getCatalogos,
@@ -30,6 +23,15 @@ import {
   plans_update_fields,
   plans_update_map,
 } from '../api/plans.api'
+import { qk } from '../query/keys'
+
+import type {
+  PlanListFilters,
+  PlanMapOperation,
+  PlansCreateManualInput,
+  PlansUpdateFieldsPatch,
+} from '../api/plans.api'
+import type { UUID } from '../types/domain'
 
 export function usePlanes(filters: PlanListFilters) {
   // 🧠 Tip: memoiza "filters" (useMemo) para que queryKey sea estable.
@@ -42,6 +44,9 @@ export function usePlanes(filters: PlanListFilters) {
 
     // UX: Mantiene los datos viejos mientras carga la paginación nueva
     placeholderData: keepPreviousData,
+
+    // Opcional: Tiempo que la data se considera fresca
+    staleTime: 1000 * 60 * 5, // 5 minutos
   })
 }
 
@@ -85,6 +90,14 @@ export function usePlanDocumento(planId: UUID | null | undefined) {
     queryFn: () => plans_get_document(planId as UUID),
     enabled: Boolean(planId),
     staleTime: 30_000,
+  })
+}
+
+export function useCatalogosPlanes() {
+  return useQuery({
+    queryKey: ['catalogos_planes'],
+    queryFn: getCatalogos,
+    staleTime: 1000 * 60 * 60, // 1 hora de caché (estos datos casi no cambian)
   })
 }
 
@@ -162,7 +175,7 @@ export function useUpdatePlanMapa() {
   const qc = useQueryClient()
 
   return useMutation({
-    mutationFn: (vars: { planId: UUID; ops: PlanMapOperation[] }) =>
+    mutationFn: (vars: { planId: UUID; ops: Array<PlanMapOperation> }) =>
       plans_update_map(vars.planId, vars.ops),
 
     // ✅ Optimista (rápida) para el caso MOVE_ASIGNATURA
@@ -171,9 +184,7 @@ export function useUpdatePlanMapa() {
       const prev = qc.getQueryData<any>(qk.planAsignaturas(vars.planId))
 
       // solo optimizamos MOVEs simples
-      const moves = vars.ops.filter((x) => x.op === 'MOVE_ASIGNATURA') as Array<
-        Extract<PlanMapOperation, { op: 'MOVE_ASIGNATURA' }>
-      >
+      const moves = vars.ops.filter((x) => x.op === 'MOVE_ASIGNATURA')
 
       if (prev && Array.isArray(prev) && moves.length) {
         const next = prev.map((a: any) => {
