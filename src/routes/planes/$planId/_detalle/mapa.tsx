@@ -1,7 +1,5 @@
+/* eslint-disable jsx-a11y/label-has-associated-control */
 import { createFileRoute } from '@tanstack/react-router'
-import { useMemo, useState, useEffect } from 'react'
-import { Badge } from '@/components/ui/badge'
-import { Input } from '@/components/ui/input'
 import {
   Plus,
   ChevronDown,
@@ -9,7 +7,11 @@ import {
   GripVertical,
   Trash2,
 } from 'lucide-react'
+import { useMemo, useState, useEffect } from 'react'
+
 import type { Materia, LineaCurricular } from '@/types/plan'
+
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -23,12 +25,20 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { usePlanAsignaturas, usePlanLineas } from '@/data'
 
 // --- Mapeadores (Fuera del componente para mayor limpieza) ---
 const mapLineasToLineaCurricular = (
-  lineasApi: any[] = [],
-): LineaCurricular[] => {
+  lineasApi: Array<any> = [],
+): Array<LineaCurricular> => {
   return lineasApi.map((linea) => ({
     id: linea.id,
     nombre: linea.nombre,
@@ -37,7 +47,7 @@ const mapLineasToLineaCurricular = (
   }))
 }
 
-const mapAsignaturasToMaterias = (asigApi: any[] = []): Materia[] => {
+const mapAsignaturasToMaterias = (asigApi: Array<any> = []): Array<Materia> => {
   return asigApi.map((asig) => ({
     id: asig.id,
     clave: asig.codigo,
@@ -50,6 +60,7 @@ const mapAsignaturasToMaterias = (asigApi: any[] = []): Materia[] => {
     orden: asig.orden_celda ?? 0,
     hd: Math.floor((asig.horas_semana ?? 0) / 2),
     hi: Math.ceil((asig.horas_semana ?? 0) / 2),
+    prerrequisitos: [],
   }))
 }
 
@@ -151,18 +162,55 @@ function MapaCurricularPage() {
 
   // 1. Fetch de Datos
   const { data: asignaturasApi, isLoading: loadingAsig } = usePlanAsignaturas(
-    /*planId*/ '0e0aea4d-b8b4-4e75-8279-6224c3ac769f',
+    /* planId*/ '0e0aea4d-b8b4-4e75-8279-6224c3ac769f',
   )
   const { data: lineasApi, isLoading: loadingLineas } = usePlanLineas(
-    /*planId*/ '0e0aea4d-b8b4-4e75-8279-6224c3ac769f',
+    /* planId*/ '0e0aea4d-b8b4-4e75-8279-6224c3ac769f',
   )
 
   // 2. Estado Local (Para interactividad)
-  const [materias, setMaterias] = useState<Materia[]>([])
-  const [lineas, setLineas] = useState<LineaCurricular[]>([])
+  const [materias, setMaterias] = useState<Array<Materia>>([])
+  const [lineas, setLineas] = useState<Array<LineaCurricular>>([])
   const [draggedMateria, setDraggedMateria] = useState<string | null>(null)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [selectedMateria, setSelectedMateria] = useState<Materia | null>(null)
+  const [hasAreaComun, setHasAreaComun] = useState(false)
+  const [nombreNuevaLinea, setNombreNuevaLinea] = useState('') // Para el input de nombre personalizado
+
+  const manejarAgregarLinea = (nombre: string) => {
+    const nombreNormalizado = nombre.trim()
+
+    // Validar si es Área Común (insensible a mayúsculas/minúsculas)
+    const esAreaComun =
+      nombreNormalizado.toLowerCase() === 'área común' ||
+      nombreNormalizado.toLowerCase() === 'area comun'
+
+    if (esAreaComun && hasAreaComun) {
+      alert('El Área Común ya ha sido agregada.')
+      return
+    }
+
+    const nueva = {
+      id: crypto.randomUUID(),
+      nombre: nombreNormalizado,
+      orden: lineas.length + 1,
+    }
+
+    setLineas([...lineas, nueva])
+
+    if (esAreaComun) {
+      setHasAreaComun(true)
+    }
+    setNombreNuevaLinea('') // Limpiar input
+  }
+
+  const tieneAreaComun = useMemo(() => {
+    return lineas.some(
+      (l) =>
+        l.nombre.toLowerCase() === 'área común' ||
+        l.nombre.toLowerCase() === 'area comun',
+    )
+  }, [lineas])
 
   // 3. Sincronizar API -> Estado Local
   useEffect(() => {
@@ -175,6 +223,25 @@ function MapaCurricularPage() {
 
   const ciclosTotales = 9
   const ciclosArray = Array.from({ length: ciclosTotales }, (_, i) => i + 1)
+
+  // Nuevo estado para controlar los datos temporales del modal de edición
+  const [editingData, setEditingData] = useState<Materia | null>(null)
+
+  // 1. FUNCION DE GUARDAR MODAL
+  const handleSaveChanges = () => {
+    if (!editingData) return
+    console.log(materias)
+
+    setMaterias((prev) =>
+      prev.map((m) => (m.id === editingData.id ? { ...editingData } : m)),
+    )
+    setIsEditModalOpen(false)
+  }
+
+  // 2. MODIFICACIÓN: Zona de soltado siempre visible
+  // Cambiamos la condición: Mostramos la sección si hay materias sin asignar
+  // O si simplemente queremos tener el "depósito" disponible.
+  const unassignedMaterias = materias.filter((m) => m.ciclo === null)
 
   // --- Lógica de Gestión ---
   const agregarLinea = (nombre: string) => {
@@ -287,9 +354,39 @@ function MapaCurricularPage() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => agregarLinea('Nueva Línea')}>
-                Nueva Línea Curricular
-              </DropdownMenuItem>
+              {!tieneAreaComun && (
+                <>
+                  <DropdownMenuItem
+                    onClick={() => manejarAgregarLinea('Área Común')}
+                    className="font-bold text-teal-700"
+                  >
+                    + Agregar Área Común
+                  </DropdownMenuItem>
+                  <div className="my-1 border-t border-slate-100" />
+                </>
+              )}
+              {/* Input para nombre personalizado */}
+              <div className="p-2">
+                <label className="text-[10px] font-bold text-slate-400 uppercase">
+                  Nombre de Línea
+                </label>
+                <div className="mt-1 flex gap-1">
+                  <Input
+                    value={nombreNuevaLinea}
+                    onChange={(e) => setNombreNuevaLinea(e.target.value)}
+                    placeholder="Ej: Optativas"
+                    className="h-8 text-xs"
+                  />
+                  <Button
+                    size="sm"
+                    className="h-8 px-2"
+                    onClick={() => manejarAgregarLinea(nombreNuevaLinea)}
+                    disabled={!nombreNuevaLinea.trim()}
+                  >
+                    <Plus size={14} />
+                  </Button>
+                </div>
+              </div>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -367,7 +464,7 @@ function MapaCurricularPage() {
                           isDragging={draggedMateria === m.id}
                           onDragStart={handleDragStart}
                           onClick={() => {
-                            setSelectedMateria(m)
+                            setEditingData(m)
                             setIsEditModalOpen(true)
                           }}
                         />
@@ -416,77 +513,214 @@ function MapaCurricularPage() {
       </div>
 
       {/* Materias Sin Asignar */}
-      {materias.filter((m) => m.ciclo === null).length > 0 && (
-        <div className="mt-10 rounded-2xl border border-slate-200 bg-slate-50 p-6">
-          <div className="mb-4 flex items-center gap-2 text-amber-600">
-            <AlertTriangle size={20} />
-            <h3 className="text-sm font-bold uppercase">
-              Materias pendientes (
-              {materias.filter((m) => m.ciclo === null).length})
+      {/* SECCIÓN DE MATERIAS SIN ASIGNAR (Mejorada para estar siempre disponible) */}
+      <div className="mt-10 rounded-2xl border border-slate-200 bg-slate-50 p-6">
+        <div className="mb-4 flex items-center justify-between">
+          <div className="flex items-center gap-2 text-slate-600">
+            <h3 className="text-sm font-bold tracking-wider uppercase">
+              Bandeja de Entrada / Materias sin asignar
             </h3>
+            <Badge variant="secondary">{unassignedMaterias.length}</Badge>
           </div>
-          <div
-            className="flex min-h-[100px] flex-wrap gap-4 rounded-xl border-2 border-dashed bg-white/50 p-4"
-            onDragOver={handleDragOver}
-            onDrop={(e) => handleDrop(e, null, null)}
-          >
-            {materias
-              .filter((m) => m.ciclo === null)
-              .map((m) => (
-                <div key={m.id} className="w-[200px]">
-                  <MateriaCardItem
-                    materia={m}
-                    isDragging={draggedMateria === m.id}
-                    onDragStart={handleDragStart}
-                    onClick={() => {
-                      setSelectedMateria(m)
-                      setIsEditModalOpen(true)
-                    }}
-                  />
-                </div>
-              ))}
-          </div>
+          <p className="text-xs text-slate-400">
+            Arrastra una materia aquí para quitarla del mapa
+          </p>
         </div>
-      )}
+
+        <div
+          className={`flex min-h-[120px] flex-wrap gap-4 rounded-xl border-2 border-dashed p-4 transition-colors ${
+            draggedMateria
+              ? 'border-teal-300 bg-teal-50/50'
+              : 'border-slate-200 bg-white/50'
+          }`}
+          onDragOver={handleDragOver}
+          onDrop={(e) => handleDrop(e, null, null)} // Limpia ciclo y línea
+        >
+          {unassignedMaterias.map((m) => (
+            <div key={m.id} className="w-[200px]">
+              <MateriaCardItem
+                materia={m}
+                isDragging={draggedMateria === m.id}
+                onDragStart={handleDragStart}
+                onClick={() => {
+                  setEditingData(m) // Cargamos los datos en el estado de edición
+                  setIsEditModalOpen(true)
+                }}
+              />
+            </div>
+          ))}
+          {unassignedMaterias.length === 0 && (
+            <div className="flex w-full items-center justify-center text-sm text-slate-400">
+              No hay materias pendientes. Arrastra una materia aquí para
+              desasignarla.
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* Modal de Edición */}
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="sm:max-w-[550px]">
           <DialogHeader>
-            <DialogTitle>Editar Materia</DialogTitle>
+            <DialogTitle className="font-bold text-slate-700">
+              Editar Materia
+            </DialogTitle>
           </DialogHeader>
-          {selectedMateria && (
-            <div className="grid grid-cols-2 gap-4 py-4">
-              <div className="space-y-2">
-                <label className="text-xs font-bold uppercase">Clave</label>
-                <Input defaultValue={selectedMateria.clave} />
-              </div>
-              <div className="space-y-2">
-                <label className="text-xs font-bold uppercase">Nombre</label>
-                <Input defaultValue={selectedMateria.nombre} />
-              </div>
-              <div className="space-y-2">
-                <label className="text-xs font-bold uppercase">Créditos</label>
-                <Input type="number" defaultValue={selectedMateria.creditos} />
-              </div>
-              <div className="flex gap-2">
+
+          {/* Verificación de seguridad: solo renderiza si hay datos */}
+          {editingData ? (
+            <div className="grid gap-4 py-4">
+              {/* Fila 1: Clave y Nombre */}
+              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase">HD</label>
-                  <Input type="number" defaultValue={selectedMateria.hd} />
+                  <label className="text-xs font-bold text-slate-500 uppercase">
+                    Clave
+                  </label>
+                  <Input
+                    value={editingData.clave}
+                    onChange={(e) =>
+                      setEditingData({ ...editingData, clave: e.target.value })
+                    }
+                  />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase">HI</label>
-                  <Input type="number" defaultValue={selectedMateria.hi} />
+                  <label className="text-xs font-bold text-slate-500 uppercase">
+                    Nombre
+                  </label>
+                  <Input
+                    value={editingData.nombre}
+                    onChange={(e) =>
+                      setEditingData({ ...editingData, nombre: e.target.value })
+                    }
+                  />
                 </div>
+              </div>
+
+              {/* Fila 2: Créditos y Horas */}
+              <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-500 uppercase">
+                    Créditos
+                  </label>
+                  <Input type="number" value={editingData.creditos} />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-500 uppercase">
+                    HD (Horas Docente)
+                  </label>
+                  <Input type="number" value={editingData.hd} />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-500 uppercase">
+                    HI (Horas Indep.)
+                  </label>
+                  <Input type="number" value={editingData.hi} />
+                </div>
+              </div>
+
+              {/* Fila 3: Ciclo y Línea */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-500 uppercase">
+                    Ciclo
+                  </label>
+                  <Select value={editingData.ciclo?.toString() || 'null'}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ciclosArray.map((n) => (
+                        <SelectItem key={n} value={n.toString()}>
+                          Ciclo {n}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-500 uppercase">
+                    Línea Curricular
+                  </label>
+                  <Select value={editingData.lineaCurricularId || 'null'}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {lineas.map((l) => (
+                        <SelectItem key={l.id} value={l.id}>
+                          {l.nombre}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Fila 4: Seriación (Igual a tu imagen) */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-slate-500 uppercase">
+                  Seriación (Prerrequisitos)
+                </label>
+                <Select>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccionar materia..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {materias.map((m) => (
+                      <SelectItem key={m.id} value={m.clave}>
+                        {m.nombre}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <div className="mt-2 flex gap-2">
+                  {/* Aquí usamos el array vacío que inicializamos en el mapeador */}
+                  {editingData.prerrequisitos.map((pre) => (
+                    <Badge
+                      key={pre}
+                      variant="secondary"
+                      className="bg-slate-100 text-slate-600"
+                    >
+                      {pre} <span className="ml-1 cursor-pointer">×</span>
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+
+              {/* Fila 5: Tipo */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-slate-500 uppercase">
+                  Tipo
+                </label>
+                <Select value={editingData.tipo}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="obligatoria">Obligatoria</SelectItem>
+                    <SelectItem value="optativa">Optativa</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="mt-4 flex justify-end gap-3">
+                <Button
+                  variant="outline"
+                  onClick={() => setIsEditModalOpen(false)}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  className="bg-teal-700 text-white"
+                  onClick={handleSaveChanges}
+                >
+                  Guardar
+                </Button>
               </div>
             </div>
+          ) : (
+            <div className="py-20 text-center">No hay datos seleccionados</div>
           )}
-          <div className="mt-4 flex justify-end gap-3">
-            <Button variant="outline" onClick={() => setIsEditModalOpen(false)}>
-              Cancelar
-            </Button>
-            <Button className="bg-teal-700 text-white">Guardar Cambios</Button>
-          </div>
         </DialogContent>
       </Dialog>
     </div>
