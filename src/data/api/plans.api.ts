@@ -18,7 +18,7 @@ import type { UploadedFile } from "@/components/planes/wizard/PasoDetallesPanel/
 
 const EDGE = {
   plans_create_manual: "plans_create_manual",
-  ai_generate_plan: "ai_generate_plan",
+  ai_generate_plan: "ai-generate-plan",
   plans_persist_from_ai: "plans_persist_from_ai",
   plans_clone_from_existing: "plans_clone_from_existing",
 
@@ -214,10 +214,10 @@ export type AIGeneratePlanInput = {
     nivel: string;
     tipoCiclo: TipoCiclo;
     numCiclos: number;
+    estructuraPlanId: UUID;
   };
   iaConfig: {
     descripcionEnfoque: string;
-    poblacionObjetivo?: string;
     notasAdicionales?: string;
     archivosReferencia?: Array<UUID>;
     repositoriosIds?: Array<UUID>;
@@ -229,7 +229,27 @@ export type AIGeneratePlanInput = {
 export async function ai_generate_plan(
   input: AIGeneratePlanInput,
 ): Promise<any> {
-  return invokeEdge<any>(EDGE.ai_generate_plan, input);
+  console.log("input ai generate", input);
+
+  const edgeFunctionBody = new FormData();
+  edgeFunctionBody.append("datosBasicos", JSON.stringify(input.datosBasicos));
+  edgeFunctionBody.append(
+    "iaConfig",
+    JSON.stringify({
+      ...input.iaConfig,
+      archivosAdjuntos: undefined, // los manejamos aparte
+    }),
+  );
+  input.iaConfig.archivosAdjuntos.forEach((file, index) => {
+    edgeFunctionBody.append(`archivosAdjuntos`, file.file);
+  });
+
+  return invokeEdge<any>(
+    EDGE.ai_generate_plan,
+    edgeFunctionBody,
+    undefined,
+    supabaseBrowser(),
+  );
 }
 
 export async function plans_persist_from_ai(

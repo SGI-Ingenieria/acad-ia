@@ -12,6 +12,7 @@ export interface UploadedFile {
 }
 
 interface FileDropzoneProps {
+  persistentFiles?: Array<UploadedFile>
   onFilesChange?: (files: Array<UploadedFile>) => void
   acceptedTypes?: string
   maxFiles?: number
@@ -20,6 +21,7 @@ interface FileDropzoneProps {
 }
 
 export function FileDropzone({
+  persistentFiles,
   onFilesChange,
   acceptedTypes = '.doc,.docx,.pdf',
   maxFiles = 5,
@@ -27,7 +29,7 @@ export function FileDropzone({
   description = 'o haz clic para seleccionar',
 }: FileDropzoneProps) {
   const [isDragging, setIsDragging] = useState(false)
-  const [files, setFiles] = useState<Array<UploadedFile>>([])
+  const [files, setFiles] = useState<Array<UploadedFile>>(persistentFiles ?? [])
   const onFilesChangeRef = useRef<typeof onFilesChange>(onFilesChange)
 
   const addFiles = useCallback(
