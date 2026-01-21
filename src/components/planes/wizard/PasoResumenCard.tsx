@@ -1,3 +1,4 @@
+import type { UploadedFile } from './PasoDetallesPanel/FileDropZone'
 import type { NewPlanWizardState } from '@/features/planes/nuevo/types'
 
 import {
@@ -166,7 +167,7 @@ export function PasoResumenCard({ wizard }: { wizard: NewPlanWizardState }) {
                       <div className="mt-2">
                         <div className="font-medium">Adjuntos</div>
                         <ul className="text-muted-foreground list-disc pl-5 text-xs">
-                          {adjuntos.map((f) => (
+                          {adjuntos.map((f: UploadedFile) => (
                             <li key={f.id}>
                               <span className="text-foreground">
                                 {f.file.name}

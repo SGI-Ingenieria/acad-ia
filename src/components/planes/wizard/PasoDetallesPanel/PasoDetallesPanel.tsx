@@ -23,12 +23,10 @@ import {
 export function PasoDetallesPanel({
   wizard,
   onChange,
-  onGenerarIA,
   isLoading,
 }: {
   wizard: NewPlanWizardState
   onChange: React.Dispatch<React.SetStateAction<NewPlanWizardState>>
-  onGenerarIA: () => void
   isLoading: boolean
 }) {
   if (wizard.tipoOrigen === 'MANUAL') {
@@ -87,6 +85,7 @@ export function PasoDetallesPanel({
         <ReferenciasParaIA
           selectedArchivoIds={wizard.iaConfig?.archivosReferencia || []}
           selectedRepositorioIds={wizard.iaConfig?.repositoriosReferencia || []}
+          uploadedFiles={wizard.iaConfig?.archivosAdjuntos || []}
           onToggleArchivo={(id, checked) =>
             onChange((w) => {
               const prev = w.iaConfig?.archivosReferencia || []
@@ -133,7 +132,7 @@ export function PasoDetallesPanel({
           <div className="text-muted-foreground text-sm">
             Opcional: se pueden adjuntar recursos IA más adelante.
           </div>
-          <Button onClick={onGenerarIA} disabled={isLoading}>
+          <Button disabled={isLoading}>
             {isLoading ? 'Generando…' : 'Generar borrador con IA'}
           </Button>
         </div>

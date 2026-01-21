@@ -1,7 +1,6 @@
 import { useState } from "react";
 
-import type { NewPlanWizardState, PlanPreview } from "../types";
-import type { NivelPlanEstudio, TipoCiclo } from "@/data/types/domain";
+import type { NewPlanWizardState } from "../types";
 
 export function useNuevoPlanWizard() {
   const [wizard, setWizard] = useState<NewPlanWizardState>({
@@ -81,45 +80,11 @@ export function useNuevoPlanWizard() {
     return false;
   })();
 
-  const generarPreviewIA = async () => {
-    setWizard((w) => ({ ...w, isLoading: true, errorMessage: null }));
-    await new Promise((r) => setTimeout(r, 800));
-    // Ensure preview has the stricter types required by `PlanPreview`.
-    let tipoCicloSafe: TipoCiclo;
-    if (wizard.datosBasicos.tipoCiclo === "") {
-      tipoCicloSafe = "Semestre";
-    } else {
-      tipoCicloSafe = wizard.datosBasicos.tipoCiclo;
-    }
-    const numCiclosSafe: number =
-      typeof wizard.datosBasicos.numCiclos === "number"
-        ? wizard.datosBasicos.numCiclos
-        : 1;
-
-    const preview: PlanPreview = {
-      nombrePlan: wizard.datosBasicos.nombrePlan || "Plan sin nombre",
-      nivel: wizard.datosBasicos.nivel as NivelPlanEstudio,
-      tipoCiclo: tipoCicloSafe,
-      numCiclos: numCiclosSafe,
-      numAsignaturasAprox: numCiclosSafe * 6,
-      secciones: [
-        { id: "obj", titulo: "Objetivos", resumen: "Borrador de objetivos…" },
-        { id: "perfil", titulo: "Perfil de egreso", resumen: "Borrador…" },
-      ],
-    };
-    setWizard((w: NewPlanWizardState) => ({
-      ...w,
-      isLoading: false,
-      resumen: { previewPlan: preview },
-    }));
-  };
-
   return {
     wizard,
     setWizard,
     canContinueDesdeModo,
     canContinueDesdeBasicos,
     canContinueDesdeDetalles,
-    generarPreviewIA,
   };
 }

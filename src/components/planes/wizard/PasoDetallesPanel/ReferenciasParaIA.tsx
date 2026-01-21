@@ -21,12 +21,14 @@ import { ARCHIVOS, REPOSITORIOS } from '@/features/planes/nuevo/catalogs'
 const ReferenciasParaIA = ({
   selectedArchivoIds = [],
   selectedRepositorioIds = [],
+  uploadedFiles = [],
   onToggleArchivo,
   onToggleRepositorio,
   onFilesChange,
 }: {
   selectedArchivoIds?: Array<string>
   selectedRepositorioIds?: Array<string>
+  uploadedFiles?: Array<UploadedFile>
   onToggleArchivo?: (id: string, checked: boolean) => void
   onToggleRepositorio?: (id: string, checked: boolean) => void
   onFilesChange?: (files: Array<UploadedFile>) => void
@@ -163,6 +165,7 @@ const ReferenciasParaIA = ({
       content: (
         <div>
           <FileDropzone
+            persistentFiles={uploadedFiles}
             onFilesChange={onFilesChange}
             title="Sube archivos de referencia"
             description="Documentos que serán usados como contexto para la generación"

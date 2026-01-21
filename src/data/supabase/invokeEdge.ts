@@ -1,6 +1,7 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Database } from "../types/database";
 import { supabaseBrowser } from "./client";
+
+import type { Database } from "@/types/supabase";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 export type EdgeInvokeOptions = {
   method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
@@ -12,7 +13,7 @@ export class EdgeFunctionError extends Error {
     message: string,
     public readonly functionName: string,
     public readonly status?: number,
-    public readonly details?: unknown
+    public readonly details?: unknown,
   ) {
     super(message);
     this.name = "EdgeFunctionError";
@@ -21,9 +22,17 @@ export class EdgeFunctionError extends Error {
 
 export async function invokeEdge<TOut>(
   functionName: string,
-  body?: unknown,
+  body?:
+    | string
+    | File
+    | Blob
+    | ArrayBuffer
+    | FormData
+    | ReadableStream<Uint8Array<ArrayBufferLike>>
+    | Record<string, unknown>
+    | undefined,
   opts: EdgeInvokeOptions = {},
-  client?: SupabaseClient<Database>
+  client?: SupabaseClient<Database>,
 ): Promise<TOut> {
   const supabase = client ?? supabaseBrowser();
 
@@ -34,12 +43,12 @@ export async function invokeEdge<TOut>(
   });
 
   if (error) {
-    const anyErr = error as any;
+    const anyErr = error;
     throw new EdgeFunctionError(
       anyErr.message ?? "Error en Edge Function",
       functionName,
       anyErr.status,
-      anyErr
+      anyErr,
     );
   }
 
