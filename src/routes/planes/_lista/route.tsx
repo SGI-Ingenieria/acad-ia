@@ -223,7 +223,17 @@ function RouteComponent() {
                     estado={estado?.etiqueta ?? 'Desconocido'}
                     claseColorEstado={estadoColor}
                     colorFacultad={facultad?.color ?? '#000000'}
-                    onClick={() => console.log('Ver plan', plan.id)}
+                    onClick={() =>
+                      navigate({
+                        to: '/planes/$planId',
+                        params: {
+                          planId: plan.id,
+                        },
+                        state: {
+                          realId: plan.id, // 👈 ID largo oculto
+                        } as any,
+                      })
+                    }
                   />
                 )
               })}

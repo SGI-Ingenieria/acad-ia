@@ -1,142 +1,284 @@
+import { useMemo, useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
-import { 
-  GitBranch, 
-  Edit3, 
-  PlusCircle, 
-  FileText, 
-  RefreshCw, 
-  User 
-} from "lucide-react"
-import { Badge } from "@/components/ui/badge"
-import { Card, CardContent } from "@/components/ui/card"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import {
+  GitBranch,
+  Edit3,
+  PlusCircle,
+  RefreshCw,
+  User,
+  Loader2,
+  Clock,
+  Eye,
+  History,
+  Calendar,
+} from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { Card, CardContent } from '@/components/ui/card'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
+import { usePlanHistorial } from '@/data/hooks/usePlans'
+import { format, formatDistanceToNow, parseISO } from 'date-fns'
+import { es } from 'date-fns/locale'
 
 export const Route = createFileRoute('/planes/$planId/_detalle/historial')({
   component: RouteComponent,
 })
 
-function RouteComponent() {
-  const historyEvents = [
-    {
-      id: 1,
-      type: 'Cambio de estado',
-      user: 'Dr. Juan Pérez',
-      description: 'Plan pasado de Borrador a En Revisión',
-      date: 'Hace 2 días',
-      icon: <GitBranch className="h-4 w-4" />,
-      details: { from: 'Borrador', to: 'En Revisión' }
-    },
-    {
-      id: 2,
-      type: 'Edición',
-      user: 'Lic. María García',
-      description: 'Actualizado perfil de egreso',
-      date: 'Hace 3 días',
-      icon: <Edit3 className="h-4 w-4" />,
-    },
-    {
-      id: 3,
-      type: 'Reorganización',
-      user: 'Ing. Carlos López',
-      description: 'Movida materia BD102 de ciclo 3 a ciclo 4',
-      date: 'Hace 5 días',
-      icon: <RefreshCw className="h-4 w-4" />,
-      details: { from: 'Ciclo 3', to: 'Ciclo 4' }
-    },
-    {
-      id: 4,
-      type: 'Creación',
-      user: 'Dr. Juan Pérez',
-      description: 'Añadida nueva materia: Inteligencia Artificial',
-      date: 'Hace 1 semana',
+const getEventConfig = (tipo: string, campo: string) => {
+  if (tipo === 'CREACION')
+    return {
+      label: 'Creación',
       icon: <PlusCircle className="h-4 w-4" />,
-    },
-    {
-      id: 5,
-      type: 'Documento',
-      user: 'Lic. María García',
-      description: 'Generado documento oficial v1.0',
-      date: 'Hace 1 semana',
-      icon: <FileText className="h-4 w-4" />,
+      color: 'teal',
     }
-  ]
+  if (campo === 'estado')
+    return {
+      label: 'Cambio de estado',
+      icon: <GitBranch className="h-4 w-4" />,
+      color: 'blue',
+    }
+  if (campo === 'datos')
+    return {
+      label: 'Edición de Datos',
+      icon: <Edit3 className="h-4 w-4" />,
+      color: 'amber',
+    }
+  return {
+    label: 'Actualización',
+    icon: <RefreshCw className="h-4 w-4" />,
+    color: 'slate',
+  }
+}
+
+function RouteComponent() {
+  const { planId } = Route.useParams()
+  const { data: rawData, isLoading } = usePlanHistorial(
+    '0e0aea4d-b8b4-4e75-8279-6224c3ac769f',
+  )
+
+  // ESTADOS PARA EL MODAL
+  const [selectedEvent, setSelectedEvent] = useState<any>(null)
+  const [isModalOpen, setIsModalOpen] = useState(false)
+
+  const historyEvents = useMemo(() => {
+    if (!rawData) return []
+    return rawData.map((item: any) => {
+      const config = getEventConfig(item.tipo, item.campo)
+      return {
+        id: item.id,
+        type: config.label,
+        user:
+          item.cambiado_por === '11111111-1111-1111-1111-111111111111'
+            ? 'Administrador'
+            : 'Usuario Staff',
+        description:
+          item.campo === 'datos'
+            ? `Actualización general de: ${item.valor_nuevo?.nombre || 'información del plan'}`
+            : `Se modificó el campo ${item.campo}`,
+        date: parseISO(item.cambiado_en),
+        icon: config.icon,
+        campo: item.campo,
+        details: {
+          from: item.valor_anterior,
+          to: item.valor_nuevo,
+        },
+      }
+    })
+  }, [rawData])
+
+  const openCompareModal = (event: any) => {
+    setSelectedEvent(event)
+    setIsModalOpen(true)
+  }
+
+  const renderValue = (val: any) => {
+    if (!val) return 'Sin información'
+    if (typeof val === 'object') return JSON.stringify(val, null, 2)
+    return String(val)
+  }
+
+  if (isLoading)
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-teal-600" />
+      </div>
+    )
 
   return (
-    <div className="p-6 max-w-5xl mx-auto">
-      <div className="mb-8">
-        <h1 className="text-xl font-bold text-slate-800">Historial de Cambios</h1>
-        <p className="text-sm text-muted-foreground">Registro de todas las modificaciones realizadas al plan</p>
+    <div className="mx-auto max-w-5xl p-6">
+      <div className="mb-8 flex items-end justify-between">
+        <div>
+          <h1 className="flex items-center gap-2 text-xl font-bold text-slate-800">
+            <Clock className="h-5 w-5 text-teal-600" /> Historial de Cambios del
+            Plan
+          </h1>
+          <p className="text-muted-foreground text-sm">
+            Registro cronológico de modificaciones realizadas
+          </p>
+        </div>
       </div>
 
       <div className="relative space-y-0">
-        {/* Línea vertical de fondo */}
-        <div className="absolute left-9 top-0 bottom-0 w-px bg-slate-200" />
+        <div className="absolute top-0 bottom-0 left-9 w-px bg-slate-200" />
+        {historyEvents.length === 0 ? (
+          <div className="ml-20 py-10 text-slate-500">No hay registros.</div>
+        ) : (
+          historyEvents.map((event) => (
+            <div key={event.id} className="group relative flex gap-6 pb-8">
+              <div className="relative z-10 flex h-18 flex-col items-center">
+                <div className="flex h-[42px] w-[42px] items-center justify-center rounded-full border-4 border-white bg-slate-100 text-slate-600 shadow-sm transition-colors group-hover:bg-teal-50 group-hover:text-teal-600">
+                  {event.icon}
+                </div>
+              </div>
 
-        {historyEvents.map((event) => (
-          <div key={event.id} className="relative flex gap-6 pb-8 group">
-            
-            {/* Indicador con Icono */}
-            <div className="relative z-10 flex h-18 flex-col items-center">
-              <div className="flex h-[42px] w-[42px] items-center justify-center rounded-full border-4 border-white bg-slate-100 text-slate-600 shadow-sm group-hover:bg-teal-50 group-hover:text-teal-600 transition-colors">
-                {event.icon}
+              <Card className="flex-1 border-slate-200 shadow-none transition-colors hover:border-teal-200">
+                <CardContent className="p-4">
+                  <div className="flex flex-col gap-1">
+                    {/* LÍNEA SUPERIOR: Título a la izquierda --- Usuario, Botón y Fecha a la derecha */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-bold text-slate-800">
+                          {event.type}
+                        </span>
+                        <Badge
+                          variant="outline"
+                          className="h-5 py-0 text-[10px] font-normal"
+                        >
+                          {formatDistanceToNow(event.date, {
+                            addSuffix: true,
+                            locale: es,
+                          })}
+                        </Badge>
+                      </div>
+
+                      {/* Grupo de elementos alineados a la derecha */}
+                      <div className="flex items-center gap-4 text-slate-500">
+                        {/* Usuario e Icono */}
+                        <div className="flex items-center gap-2 text-xs">
+                          <User className="h-3.5 w-3.5" />
+                          <span className="text-muted-foreground">
+                            {event.user}
+                          </span>
+                        </div>
+
+                        {/* Botón Ver Cambios */}
+                        <button
+                          onClick={() => openCompareModal(event)}
+                          className="group/btn flex items-center gap-1.5 text-xs transition-colors hover:text-teal-600"
+                        >
+                          <Eye className="h-4 w-4 text-slate-400 group-hover/btn:text-teal-600" />
+                          <span>Ver cambios</span>
+                        </button>
+
+                        {/* Fecha exacta (Solo visible en desktop para no amontonar) */}
+                        <span className="hidden text-[11px] text-slate-400 md:block">
+                          {format(event.date, 'yyyy-MM-dd HH:mm')}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* LÍNEA INFERIOR: Descripción */}
+                    <div className="mt-1">
+                      <p className="text-sm text-slate-600">
+                        {event.description}
+                      </p>
+
+                      {/* Badges de transición opcionales (de estado) */}
+                      {event.details &&
+                        typeof event.details.from === 'string' &&
+                        event.campo === 'estado' && (
+                          <div className="mt-2 flex items-center gap-1.5">
+                            <Badge
+                              variant="secondary"
+                              className="bg-red-50 px-1.5 text-[9px] text-red-700"
+                            >
+                              {event.details.from}
+                            </Badge>
+                            <span className="text-[10px] text-slate-400">
+                              →
+                            </span>
+                            <Badge
+                              variant="secondary"
+                              className="bg-emerald-50 px-1.5 text-[9px] text-emerald-700"
+                            >
+                              {event.details.to}
+                            </Badge>
+                          </div>
+                        )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* MODAL DE COMPARACIÓN CON SCROLL INTERNO */}
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <DialogContent className="flex max-h-[90vh] max-w-4xl flex-col gap-0 overflow-hidden p-0">
+          <DialogHeader className="border-b bg-slate-50/50 p-6">
+            <DialogTitle className="flex items-center gap-2">
+              <History className="h-5 w-5 text-teal-600" /> Comparación de
+              Versiones
+            </DialogTitle>
+            <div className="text-muted-foreground flex items-center gap-4 pt-2 text-xs">
+              <span className="flex items-center gap-1">
+                <User className="h-3 w-3" /> {selectedEvent?.user}
+              </span>
+              <span className="flex items-center gap-1">
+                <Calendar className="h-3 w-3" />{' '}
+                {selectedEvent &&
+                  format(selectedEvent.date, "d 'de' MMMM, HH:mm", {
+                    locale: es,
+                  })}
+              </span>
+            </div>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-y-auto p-6">
+            <div className="grid h-full grid-cols-2 gap-6">
+              {/* Lado Antes */}
+              <div className="flex flex-col space-y-2">
+                <div className="sticky top-0 z-10 flex items-center gap-2 bg-white py-1">
+                  <div className="h-2 w-2 rounded-full bg-red-400" />
+                  <span className="text-muted-foreground text-[10px] font-bold tracking-widest uppercase">
+                    Versión Anterior
+                  </span>
+                </div>
+                <div className="max-h-[500px] min-h-[250px] flex-1 overflow-y-auto rounded-lg border border-red-100 bg-red-50/30 p-4 font-mono text-xs leading-relaxed whitespace-pre-wrap text-slate-700">
+                  {renderValue(selectedEvent?.details.from)}
+                </div>
+              </div>
+
+              {/* Lado Después */}
+              <div className="flex flex-col space-y-2">
+                <div className="sticky top-0 z-10 flex items-center gap-2 bg-white py-1">
+                  <div className="h-2 w-2 rounded-full bg-emerald-400" />
+                  <span className="text-muted-foreground text-[10px] font-bold tracking-widest uppercase">
+                    Nueva Versión
+                  </span>
+                </div>
+                <div className="max-h-[500px] min-h-[250px] flex-1 overflow-y-auto rounded-lg border border-emerald-100 bg-emerald-50/30 p-4 font-mono text-xs leading-relaxed whitespace-pre-wrap text-slate-700">
+                  {renderValue(selectedEvent?.details.to)}
+                </div>
               </div>
             </div>
-
-            {/* Tarjeta de Contenido */}
-            <Card className="flex-1 shadow-none border-slate-200 hover:border-teal-200 transition-colors">
-              <CardContent className="p-4">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 mb-2">
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-slate-800 text-sm">{event.type}</span>
-                    <Badge variant="outline" className="text-[10px] font-normal py-0">
-                      {event.date}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <Avatar className="h-5 w-5 border">
-                      <AvatarFallback className="text-[8px] bg-slate-50"><User size={10}/></AvatarFallback>
-                    </Avatar>
-                    {event.user}
-                  </div>
-                </div>
-
-                <p className="text-sm text-slate-600 mb-3">{event.description}</p>
-
-                {/* Badges de transición (si existen) */}
-                {event.details && (
-                  <div className="flex items-center gap-2 mt-2">
-                    <Badge variant="secondary" className="bg-orange-50 text-orange-700 hover:bg-orange-50 border-orange-100 text-[10px]">
-                      {event.details.from}
-                    </Badge>
-                    <span className="text-slate-400 text-xs">→</span>
-                    <Badge variant="secondary" className="bg-green-50 text-green-700 hover:bg-green-50 border-green-100 text-[10px]">
-                      {event.details.to}
-                    </Badge>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
           </div>
-        ))}
 
-        {/* Evento inicial de creación */}
-        <div className="relative flex gap-6 group">
-          <div className="relative z-10 flex items-center">
-            <div className="flex h-[42px] w-[42px] items-center justify-center rounded-full border-4 border-white bg-teal-600 text-white shadow-sm">
-              <PlusCircle className="h-4 w-4" />
-            </div>
+          <div className="flex justify-center border-t bg-slate-50 p-4">
+            <Badge variant="outline" className="font-mono text-[10px]">
+              Campo: {selectedEvent?.campo}
+            </Badge>
           </div>
-          <Card className="flex-1 bg-teal-50/30 border-teal-100 shadow-none">
-            <CardContent className="p-4">
-               <div className="flex items-center justify-between mb-1">
-                 <span className="font-bold text-teal-900 text-sm">Creación</span>
-                 <span className="text-[10px] text-teal-600 font-medium">14 Ene 2024</span>
-               </div>
-               <p className="text-sm text-teal-800/80">Plan de estudios creado</p>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

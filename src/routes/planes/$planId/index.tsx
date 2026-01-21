@@ -1,9 +1,9 @@
 import { createFileRoute, redirect } from '@tanstack/react-router'
 
-export const Route = createFileRoute('/planes/$planId/asignaturas/')({
+export const Route = createFileRoute('/planes/$planId/')({
   beforeLoad: ({ params }) => {
     throw redirect({
-      to: '/planes/$planId/materias',
+      to: '/planes/$planId/datos',
       params,
     })
   },

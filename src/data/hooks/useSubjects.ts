@@ -1,11 +1,11 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { qk } from "../query/keys";
-import type { UUID } from "../types/domain";
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { qk } from '../query/keys'
+import type { UUID } from '../types/domain'
 import type {
   BibliografiaUpsertInput,
   SubjectsCreateManualInput,
   SubjectsUpdateFieldsPatch,
-} from "../api/subjects.api";
+} from '../api/subjects.api'
 import {
   ai_generate_subject,
   subjects_bibliografia_list,
@@ -20,147 +20,177 @@ import {
   subjects_update_bibliografia,
   subjects_update_contenido,
   subjects_update_fields,
-} from "../api/subjects.api";
+} from '../api/subjects.api'
 
 export function useSubject(subjectId: UUID | null | undefined) {
   return useQuery({
-    queryKey: subjectId ? qk.asignatura(subjectId) : ["asignaturas", "detail", null],
+    queryKey: subjectId
+      ? qk.asignatura(subjectId)
+      : ['asignaturas', 'detail', null],
     queryFn: () => subjects_get(subjectId as UUID),
     enabled: Boolean(subjectId),
-  });
+  })
 }
 
 export function useSubjectBibliografia(subjectId: UUID | null | undefined) {
   return useQuery({
-    queryKey: subjectId ? qk.asignaturaBibliografia(subjectId) : ["asignaturas", "bibliografia", null],
+    queryKey: subjectId
+      ? qk.asignaturaBibliografia(subjectId)
+      : ['asignaturas', 'bibliografia', null],
     queryFn: () => subjects_bibliografia_list(subjectId as UUID),
     enabled: Boolean(subjectId),
-  });
+  })
 }
 
 export function useSubjectHistorial(subjectId: UUID | null | undefined) {
   return useQuery({
-    queryKey: subjectId ? qk.asignaturaHistorial(subjectId) : ["asignaturas", "historial", null],
+    queryKey: subjectId
+      ? qk.asignaturaHistorial(subjectId)
+      : ['asignaturas', 'historial', null],
     queryFn: () => subjects_history(subjectId as UUID),
     enabled: Boolean(subjectId),
-  });
+  })
 }
 
 export function useSubjectDocumento(subjectId: UUID | null | undefined) {
   return useQuery({
-    queryKey: subjectId ? qk.asignaturaDocumento(subjectId) : ["asignaturas", "documento", null],
+    queryKey: subjectId
+      ? qk.asignaturaDocumento(subjectId)
+      : ['asignaturas', 'documento', null],
     queryFn: () => subjects_get_document(subjectId as UUID),
     enabled: Boolean(subjectId),
     staleTime: 30_000,
-  });
+  })
 }
 
 /* ------------------ Mutations ------------------ */
 
 export function useCreateSubjectManual() {
-  const qc = useQueryClient();
+  const qc = useQueryClient()
 
   return useMutation({
-    mutationFn: (payload: SubjectsCreateManualInput) => subjects_create_manual(payload),
+    mutationFn: (payload: SubjectsCreateManualInput) =>
+      subjects_create_manual(payload),
     onSuccess: (subject) => {
-      qc.setQueryData(qk.asignatura(subject.id), subject);
-      qc.invalidateQueries({ queryKey: qk.planAsignaturas(subject.plan_estudio_id) });
-      qc.invalidateQueries({ queryKey: qk.planHistorial(subject.plan_estudio_id) });
+      qc.setQueryData(qk.asignatura(subject.id), subject)
+      qc.invalidateQueries({
+        queryKey: qk.planAsignaturas(subject.plan_estudio_id),
+      })
+      qc.invalidateQueries({
+        queryKey: qk.planHistorial(subject.plan_estudio_id),
+      })
     },
-  });
+  })
 }
 
 export function useGenerateSubjectAI() {
-  return useMutation({ mutationFn: ai_generate_subject });
+  return useMutation({ mutationFn: ai_generate_subject })
 }
 
 export function usePersistSubjectFromAI() {
-  const qc = useQueryClient();
+  const qc = useQueryClient()
 
   return useMutation({
-    mutationFn: (payload: { planId: UUID; jsonMateria: any }) => subjects_persist_from_ai(payload),
+    mutationFn: (payload: { planId: UUID; jsonMateria: any }) =>
+      subjects_persist_from_ai(payload),
     onSuccess: (subject) => {
-      qc.setQueryData(qk.asignatura(subject.id), subject);
-      qc.invalidateQueries({ queryKey: qk.planAsignaturas(subject.plan_estudio_id) });
-      qc.invalidateQueries({ queryKey: qk.planHistorial(subject.plan_estudio_id) });
+      qc.setQueryData(qk.asignatura(subject.id), subject)
+      qc.invalidateQueries({
+        queryKey: qk.planAsignaturas(subject.plan_estudio_id),
+      })
+      qc.invalidateQueries({
+        queryKey: qk.planHistorial(subject.plan_estudio_id),
+      })
     },
-  });
+  })
 }
 
 export function useCloneSubject() {
-  const qc = useQueryClient();
+  const qc = useQueryClient()
 
   return useMutation({
     mutationFn: subjects_clone_from_existing,
     onSuccess: (subject) => {
-      qc.setQueryData(qk.asignatura(subject.id), subject);
-      qc.invalidateQueries({ queryKey: qk.planAsignaturas(subject.plan_estudio_id) });
-      qc.invalidateQueries({ queryKey: qk.planHistorial(subject.plan_estudio_id) });
+      qc.setQueryData(qk.asignatura(subject.id), subject)
+      qc.invalidateQueries({
+        queryKey: qk.planAsignaturas(subject.plan_estudio_id),
+      })
+      qc.invalidateQueries({
+        queryKey: qk.planHistorial(subject.plan_estudio_id),
+      })
     },
-  });
+  })
 }
 
 export function useImportSubjectFromFile() {
-  const qc = useQueryClient();
+  const qc = useQueryClient()
 
   return useMutation({
     mutationFn: subjects_import_from_file,
     onSuccess: (subject) => {
-      qc.setQueryData(qk.asignatura(subject.id), subject);
-      qc.invalidateQueries({ queryKey: qk.planAsignaturas(subject.plan_estudio_id) });
-      qc.invalidateQueries({ queryKey: qk.planHistorial(subject.plan_estudio_id) });
+      qc.setQueryData(qk.asignatura(subject.id), subject)
+      qc.invalidateQueries({
+        queryKey: qk.planAsignaturas(subject.plan_estudio_id),
+      })
+      qc.invalidateQueries({
+        queryKey: qk.planHistorial(subject.plan_estudio_id),
+      })
     },
-  });
+  })
 }
 
 export function useUpdateSubjectFields() {
-  const qc = useQueryClient();
+  const qc = useQueryClient()
 
   return useMutation({
     mutationFn: (vars: { subjectId: UUID; patch: SubjectsUpdateFieldsPatch }) =>
       subjects_update_fields(vars.subjectId, vars.patch),
     onSuccess: (updated) => {
-      qc.setQueryData(qk.asignatura(updated.id), updated);
-      qc.invalidateQueries({ queryKey: qk.planAsignaturas(updated.plan_estudio_id) });
-      qc.invalidateQueries({ queryKey: qk.asignaturaHistorial(updated.id) });
+      qc.setQueryData(qk.asignatura(updated.id), updated)
+      qc.invalidateQueries({
+        queryKey: qk.planAsignaturas(updated.plan_estudio_id),
+      })
+      qc.invalidateQueries({ queryKey: qk.asignaturaHistorial(updated.id) })
     },
-  });
+  })
 }
 
 export function useUpdateSubjectContenido() {
-  const qc = useQueryClient();
+  const qc = useQueryClient()
 
   return useMutation({
     mutationFn: (vars: { subjectId: UUID; unidades: any[] }) =>
       subjects_update_contenido(vars.subjectId, vars.unidades),
     onSuccess: (updated) => {
-      qc.setQueryData(qk.asignatura(updated.id), updated);
-      qc.invalidateQueries({ queryKey: qk.asignaturaHistorial(updated.id) });
+      qc.setQueryData(qk.asignatura(updated.id), updated)
+      qc.invalidateQueries({ queryKey: qk.asignaturaHistorial(updated.id) })
     },
-  });
+  })
 }
 
 export function useUpdateSubjectBibliografia() {
-  const qc = useQueryClient();
+  const qc = useQueryClient()
 
   return useMutation({
     mutationFn: (vars: { subjectId: UUID; entries: BibliografiaUpsertInput }) =>
       subjects_update_bibliografia(vars.subjectId, vars.entries),
     onSuccess: (_ok, vars) => {
-      qc.invalidateQueries({ queryKey: qk.asignaturaBibliografia(vars.subjectId) });
-      qc.invalidateQueries({ queryKey: qk.asignaturaHistorial(vars.subjectId) });
+      qc.invalidateQueries({
+        queryKey: qk.asignaturaBibliografia(vars.subjectId),
+      })
+      qc.invalidateQueries({ queryKey: qk.asignaturaHistorial(vars.subjectId) })
     },
-  });
+  })
 }
 
 export function useGenerateSubjectDocumento() {
-  const qc = useQueryClient();
+  const qc = useQueryClient()
 
   return useMutation({
     mutationFn: (subjectId: UUID) => subjects_generate_document(subjectId),
     onSuccess: (_doc, subjectId) => {
-      qc.invalidateQueries({ queryKey: qk.asignaturaDocumento(subjectId) });
-      qc.invalidateQueries({ queryKey: qk.asignaturaHistorial(subjectId) });
+      qc.invalidateQueries({ queryKey: qk.asignaturaDocumento(subjectId) })
+      qc.invalidateQueries({ queryKey: qk.asignaturaHistorial(subjectId) })
     },
-  });
+  })
 }

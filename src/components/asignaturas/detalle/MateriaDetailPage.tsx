@@ -1,161 +1,260 @@
+import { Link, useRouterState } from '@tanstack/react-router'
+import { ArrowLeft, GraduationCap, Pencil, Sparkles } from 'lucide-react'
+import { useCallback, useState, useEffect } from 'react'
 
-import  { useCallback, useState } from 'react'
-import {  Link } from '@tanstack/react-router'
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { BibliographyItem } from './BibliographyItem'
+import { ContenidoTematico } from './ContenidoTematico'
+import { DocumentoSEPTab } from './DocumentoSEPTab'
+import { HistorialTab } from './HistorialTab'
+import { IAMateriaTab } from './IAMateriaTab'
+
+import type { CampoEstructura, IAMessage, IASugerencia } from '@/types/materia'
+
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
-import {
-  ArrowLeft,
-  GraduationCap,
-  Edit2, Save, 
-  Pencil
-} from 'lucide-react'
-import { ContenidoTematico } from './ContenidoTematico'
-import { BibliographyItem } from './BibliographyItem'
-import { IAMateriaTab } from './IAMateriaTab'
-import type { 
-  CampoEstructura,
-  IAMessage, 
-  IASugerencia, 
-  UnidadTematica, 
-} from '@/types/materia';
+import { useSubject } from '@/data/hooks/useSubjects'
 import {
   mockMateria,
   mockEstructura,
   mockDocumentoSep,
-  mockHistorial
-} from '@/data/mockMateriaData';
-import { DocumentoSEPTab } from './DocumentoSEPTab'
-import { HistorialTab } from './HistorialTab'
+} from '@/data/mockMateriaData'
 
 export interface BibliografiaEntry {
-  id: string;
-  tipo: 'BASICA' | 'COMPLEMENTARIA';
-  cita: string;
-  fuenteBibliotecaId?: string;
-  fuenteBiblioteca?: any;
+  id: string
+  tipo: 'BASICA' | 'COMPLEMENTARIA'
+  cita: string
+  fuenteBibliotecaId?: string
+  fuenteBiblioteca?: any
 }
 export interface BibliografiaTabProps {
-  bibliografia: BibliografiaEntry[];
-  onSave: (bibliografia: BibliografiaEntry[]) => void;
-  isSaving: boolean;
+  bibliografia: Array<BibliografiaEntry>
+  onSave: (bibliografia: Array<BibliografiaEntry>) => void
+  isSaving: boolean
 }
 
+export interface AsignaturaDatos {
+  [key: string]: string
+}
+
+export interface AsignaturaResponse {
+  datos: AsignaturaDatos
+}
+
+function EditableHeaderField({
+  value,
+  onSave,
+  className,
+}: {
+  value: string | number
+  onSave: (val: string) => void
+  className?: string
+}) {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      ;(e.currentTarget as HTMLElement).blur() // Quita el foco
+    }
+  }
+
+  const handleBlur = (e: React.FocusEvent<HTMLElement>) => {
+    const newValue = e.currentTarget.textContent || ''
+    if (newValue !== value.toString()) {
+      onSave(newValue)
+    }
+  }
+
+  return (
+    <span
+      contentEditable
+      suppressContentEditableWarning
+      onKeyDown={handleKeyDown}
+      onBlur={handleBlur}
+      className={`cursor-text rounded px-1 transition-all outline-none focus:ring-2 focus:ring-blue-400 ${className}`}
+    >
+      {value}
+    </span>
+  )
+}
 export default function MateriaDetailPage() {
-
+  const routerState = useRouterState()
+  const state = routerState.location.state as any
+  const { data: asignaturasApi, isLoading: loadingAsig } = useSubject(
+    state?.realId,
+  )
   // 1. Asegúrate de tener estos estados en tu componente principal
-const [messages, setMessages] = useState<IAMessage[]>([]);
-const [datosGenerales, setDatosGenerales] = useState({});
-const [campos, setCampos] = useState<CampoEstructura[]>([]);
+  const [messages, setMessages] = useState<Array<IAMessage>>([])
+  const [datosGenerales, setDatosGenerales] = useState({})
+  const [campos, setCampos] = useState<Array<CampoEstructura>>([])
 
-// 2. Funciones de manejo para la IA
-const handleSendMessage = (text: string, campoId?: string) => {
-  const newMessage: IAMessage = {
-    id: Date.now().toString(),
-    role: 'user',
-    content: text,
-    timestamp: new Date(),
-    campoAfectado: campoId
-  };
-  setMessages([...messages, newMessage]);
-  
-  // Aquí llamarías a tu API de OpenAI/Claude
-  //toast.info("Enviando consulta a la IA...");
-};
+  // Dentro de MateriaDetailPage
+  const [headerData, setHeaderData] = useState({
+    codigo: '',
+    nombre: '',
+    creditos: 0,
+    ciclo: 0,
+  })
 
-const handleAcceptSuggestion = (sugerencia: IASugerencia) => {
-  // Lógica para actualizar el valor del campo en tu estado de datosGenerales
-  //toast.success(`Sugerencia aplicada a ${sugerencia.campoNombre}`);
-};
+  // Sincronizar cuando llegue la API
+  useEffect(() => {
+    if (asignaturasApi) {
+      setHeaderData({
+        codigo: asignaturasApi?.codigo ?? '',
+        nombre: asignaturasApi?.nombre ?? '',
+        creditos: asignaturasApi?.creditos ?? '',
+        ciclo: asignaturasApi?.numero_ciclo ?? 0,
+      })
+    }
+  }, [asignaturasApi])
+
+  const handleUpdateHeader = (key: string, value: string | number) => {
+    const newData = { ...headerData, [key]: value }
+    setHeaderData(newData)
+    console.log('💾 Guardando en estado y base de datos:', key, value)
+  }
+  /* ---------- sincronizar API ---------- */
+  useEffect(() => {
+    if (asignaturasApi?.datos) {
+      setDatosGenerales(asignaturasApi.datos)
+    }
+  }, [asignaturasApi])
+
+  // 2. Funciones de manejo para la IA
+  const handleSendMessage = (text: string, campoId?: string) => {
+    const newMessage: IAMessage = {
+      id: Date.now().toString(),
+      role: 'user',
+      content: text,
+      timestamp: new Date(),
+      campoAfectado: campoId,
+    }
+    setMessages([...messages, newMessage])
+
+    // Aquí llamarías a tu API de OpenAI/Claude
+    // toast.info("Enviando consulta a la IA...");
+  }
+
+  const handleAcceptSuggestion = (sugerencia: IASugerencia) => {
+    // Lógica para actualizar el valor del campo en tu estado de datosGenerales
+    // toast.success(`Sugerencia aplicada a ${sugerencia.campoNombre}`);
+  }
 
   // Dentro de tu componente principal (donde están los Tabs)
-const [bibliografia, setBibliografia] = useState<BibliografiaEntry[]>([
-  {
-    id: '1',
-    tipo: 'BASICA',
-    cita: 'Russell, S., & Norvig, P. (2020). Artificial Intelligence: A Modern Approach. Pearson.'
-  }
-]);
-const [isSaving, setIsSaving] = useState(false);
+  const [bibliografia, setBibliografia] = useState<Array<BibliografiaEntry>>([
+    {
+      id: '1',
+      tipo: 'BASICA',
+      cita: 'Russell, S., & Norvig, P. (2020). Artificial Intelligence: A Modern Approach. Pearson.',
+    },
+  ])
+  const [isSaving, setIsSaving] = useState(false)
 
-const handleSaveBibliografia = (data: BibliografiaEntry[]) => {
-  setIsSaving(true);
-  // Aquí iría tu llamada a la API
-  setBibliografia(data);
-  
-  // Simulamos un guardado
-  setTimeout(() => {
-    setIsSaving(false);
-    //toast.success("Cambios guardados");
-  }, 1000);
-};
+  const handleSaveBibliografia = (data: Array<BibliografiaEntry>) => {
+    setIsSaving(true)
+    // Aquí iría tu llamada a la API
+    setBibliografia(data)
 
- const [isRegenerating, setIsRegenerating] = useState(false);
-
-const handleRegenerateDocument = useCallback(() => {
-    setIsRegenerating(true);
+    // Simulamos un guardado
     setTimeout(() => {
-      setIsRegenerating(false);
-    }, 2000);
-  }, []);
+      setIsSaving(false)
+      // toast.success("Cambios guardados");
+    }, 1000)
+  }
+
+  const [isRegenerating, setIsRegenerating] = useState(false)
+
+  const handleRegenerateDocument = useCallback(() => {
+    setIsRegenerating(true)
+    setTimeout(() => {
+      setIsRegenerating(false)
+    }, 2000)
+  }, [])
 
   return (
     <div className="w-full">
-      {/* ================= HEADER ================= */}
+      {/* ================= HEADER ACTUALIZADO ================= */}
       <section className="bg-gradient-to-b from-[#0b1d3a] to-[#0e2a5c] text-white">
-        <div className="max-w-7xl mx-auto px-6 py-10">
+        <div className="mx-auto max-w-7xl px-6 py-10">
           <Link
             to="/planes"
-            className="flex items-center gap-2 text-sm text-blue-200 hover:text-white mb-4"
+            className="mb-4 flex items-center gap-2 text-sm text-blue-200 hover:text-white"
           >
-            <ArrowLeft className="w-4 h-4" />
-            Volver al plan
+            <ArrowLeft className="h-4 w-4" /> Volver al plan
           </Link>
 
           <div className="flex items-start justify-between gap-6">
             <div className="space-y-3">
-              <Badge className="bg-blue-900/50 border border-blue-700">
-                IA-401
+              {/* CÓDIGO EDITABLE */}
+              <Badge className="border border-blue-700 bg-blue-900/50">
+                <EditableHeaderField
+                  value={headerData.codigo}
+                  onSave={(val) => handleUpdateHeader('codigo', val)}
+                />
               </Badge>
 
+              {/* NOMBRE EDITABLE */}
               <h1 className="text-3xl font-bold">
-                Inteligencia Artificial Aplicada
+                <EditableHeaderField
+                  value={headerData.nombre}
+                  onSave={(val) => handleUpdateHeader('nombre', val)}
+                />
               </h1>
 
               <div className="flex flex-wrap gap-4 text-sm text-blue-200">
                 <span className="flex items-center gap-1">
-                  <GraduationCap className="w-4 h-4" />
-                  Ingeniería en Sistemas Computacionales
+                  <GraduationCap className="h-4 w-4" />
+                  {asignaturasApi?.planes_estudio?.datos?.nombre}
                 </span>
-
-                <span>Facultad de Ingeniería</span>
+                <span>
+                  {asignaturasApi?.planes_estudio?.carreras?.facultades?.nombre}
+                </span>
               </div>
 
               <p className="text-sm text-blue-300">
                 Pertenece al plan:{' '}
-                <span className="underline cursor-pointer">
-                  Licenciatura en Ingeniería en Sistemas Computacionales 2024
+                <span className="cursor-pointer underline">
+                  {asignaturasApi?.planes_estudio?.nombre}
                 </span>
               </p>
             </div>
 
-            <div className="flex flex-col gap-2 items-end">
-              <Badge variant="secondary">8 créditos</Badge>
-              <Badge variant="secondary">7° semestre</Badge>
-              <Badge variant="secondary">Sistemas Inteligentes</Badge>
+            <div className="flex flex-col items-end gap-2 text-right">
+              {/* CRÉDITOS EDITABLES */}
+              <Badge variant="secondary" className="gap-1">
+                <EditableHeaderField
+                  value={headerData.creditos}
+                  onSave={(val) =>
+                    handleUpdateHeader('creditos', parseInt(val) || 0)
+                  }
+                />
+                <span>créditos</span>
+              </Badge>
+
+              {/* SEMESTRE EDITABLE */}
+              <Badge variant="secondary" className="gap-1">
+                <EditableHeaderField
+                  value={headerData.ciclo}
+                  onSave={(val) =>
+                    handleUpdateHeader('ciclo', parseInt(val) || 0)
+                  }
+                />
+                <span>° ciclo</span>
+              </Badge>
+
+              <Badge variant="secondary">{asignaturasApi?.tipo}</Badge>
             </div>
           </div>
         </div>
       </section>
 
       {/* ================= TABS ================= */}
-      <section className="bg-white border-b">
-        <div className="max-w-7xl mx-auto px-6">
+      <section className="border-b bg-white">
+        <div className="mx-auto max-w-7xl px-6">
           <Tabs defaultValue="datos">
-            <TabsList className="h-auto bg-transparent p-0 gap-6">
+            <TabsList className="h-auto gap-6 bg-transparent p-0">
               <TabsTrigger value="datos">Datos generales</TabsTrigger>
               <TabsTrigger value="contenido">Contenido temático</TabsTrigger>
               <TabsTrigger value="bibliografia">Bibliografía</TabsTrigger>
@@ -168,30 +267,38 @@ const handleRegenerateDocument = useCallback(() => {
 
             {/* ================= TAB: DATOS GENERALES ================= */}
             <TabsContent value="datos">
-              <DatosGenerales />
+              <DatosGenerales data={datosGenerales} isLoading={loadingAsig} />
             </TabsContent>
 
             <TabsContent value="contenido">
-              <ContenidoTematico></ContenidoTematico>
+              <ContenidoTematico
+                data={asignaturasApi}
+                isLoading={loadingAsig}
+              ></ContenidoTematico>
             </TabsContent>
 
             <TabsContent value="bibliografia">
-              <BibliographyItem 
-                bibliografia={bibliografia} 
-                onSave={handleSaveBibliografia} 
-                isSaving={isSaving} 
+              <BibliographyItem
+                bibliografia={bibliografia}
+                onSave={handleSaveBibliografia}
+                isSaving={isSaving}
               />
             </TabsContent>
 
             <TabsContent value="ia">
-              <IAMateriaTab 
-              campos={campos}
-              datosGenerales={datosGenerales}
-              messages={messages}
-              onSendMessage={handleSendMessage}
-              onAcceptSuggestion={handleAcceptSuggestion}
-              onRejectSuggestion={(id) => console.log("Rechazada") /*toast.error("Sugerencia rechazada")*/}
-            />
+              <IAMateriaTab
+                campos={campos}
+                datosGenerales={datosGenerales}
+                messages={messages}
+                onSendMessage={handleSendMessage}
+                onAcceptSuggestion={handleAcceptSuggestion}
+                onRejectSuggestion={
+                  (id) =>
+                    console.log(
+                      'Rechazada',
+                    ) /* toast.error("Sugerencia rechazada")*/
+                }
+              />
             </TabsContent>
 
             <TabsContent value="sep">
@@ -206,7 +313,7 @@ const handleRegenerateDocument = useCallback(() => {
             </TabsContent>
 
             <TabsContent value="historial">
-               <HistorialTab historial={mockHistorial} />
+              <HistorialTab />
             </TabsContent>
           </Tabs>
         </div>
@@ -216,81 +323,81 @@ const handleRegenerateDocument = useCallback(() => {
 }
 
 /* ================= TAB CONTENT ================= */
+interface DatosGeneralesProps {
+  data: AsignaturaDatos
+  isLoading: boolean
+}
+function DatosGenerales({ data, isLoading }: DatosGeneralesProps) {
+  const formatTitle = (key: string): string =>
+    key.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())
 
-function DatosGenerales() {
   return (
-    <div className="max-w-7xl mx-auto py-8 px-4 space-y-8 animate-in fade-in duration-500">
-      
+    <div className="animate-in fade-in mx-auto max-w-7xl space-y-8 px-4 py-8 duration-500">
       {/* Encabezado de la Sección */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-6">
+      <div className="flex flex-col justify-between gap-4 border-b pb-6 md:flex-row md:items-center">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight text-slate-900">Datos Generales</h2>
-          <p className="text-slate-500 mt-1">
+          <h2 className="text-2xl font-bold tracking-tight text-slate-900">
+            Datos Generales
+          </h2>
+          <p className="mt-1 text-slate-500">
             Información oficial estructurada bajo los lineamientos de la SEP.
           </p>
-        </div>
-        <div className="flex gap-3">
-          <Button variant="outline" size="sm" className="gap-2">
-            <Edit2 className="w-4 h-4" /> Editar borrador
-          </Button>
-          <Button size="sm" className="gap-2 bg-blue-600 hover:bg-blue-700">
-            <Save className="w-4 h-4" /> Guardar cambios
-          </Button>
         </div>
       </div>
 
       {/* Grid de Información */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
         {/* Columna Principal (Más ancha) */}
-        <div className="md:col-span-2 space-y-6">
-          <div className="md:col-span-2 space-y-6">
-          <InfoCard
-            title="Competencias a Desarrollar"
-            subtitle="Competencias profesionales que se desarrollarán"
-            isList={true}
-            initialContent={`• Diseñar algoritmos de machine learning para clasificación y predicción\n• Implementar redes neuronales profundas para procesamiento de imágenes\n• Evaluar y optimizar modelos de IA considerando métricas`}
-          />
-          
-          <InfoCard
-            title="Objetivo General"
-            initialContent="Formar profesionales capaces de diseñar, implementar y evaluar sistemas de inteligencia artificial que resuelvan problemas complejos."
-          />
-        </div>
-        
-        <div className="space-y-6">
-          <InfoCard
-            title="Justificación"
-            initialContent="La inteligencia artificial es una de las tecnologías más disruptivas..."
-          />
-        </div>
+        <div className="space-y-6 md:col-span-2">
+          {isLoading && <p>Cargando información...</p>}
+
+          {!isLoading &&
+            Object.entries(data).map(([key, value]) => (
+              <InfoCard
+                key={key}
+                title={formatTitle(key)}
+                initialContent={value}
+                onEnhanceAI={(contenido) => {
+                  console.log('Llevar a IA:', contenido)
+                  // Aquí tu lógica: setPestañaActiva('mejorar-con-ia');
+                }}
+              />
+            ))}
         </div>
 
         {/* Columna Lateral (Información Secundaria) */}
         <div className="space-y-6">
           <div className="space-y-6">
-          {/* Tarjeta de Requisitos */}
-          <InfoCard
-            title="Requisitos y Seriación"
-            type="requirements"
-            initialContent={[
-              { type: "Pre-requisito", code: "PA-301", name: "Programación Avanzada" },
-              { type: "Co-requisito", code: "MAT-201", name: "Matemáticas Discretas" }
-            ]}
-          />
+            {/* Tarjeta de Requisitos */}
+            <InfoCard
+              title="Requisitos y Seriación"
+              type="requirements"
+              initialContent={[
+                {
+                  type: 'Pre-requisito',
+                  code: 'PA-301',
+                  name: 'Programación Avanzada',
+                },
+                {
+                  type: 'Co-requisito',
+                  code: 'MAT-201',
+                  name: 'Matemáticas Discretas',
+                },
+              ]}
+            />
 
-          {/* Tarjeta de Evaluación */}
-          <InfoCard
-            title="Sistema de Evaluación"
-            type="evaluation"
-            initialContent={[
-              { label: "Exámenes parciales", value: "30%" },
-              { label: "Proyecto integrador", value: "35%" },
-              { label: "Prácticas de laboratorio", value: "20%" },
-              { label: "Participación", value: "15%" },
-            ]}
-          />
-        </div>
+            {/* Tarjeta de Evaluación */}
+            <InfoCard
+              title="Sistema de Evaluación"
+              type="evaluation"
+              initialContent={[
+                { label: 'Exámenes parciales', value: '30%' },
+                { label: 'Proyecto integrador', value: '35%' },
+                { label: 'Prácticas de laboratorio', value: '20%' },
+                { label: 'Participación', value: '15%' },
+              ]}
+            />
+          </div>
         </div>
       </div>
     </div>
@@ -298,51 +405,85 @@ function DatosGenerales() {
 }
 
 interface InfoCardProps {
-  title: string,
-  subtitle?: string
-  isList?:boolean
-  initialContent: any // Puede ser string o array de objetos
-  type?: 'text' | 'list' | 'requirements' | 'evaluation'
+  title: string
+  initialContent: any
+  type?: 'text' | 'requirements' | 'evaluation'
+  onEnhanceAI?: (content: any) => void // Nueva prop para la acción de IA
 }
 
-function InfoCard({ title, initialContent, type = 'text' }: InfoCardProps) {
+function InfoCard({
+  title,
+  initialContent,
+  type = 'text',
+  onEnhanceAI,
+}: InfoCardProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [data, setData] = useState(initialContent)
-  // Estado temporal para el área de texto (siempre editamos como texto por simplicidad)
   const [tempText, setTempText] = useState(
-    type === 'text' || type === 'list' 
-      ? initialContent 
-      : JSON.stringify(initialContent, null, 2) // O un formato legible
+    type === 'text' ? initialContent : JSON.stringify(initialContent, null, 2),
   )
 
   const handleSave = () => {
-    // Aquí podrías parsear el texto de vuelta si es necesario
-    setData(tempText) 
+    setData(tempText)
     setIsEditing(false)
   }
 
   return (
     <Card className="transition-all hover:border-slate-300">
-      <CardHeader className="pb-3 flex flex-row items-start justify-between space-y-0">
-        <CardTitle className="text-sm font-bold text-slate-700">{title}</CardTitle>
+      <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-3">
+        <CardTitle className="text-sm font-bold text-slate-700">
+          {title}
+        </CardTitle>
+
         {!isEditing && (
-          <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400" onClick={() => setIsEditing(true)}>
-            <Pencil className="h-3 w-3" />
-          </Button>
+          <div className="flex gap-1">
+            {/* NUEVO: Botón de Mejorar con IA */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-blue-500 hover:bg-blue-50 hover:text-blue-600"
+              onClick={() => onEnhanceAI?.(data)} // Enviamos la data actual a la IA
+              title="Mejorar con IA"
+            >
+              <Sparkles className="h-4 w-4" />
+            </Button>
+
+            {/* Botón de Editar original */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-slate-400"
+              onClick={() => setIsEditing(true)}
+            >
+              <Pencil className="h-3 w-3" />
+            </Button>
+          </div>
         )}
       </CardHeader>
 
       <CardContent>
         {isEditing ? (
           <div className="space-y-3">
-            <Textarea 
-              value={tempText} 
+            <Textarea
+              value={tempText}
               onChange={(e) => setTempText(e.target.value)}
-              className="text-xs min-h-[100px]"
+              className="min-h-[100px] text-xs"
             />
             <div className="flex justify-end gap-2">
-              <Button size="sm" variant="ghost" onClick={() => setIsEditing(false)}>Cancelar</Button>
-              <Button size="sm" className="bg-[#00a878]" onClick={handleSave}>Guardar</Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setIsEditing(false)}
+              >
+                Cancelar
+              </Button>
+              <Button
+                size="sm"
+                className="bg-[#00a878] hover:bg-[#008f66]"
+                onClick={handleSave}
+              >
+                Guardar
+              </Button>
             </div>
           </div>
         ) : (
@@ -358,13 +499,20 @@ function InfoCard({ title, initialContent, type = 'text' }: InfoCardProps) {
 }
 
 // Vista de Requisitos
-function RequirementsView({ items }: { items: any[] }) {
+function RequirementsView({ items }: { items: Array<any> }) {
   return (
     <div className="space-y-3">
       {items.map((req, i) => (
-        <div key={i} className="p-3 bg-slate-50 rounded-lg border border-slate-100">
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">{req.type}</p>
-          <p className="text-sm font-medium text-slate-700">{req.code} {req.name}</p>
+        <div
+          key={i}
+          className="rounded-lg border border-slate-100 bg-slate-50 p-3"
+        >
+          <p className="text-[10px] font-bold tracking-tight text-slate-400 uppercase">
+            {req.type}
+          </p>
+          <p className="text-sm font-medium text-slate-700">
+            {req.code} {req.name}
+          </p>
         </div>
       ))}
     </div>
@@ -372,25 +520,18 @@ function RequirementsView({ items }: { items: any[] }) {
 }
 
 // Vista de Evaluación
-function EvaluationView({ items }: { items: any[] }) {
+function EvaluationView({ items }: { items: Array<any> }) {
   return (
     <div className="space-y-2">
       {items.map((item, i) => (
-        <div key={i} className="flex justify-between text-sm border-b border-slate-50 pb-1.5 italic">
+        <div
+          key={i}
+          className="flex justify-between border-b border-slate-50 pb-1.5 text-sm italic"
+        >
           <span className="text-slate-500">{item.label}</span>
           <span className="font-bold text-blue-600">{item.value}</span>
         </div>
       ))}
-    </div>
-  )
-}
-
-
-
-function EmptyTab({ title }: { title: string }) {
-  return (
-    <div className="py-16 text-center text-muted-foreground">
-      {title} (pendiente)
     </div>
   )
 }
