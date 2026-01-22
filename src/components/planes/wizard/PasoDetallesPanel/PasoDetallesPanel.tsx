@@ -65,7 +65,12 @@ export function PasoDetallesPanel({
         </div>
 
         <div className="flex flex-col gap-1">
-          <Label htmlFor="notas">Notas adicionales</Label>
+          <Label htmlFor="notas">
+            Notas adicionales
+            <span className="text-xs font-normal text-gray-500 dark:text-gray-400">
+              (Opcional)
+            </span>
+          </Label>
           <textarea
             id="notas"
             className="bg-background text-foreground ring-offset-background focus-visible:ring-ring min-h-24 w-full rounded-md border px-3 py-2 text-sm shadow-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"

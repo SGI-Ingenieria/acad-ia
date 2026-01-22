@@ -1,17 +1,17 @@
-import { useState } from "react";
+import { useState } from 'react'
 
-import type { NewPlanWizardState } from "../types";
+import type { NewPlanWizardState } from '../types'
 
 export function useNuevoPlanWizard() {
   const [wizard, setWizard] = useState<NewPlanWizardState>({
     step: 1,
     tipoOrigen: null,
     datosBasicos: {
-      nombrePlan: "",
-      carreraId: "",
-      facultadId: "",
-      nivel: "",
-      tipoCiclo: "",
+      nombrePlan: '',
+      carreraId: '',
+      facultadId: '',
+      nivel: '',
+      tipoCiclo: '',
       numCiclos: undefined,
       estructuraPlanId: null,
     },
@@ -34,8 +34,8 @@ export function useNuevoPlanWizard() {
       archivoAsignaturasExcelId: null,
     },
     iaConfig: {
-      descripcionEnfoque: "",
-      notasAdicionales: "",
+      descripcionEnfoque: '',
+      notasAdicionales: '',
       archivosReferencia: [],
       repositoriosReferencia: [],
       archivosAdjuntos: [],
@@ -43,42 +43,43 @@ export function useNuevoPlanWizard() {
     resumen: {},
     isLoading: false,
     errorMessage: null,
-  });
+  })
 
-  const canContinueDesdeModo = wizard.tipoOrigen === "MANUAL" ||
-    wizard.tipoOrigen === "IA" ||
-    (wizard.tipoOrigen === "CLONADO_INTERNO" ||
-      wizard.tipoOrigen === "CLONADO_TRADICIONAL");
+  const canContinueDesdeModo =
+    wizard.tipoOrigen === 'MANUAL' ||
+    wizard.tipoOrigen === 'IA' ||
+    wizard.tipoOrigen === 'CLONADO_INTERNO' ||
+    wizard.tipoOrigen === 'CLONADO_TRADICIONAL'
 
-  const canContinueDesdeBasicos = !!wizard.datosBasicos.nombrePlan &&
+  const canContinueDesdeBasicos =
+    !!wizard.datosBasicos.nombrePlan &&
     !!wizard.datosBasicos.carreraId &&
     !!wizard.datosBasicos.facultadId &&
     !!wizard.datosBasicos.nivel &&
-    (wizard.datosBasicos.numCiclos !== undefined &&
-      wizard.datosBasicos.numCiclos > 0) &&
+    wizard.datosBasicos.numCiclos !== undefined &&
+    wizard.datosBasicos.numCiclos > 0 &&
     // Requerir ambas plantillas (plan y mapa) con versión
-    !!wizard.datosBasicos.estructuraPlanId;
+    !!wizard.datosBasicos.estructuraPlanId
 
   const canContinueDesdeDetalles = (() => {
-    if (wizard.tipoOrigen === "MANUAL") return true;
-    if (wizard.tipoOrigen === "IA") {
+    if (wizard.tipoOrigen === 'MANUAL') return true
+    if (wizard.tipoOrigen === 'IA') {
       // Requerimos descripción del enfoque y notas adicionales
-      return !!wizard.iaConfig?.descripcionEnfoque &&
-        !!wizard.iaConfig.notasAdicionales;
+      return !!wizard.iaConfig?.descripcionEnfoque
     }
-    if (wizard.tipoOrigen === "CLONADO_INTERNO") {
-      return !!wizard.clonInterno?.planOrigenId;
+    if (wizard.tipoOrigen === 'CLONADO_INTERNO') {
+      return !!wizard.clonInterno?.planOrigenId
     }
-    if (wizard.tipoOrigen === "CLONADO_TRADICIONAL") {
-      const t = wizard.clonTradicional;
-      if (!t) return false;
-      const tieneWord = !!t.archivoWordPlanId;
-      const tieneAlMenosUnExcel = !!t.archivoMapaExcelId ||
-        !!t.archivoAsignaturasExcelId;
-      return tieneWord && tieneAlMenosUnExcel;
+    if (wizard.tipoOrigen === 'CLONADO_TRADICIONAL') {
+      const t = wizard.clonTradicional
+      if (!t) return false
+      const tieneWord = !!t.archivoWordPlanId
+      const tieneAlMenosUnExcel =
+        !!t.archivoMapaExcelId || !!t.archivoAsignaturasExcelId
+      return tieneWord && tieneAlMenosUnExcel
     }
-    return false;
-  })();
+    return false
+  })()
 
   return {
     wizard,
@@ -86,5 +87,5 @@ export function useNuevoPlanWizard() {
     canContinueDesdeModo,
     canContinueDesdeBasicos,
     canContinueDesdeDetalles,
-  };
+  }
 }

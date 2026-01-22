@@ -44,7 +44,7 @@ export function PasoBasicosForm({
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="grid gap-1 sm:col-span-2">
           <Label htmlFor="nombrePlan">
-            Nombre del plan <span className="text-destructive">*</span>
+            Nombre del plan {/* <span className="text-destructive">*</span> */}
           </Label>
           <Input
             id="nombrePlan"

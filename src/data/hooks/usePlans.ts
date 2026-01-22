@@ -121,6 +121,8 @@ export function useGeneratePlanAI() {
     mutationFn: ai_generate_plan,
     onSuccess: (data) => {
       // Asumiendo que la Edge Function devuelve { ok: true, plan: { id: ... } }
+      console.log('success de ai_generate_plan')
+
       const newPlan = data.plan
 
       if (newPlan) {

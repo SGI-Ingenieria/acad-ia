@@ -68,9 +68,12 @@ export function WizardControls({
           },
         }
 
-        const data = await generatePlanAI.mutateAsync(aiInput as any)
+        console.log(`${new Date().toISOString()} - Enviando a generar plan IA`)
 
-        // navigate({ to: `/planes/${data.plan.id}` })
+        const data = await generatePlanAI.mutateAsync(aiInput as any)
+        console.log(`${new Date().toISOString()} - Plan IA generado`, data)
+
+        navigate({ to: `/planes/${data.plan.id}` })
         return
       }
 

@@ -1,65 +1,61 @@
-import type { UploadedFile } from "@/components/planes/wizard/PasoDetallesPanel/FileDropZone";
+import type { UploadedFile } from '@/components/planes/wizard/PasoDetallesPanel/FileDropZone'
 import type {
   NivelPlanEstudio,
   TipoCiclo,
   TipoOrigen,
-} from "@/data/types/domain";
+} from '@/data/types/domain'
 
 export type PlanPreview = {
-  nombrePlan: string;
-  nivel: NivelPlanEstudio;
-  tipoCiclo: TipoCiclo;
-  numCiclos: number;
-  numAsignaturasAprox?: number;
-  secciones?: Array<{ id: string; titulo: string; resumen: string }>;
-};
+  nombrePlan: string
+  nivel: NivelPlanEstudio
+  tipoCiclo: TipoCiclo
+  numCiclos: number
+  numAsignaturasAprox?: number
+  secciones?: Array<{ id: string; titulo: string; resumen: string }>
+}
 
 export type NewPlanWizardState = {
-  step: 1 | 2 | 3 | 4;
-  tipoOrigen: TipoOrigen | null;
+  step: 1 | 2 | 3 | 4
+  tipoOrigen: TipoOrigen | null
   datosBasicos: {
-    nombrePlan: string;
-    carreraId: string;
-    facultadId: string;
-    nivel: NivelPlanEstudio | "";
-    tipoCiclo: TipoCiclo | "";
-    numCiclos: number | undefined;
+    nombrePlan: string
+    carreraId: string
+    facultadId: string
+    nivel: NivelPlanEstudio | ''
+    tipoCiclo: TipoCiclo | ''
+    numCiclos: number | undefined
     // Selección de plantillas (obligatorias)
-    estructuraPlanId: string | null;
-  };
-  clonInterno?: { planOrigenId: string | null };
+    estructuraPlanId: string | null
+  }
+  clonInterno?: { planOrigenId: string | null }
   clonTradicional?: {
-    archivoWordPlanId:
-      | {
-        id: string;
-        name: string;
-        size: string;
-        type: string;
-      }
-      | null;
+    archivoWordPlanId: {
+      id: string
+      name: string
+      size: string
+      type: string
+    } | null
     archivoMapaExcelId: {
-      id: string;
-      name: string;
-      size: string;
-      type: string;
-    } | null;
+      id: string
+      name: string
+      size: string
+      type: string
+    } | null
     archivoAsignaturasExcelId: {
-      id: string;
-      name: string;
-      size: string;
-      type: string;
-    } | null;
-  };
+      id: string
+      name: string
+      size: string
+      type: string
+    } | null
+  }
   iaConfig?: {
-    descripcionEnfoque: string;
-    notasAdicionales: string;
-    archivosReferencia: Array<string>;
-    repositoriosReferencia?: Array<string>;
-    archivosAdjuntos?: Array<
-      UploadedFile
-    >;
-  };
-  resumen: { previewPlan?: PlanPreview };
-  isLoading: boolean;
-  errorMessage: string | null;
-};
+    descripcionEnfoque: string
+    notasAdicionales?: string
+    archivosReferencia: Array<string>
+    repositoriosReferencia?: Array<string>
+    archivosAdjuntos?: Array<UploadedFile>
+  }
+  resumen: { previewPlan?: PlanPreview }
+  isLoading: boolean
+  errorMessage: string | null
+}
