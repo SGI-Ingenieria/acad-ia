@@ -85,6 +85,7 @@ export interface BibliografiaEntry {
 }
 
 interface BibliografiaTabProps {
+  id: string
   bibliografia: Array<BibliografiaEntry>
   onSave: (bibliografia: Array<BibliografiaEntry>) => void
   isSaving: boolean
@@ -92,12 +93,14 @@ interface BibliografiaTabProps {
 
 export function BibliographyItem({
   bibliografia,
-  asignaturaId,
+  id,
   onSave,
   isSaving,
 }: BibliografiaTabProps) {
+  console.log(id)
+
   const { data: bibliografia2, isLoading: loadinmateria } =
-    useSubjectBibliografia(asignaturaId)
+    useSubjectBibliografia(id)
   const [entries, setEntries] = useState<Array<BibliografiaEntry>>(bibliografia)
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isLibraryDialogOpen, setIsLibraryDialogOpen] = useState(false)

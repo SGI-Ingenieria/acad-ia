@@ -36,6 +36,7 @@ export interface BibliografiaEntry {
   fuenteBiblioteca?: any
 }
 export interface BibliografiaTabProps {
+  id: string
   bibliografia: Array<BibliografiaEntry>
   onSave: (bibliografia: Array<BibliografiaEntry>) => void
   isSaving: boolean
@@ -58,27 +59,13 @@ function EditableHeaderField({
   onSave: (val: string) => void
   className?: string
 }) {
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      e.preventDefault()
-      ;(e.currentTarget as HTMLElement).blur() // Quita el foco
-    }
-  }
-
-  const handleBlur = (e: React.FocusEvent<HTMLElement>) => {
-    const newValue = e.currentTarget.textContent || ''
-    if (newValue !== value.toString()) {
-      onSave(newValue)
-    }
-  }
-
   return (
     <input
       type="text"
       value={String(value)}
       onChange={(e) => onSave(e.target.value)}
       onBlur={(e) => onSave(e.target.value)}
-      className={`border-none bg-transparent outline-none focus:ring-2 focus:ring-blue-400 ${className}`}
+      className={` w-[${String(value).length || 1}ch] max-w-[6ch] border-none bg-transparent text-center outline-none focus:ring-2 focus:ring-blue-400 ${className ?? ''} `}
     />
   )
 }
@@ -240,12 +227,14 @@ export default function MateriaDetailPage() {
             <div className="flex flex-col items-end gap-2 text-right">
               {/* CRÉDITOS EDITABLES */}
               <Badge variant="secondary" className="gap-1">
-                <EditableHeaderField
-                  value={headerData.creditos}
-                  onSave={(val) =>
-                    handleUpdateHeader('creditos', parseInt(val) || 0)
-                  }
-                />
+                <span className="inline-flex max-w-fit">
+                  <EditableHeaderField
+                    value={headerData.creditos}
+                    onSave={(val) =>
+                      handleUpdateHeader('creditos', parseInt(val) || 0)
+                    }
+                  />
+                </span>
                 <span>créditos</span>
               </Badge>
 

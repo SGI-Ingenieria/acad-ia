@@ -19,7 +19,7 @@ const formatLabel = (key: string) => {
 
 function DatosGeneralesPage() {
   const { planId } = Route.useParams()
-  const { data } = usePlan(planId)
+  const { data, isLoading } = usePlan(planId)
   const navigate = useNavigate()
   // Inicializamos campos como un arreglo vacío
   const [campos, setCampos] = useState<Array<DatosGeneralesField>>([])

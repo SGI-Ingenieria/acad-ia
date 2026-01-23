@@ -12,11 +12,12 @@ import { useState, useEffect } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuTrigger,
-} from '@/components/ui/context-menu'
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { Skeleton } from '@/components/ui/skeleton'
 import { usePlan } from '@/data/hooks/usePlans'
 
 export const Route = createFileRoute('/planes/$planId/_detalle')({
@@ -25,7 +26,7 @@ export const Route = createFileRoute('/planes/$planId/_detalle')({
 
 function RouteComponent() {
   const { planId } = Route.useParams()
-  const { data } = usePlan(planId)
+  const { data, isLoading } = usePlan(planId)
 
   // Estados locales para manejar la edición "en vivo" antes de persistir
   const [nombrePlan, setNombrePlan] = useState('')
@@ -87,63 +88,86 @@ function RouteComponent() {
 
       <div className="mx-auto max-w-[1600px] space-y-8 p-8">
         {/* Header del Plan */}
-        <div className="flex flex-col items-start justify-between gap-4 md:flex-row">
-          <div>
-            <h1 className="flex items-baseline gap-2 text-3xl font-bold tracking-tight text-slate-900">
-              <span>{nivelPlan} en</span>
-              <span
-                role="textbox"
-                tabIndex={0}
-                contentEditable
-                suppressContentEditableWarning
-                spellCheck={false} // Quita el subrayado rojo de error ortográfico
-                onKeyDown={handleKeyDown}
-                onBlur={(e) => setNombrePlan(e.currentTarget.textContent || '')}
-                className="cursor-text border-b border-transparent decoration-transparent transition-colors outline-none select-text hover:border-slate-300 focus:border-teal-500"
-                style={{ WebkitTextDecoration: 'none', textDecoration: 'none' }} // Doble seguridad contra subrayados
-              >
-                {nombrePlan}
-              </span>
-            </h1>
-            <p className="mt-1 text-lg font-medium text-slate-500">
-              {data?.carreras?.facultades?.nombre}{' '}
-              {data?.carreras?.nombre_corto}
-            </p>
+        {isLoading ? (
+          /* ===== SKELETON ===== */
+          <div className="mx-auto max-w-[1600px] p-8">
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <DatosGeneralesSkeleton key={i} />
+              ))}
+            </div>
           </div>
+        ) : (
+          <>
+            <div className="flex flex-col items-start justify-between gap-4 md:flex-row">
+              <div>
+                <h1 className="flex items-baseline gap-2 text-3xl font-bold tracking-tight text-slate-900">
+                  <span>{nivelPlan} en</span>
+                  <span
+                    role="textbox"
+                    tabIndex={0}
+                    contentEditable
+                    suppressContentEditableWarning
+                    spellCheck={false} // Quita el subrayado rojo de error ortográfico
+                    onKeyDown={handleKeyDown}
+                    onBlur={(e) =>
+                      setNombrePlan(e.currentTarget.textContent || '')
+                    }
+                    className="cursor-text border-b border-transparent decoration-transparent transition-colors outline-none select-text hover:border-slate-300 focus:border-teal-500"
+                    style={{
+                      WebkitTextDecoration: 'none',
+                      textDecoration: 'none',
+                    }} // Doble seguridad contra subrayados
+                  >
+                    {nombrePlan}
+                  </span>
+                </h1>
+                <p className="mt-1 text-lg font-medium text-slate-500">
+                  {data?.carreras?.facultades?.nombre}{' '}
+                  {data?.carreras?.nombre_corto}
+                </p>
+              </div>
 
-          <div className="flex gap-2">
-            {/* <Badge className="gap-1 border-teal-200 bg-teal-50 px-3 text-teal-700 hover:bg-teal-100">
+              <div className="flex gap-2">
+                {/* <Badge className="gap-1 border-teal-200 bg-teal-50 px-3 text-teal-700 hover:bg-teal-100">
               <CheckCircle2 size={12} /> {data?.estados_plan?.etiqueta}
             </Badge> */}
-            <Badge
-              className={`gap-1 border-teal-200 bg-teal-50 px-3 text-teal-700 hover:bg-teal-100`}
-            >
-              {data?.estados_plan?.etiqueta}
-            </Badge>
-          </div>
-        </div>
+                <Badge
+                  className={`gap-1 border-teal-200 bg-teal-50 px-3 text-teal-700 hover:bg-teal-100`}
+                >
+                  {data?.estados_plan?.etiqueta}
+                </Badge>
+              </div>
+            </div>
+          </>
+        )}
 
         {/* 3. Cards de Información con Context Menu */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
-          <ContextMenu>
-            <ContextMenuTrigger>
-              {/* Eliminamos el div extra y aplicamos el estilo directamente al trigger si es necesario, 
-          pero con asChild, la InfoCard será el trigger real */}
+          <DropdownMenu>
+            <DropdownMenuTrigger>
               <InfoCard
                 icon={<GraduationCap className="text-slate-400" />}
                 label="Nivel"
                 value={nivelPlan}
                 isEditable
               />
-            </ContextMenuTrigger>
-            <ContextMenuContent className="w-48">
+            </DropdownMenuTrigger>
+
+            <DropdownMenuContent className="w-48">
               {niveles.map((n) => (
-                <ContextMenuItem key={n} onClick={() => setNivelPlan(n)}>
+                <DropdownMenuItem
+                  key={n}
+                  onClick={() => {
+                    setNivelPlan(n)
+                    setIsDirty(true)
+                  }}
+                >
                   {n}
-                </ContextMenuItem>
+                </DropdownMenuItem>
               ))}
-            </ContextMenuContent>
-          </ContextMenu>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           <InfoCard
             icon={<Clock className="text-slate-400" />}
@@ -212,7 +236,7 @@ function InfoCard({
     <div
       className={`flex h-[72px] w-full items-center gap-4 rounded-xl border border-slate-200/60 bg-slate-50/50 p-4 shadow-sm transition-all ${
         isEditable
-          ? 'cursor-context-menu hover:border-teal-200 hover:bg-white'
+          ? 'cursor-pointer hover:border-teal-200 hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/40'
           : ''
       }`}
     >
@@ -251,5 +275,25 @@ function Tab({
     >
       {children}
     </Link>
+  )
+}
+
+function DatosGeneralesSkeleton() {
+  return (
+    <div className="rounded-xl border bg-white">
+      {/* Header */}
+      <div className="flex items-center justify-between border-b px-5 py-3">
+        <Skeleton className="h-4 w-40" />
+        <Skeleton className="h-8 w-16" />
+      </div>
+
+      {/* Content */}
+      <div className="space-y-3 p-5">
+        <Skeleton className="h-4 w-full" />
+        <Skeleton className="h-4 w-11/12" />
+        <Skeleton className="h-4 w-10/12" />
+        <Skeleton className="h-4 w-9/12" />
+      </div>
+    </div>
   )
 }
