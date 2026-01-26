@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
+import { format, formatDistanceToNow, parseISO } from 'date-fns'
+import { es } from 'date-fns/locale'
 import {
   GitBranch,
   Edit3,
@@ -12,19 +13,17 @@ import {
   History,
   Calendar,
 } from 'lucide-react'
+import { useMemo, useState } from 'react'
+
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
 import { usePlanHistorial } from '@/data/hooks/usePlans'
-import { format, formatDistanceToNow, parseISO } from 'date-fns'
-import { es } from 'date-fns/locale'
 
 export const Route = createFileRoute('/planes/$planId/_detalle/historial')({
   component: RouteComponent,
@@ -58,9 +57,7 @@ const getEventConfig = (tipo: string, campo: string) => {
 
 function RouteComponent() {
   const { planId } = Route.useParams()
-  const { data: rawData, isLoading } = usePlanHistorial(
-    '0e0aea4d-b8b4-4e75-8279-6224c3ac769f',
-  )
+  const { data: rawData, isLoading } = usePlanHistorial(planId)
 
   // ESTADOS PARA EL MODAL
   const [selectedEvent, setSelectedEvent] = useState<any>(null)

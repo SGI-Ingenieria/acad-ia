@@ -8,6 +8,7 @@ import {
   Clock,
   FileJson,
 } from 'lucide-react'
+import { useCallback, useEffect, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -19,9 +20,34 @@ export const Route = createFileRoute('/planes/$planId/_detalle/documento')({
 
 function RouteComponent() {
   const { planId } = useParams({ from: '/planes/$planId/_detalle/documento' })
-  const handleDownloadPdf = async () => {
-    console.log('entre aqui ')
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
 
+  const loadPdfPreview = useCallback(async () => {
+    try {
+      setIsLoading(true)
+      const pdfBlob = await fetchPlanPdf({ plan_estudio_id: planId })
+      const url = window.URL.createObjectURL(pdfBlob)
+
+      // Limpiar URL anterior si existe para evitar fugas de memoria
+      if (pdfUrl) window.URL.revokeObjectURL(pdfUrl)
+
+      setPdfUrl(url)
+    } catch (error) {
+      console.error('Error cargando preview:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [planId])
+
+  useEffect(() => {
+    loadPdfPreview()
+    return () => {
+      if (pdfUrl) window.URL.revokeObjectURL(pdfUrl)
+    }
+  }, [loadPdfPreview])
+
+  const handleDownloadPdf = async () => {
     try {
       const pdfBlob = await fetchPlanPdf({
         plan_estudio_id: planId,
@@ -54,7 +80,12 @@ function RouteComponent() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" className="gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2"
+            onClick={loadPdfPreview}
+          >
             <RefreshCcw size={16} /> Regenerar
           </Button>
           <Button variant="outline" size="sm" className="gap-2">
@@ -90,70 +121,42 @@ function RouteComponent() {
       </div>
 
       {/* CONTENEDOR DEL DOCUMENTO (Visor) */}
+      {/* CONTENEDOR DEL VISOR REAL */}
       <Card className="overflow-hidden border-slate-200 shadow-sm">
         <div className="flex items-center justify-between border-b bg-slate-100/50 p-2 px-4">
           <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
-            <FileText size={14} />
-            Plan_Estudios_ISC_2024.pdf
+            <FileText size={14} /> Preview_Documento.pdf
           </div>
-          <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs">
-            Abrir en nueva pestaña <ExternalLink size={12} />
-          </Button>
+          {pdfUrl && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 gap-1 text-xs"
+              onClick={() => window.open(pdfUrl, '_blank')}
+            >
+              Abrir en nueva pestaña <ExternalLink size={12} />
+            </Button>
+          )}
         </div>
 
-        <CardContent className="flex min-h-[800px] justify-center bg-slate-200/50 p-0 py-8">
-          {/* SIMULACIÓN DE HOJA DE PAPEL */}
-          <div className="relative min-h-[1000px] w-full max-w-[800px] border bg-white p-12 shadow-2xl md:p-16">
-            {/* Contenido del Plan */}
-            <div className="mb-12 text-center">
-              <p className="mb-1 text-xs font-bold tracking-widest text-slate-400 uppercase">
-                Universidad Tecnológica
-              </p>
-              <h2 className="text-2xl font-bold text-slate-800">
-                Plan de Estudios 2024
-              </h2>
-              <h3 className="text-lg font-semibold text-teal-700">
-                Ingeniería en Sistemas Computacionales
-              </h3>
-              <p className="mt-1 text-xs text-slate-500">
-                Facultad de Ingeniería
-              </p>
+        <CardContent className="flex min-h-[800px] justify-center bg-slate-500 p-0">
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center gap-4 text-white">
+              <RefreshCcw size={40} className="animate-spin opacity-50" />
+              <p className="animate-pulse">Generando vista previa del PDF...</p>
             </div>
-
-            <div className="space-y-8 text-slate-700">
-              <section>
-                <h4 className="mb-2 text-sm font-bold">1. Objetivo General</h4>
-                <p className="text-justify text-sm leading-relaxed">
-                  Formar profesionales altamente capacitados en el desarrollo de
-                  soluciones tecnológicas innovadoras, con sólidos conocimientos
-                  en programación, bases de datos, redes y seguridad
-                  informática.
-                </p>
-              </section>
-
-              <section>
-                <h4 className="mb-2 text-sm font-bold">2. Perfil de Ingreso</h4>
-                <p className="text-justify text-sm leading-relaxed">
-                  Egresados de educación media superior con conocimientos
-                  básicos de matemáticas, razonamiento lógico y habilidades de
-                  comunicación. Interés por la tecnología y la resolución de
-                  problemas.
-                </p>
-              </section>
-
-              <section>
-                <h4 className="mb-2 text-sm font-bold">3. Perfil de Egreso</h4>
-                <p className="text-justify text-sm leading-relaxed">
-                  Profesional capaz de diseñar, desarrollar e implementar
-                  sistemas de software de calidad, administrar infraestructuras
-                  de red y liderar proyectos tecnológicos multidisciplinarios.
-                </p>
-              </section>
+          ) : pdfUrl ? (
+            /* 3. VISOR DE PDF REAL */
+            <iframe
+              src={`${pdfUrl}#toolbar=0&navpanes=0`}
+              className="h-[1000px] w-full max-w-[1000px] border-none shadow-2xl"
+              title="PDF Preview"
+            />
+          ) : (
+            <div className="flex items-center justify-center p-20 text-slate-400">
+              No se pudo cargar la vista previa.
             </div>
-
-            {/* Marca de agua o decoración lateral (opcional) */}
-            <div className="absolute top-0 left-0 h-full w-1 bg-slate-100" />
-          </div>
+          )}
         </CardContent>
       </Card>
     </div>

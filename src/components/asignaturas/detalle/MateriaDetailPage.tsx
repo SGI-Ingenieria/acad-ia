@@ -1,6 +1,7 @@
 import {
   createFileRoute,
   Link,
+  useNavigate,
   useParams,
   useRouterState,
 } from '@tanstack/react-router'
@@ -59,13 +60,17 @@ function EditableHeaderField({
   onSave: (val: string) => void
   className?: string
 }) {
+  const textValue = String(value)
+
   return (
     <input
       type="text"
-      value={String(value)}
+      value={textValue}
+      // El truco es usar el atributo "size" o calcular el ancho dinámicamente
+      style={{ width: `${Math.max(textValue.length, 1)}ch` }}
       onChange={(e) => onSave(e.target.value)}
       onBlur={(e) => onSave(e.target.value)}
-      className={` w-[${String(value).length || 1}ch] max-w-[6ch] border-none bg-transparent text-center outline-none focus:ring-2 focus:ring-blue-400 ${className ?? ''} `}
+      className={`border-none bg-transparent outline-none focus:ring-2 focus:ring-blue-400 ${className ?? ''}`}
     />
   )
 }
@@ -91,6 +96,7 @@ export default function MateriaDetailPage() {
   const [messages, setMessages] = useState<Array<IAMessage>>([])
   const [datosGenerales, setDatosGenerales] = useState({})
   const [campos, setCampos] = useState<Array<CampoEstructura>>([])
+  const [activeTab, setActiveTab] = useState('datos')
 
   // Dentro de MateriaDetailPage
   const [headerData, setHeaderData] = useState({
@@ -99,6 +105,13 @@ export default function MateriaDetailPage() {
     creditos: 0,
     ciclo: 0,
   })
+
+  useEffect(() => {
+    // Si en el state de la ruta viene una pestaña específica, cámbiate a ella
+    if (state?.activeTab) {
+      setActiveTab(state.activeTab)
+    }
+  }, [state])
 
   // Sincronizar cuando llegue la API
   useEffect(() => {
@@ -208,11 +221,23 @@ export default function MateriaDetailPage() {
 
               <div className="flex flex-wrap gap-4 text-sm text-blue-200">
                 <span className="flex items-center gap-1">
-                  <GraduationCap className="h-4 w-4" />
-                  {asignaturasApi?.planes_estudio?.datos?.nombre}
+                  <GraduationCap className="h-4 w-4 shrink-0" />
+                  {/* Eliminamos el max-w y dejamos que el flex-wrap haga su trabajo */}
+                  <EditableHeaderField
+                    value={asignaturasApi?.planes_estudio?.datos?.nombre || ''}
+                    onSave={(val) => handleUpdateHeader('plan_nombre', val)}
+                    className="min-w-[10ch] text-blue-100" // min-w para que sea clickeable si está vacío
+                  />
                 </span>
-                <span>
-                  {asignaturasApi?.planes_estudio?.carreras?.facultades?.nombre}
+                <span className="flex items-center gap-1">
+                  <EditableHeaderField
+                    value={
+                      asignaturasApi?.planes_estudio?.carreras?.facultades
+                        ?.nombre || ''
+                    }
+                    onSave={(val) => handleUpdateHeader('facultad_nombre', val)}
+                    className="min-w-[10ch] text-blue-100"
+                  />
                 </span>
               </div>
 
@@ -258,7 +283,11 @@ export default function MateriaDetailPage() {
       {/* ================= TABS ================= */}
       <section className="border-b bg-white">
         <div className="mx-auto max-w-7xl px-6">
-          <Tabs defaultValue="datos">
+          <Tabs
+            value={activeTab}
+            onValueChange={setActiveTab}
+            className="w-full"
+          >
             <TabsList className="h-auto gap-6 bg-transparent p-0">
               <TabsTrigger value="datos">Datos generales</TabsTrigger>
               <TabsTrigger value="contenido">Contenido temático</TabsTrigger>
@@ -272,7 +301,11 @@ export default function MateriaDetailPage() {
 
             {/* ================= TAB: DATOS GENERALES ================= */}
             <TabsContent value="datos">
-              <DatosGenerales data={datosGenerales} isLoading={loadingAsig} />
+              <DatosGenerales
+                data={datosGenerales}
+                isLoading={loadingAsig}
+                asignaturaId={asignaturaId}
+              />
             </TabsContent>
 
             <TabsContent value="contenido">
@@ -330,10 +363,15 @@ export default function MateriaDetailPage() {
 
 /* ================= TAB CONTENT ================= */
 interface DatosGeneralesProps {
+  asignaturaId: string
   data: AsignaturaDatos
   isLoading: boolean
 }
-function DatosGenerales({ data, isLoading }: DatosGeneralesProps) {
+function DatosGenerales({
+  data,
+  isLoading,
+  asignaturaId,
+}: DatosGeneralesProps) {
   const formatTitle = (key: string): string =>
     key.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())
 
@@ -360,7 +398,9 @@ function DatosGenerales({ data, isLoading }: DatosGeneralesProps) {
           {!isLoading &&
             Object.entries(data).map(([key, value]) => (
               <InfoCard
+                asignaturaId={asignaturaId}
                 key={key}
+                clave={key}
                 title={formatTitle(key)}
                 initialContent={value}
                 onEnhanceAI={(contenido) => {
@@ -411,6 +451,8 @@ function DatosGenerales({ data, isLoading }: DatosGeneralesProps) {
 }
 
 interface InfoCardProps {
+  asignaturaId?: string
+  clave: string
   title: string
   initialContent: any
   type?: 'text' | 'requirements' | 'evaluation'
@@ -418,6 +460,8 @@ interface InfoCardProps {
 }
 
 function InfoCard({
+  asignaturaId,
+  clave,
   title,
   initialContent,
   type = 'text',
@@ -428,10 +472,26 @@ function InfoCard({
   const [tempText, setTempText] = useState(
     type === 'text' ? initialContent : JSON.stringify(initialContent, null, 2),
   )
-
+  const navigate = useNavigate()
   const handleSave = () => {
     setData(tempText)
     setIsEditing(false)
+  }
+  const handleIARequest = (data) => {
+    console.log(data)
+    console.log(asignaturaId)
+
+    navigate({
+      to: '/planes/$planId/asignaturas/$asignaturaId',
+      params: {
+        asignaturaId: asignaturaId,
+      },
+      state: {
+        activeTab: 'ia',
+        prefillCampo: data,
+        prefillContenido: data, // el contenido actual del card
+      } as any,
+    })
   }
 
   return (
@@ -448,7 +508,7 @@ function InfoCard({
               variant="ghost"
               size="icon"
               className="h-8 w-8 text-blue-500 hover:bg-blue-50 hover:text-blue-600"
-              onClick={() => onEnhanceAI?.(data)} // Enviamos la data actual a la IA
+              onClick={() => handleIARequest(clave)} // Enviamos la data actual a la IA
               title="Mejorar con IA"
             >
               <Sparkles className="h-4 w-4" />

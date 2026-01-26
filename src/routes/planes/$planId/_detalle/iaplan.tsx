@@ -106,7 +106,7 @@ function RouteComponent() {
       if (field && !selectedFields.find((sf) => sf.key === field.key)) {
         setSelectedFields([field])
       }
-      setInput(`Mejora este campo: `)
+      setInput(`Mejora este campo: [${field?.label}] `)
     }
   }, [availableFields])
 
@@ -121,46 +121,85 @@ function RouteComponent() {
     }
   }
 
+  const injectFieldsIntoInput = (
+    input: string,
+    fields: Array<SelectedField>,
+  ) => {
+    const baseText = input.replace(/\[[^\]]+]/g, '').trim()
+
+    const tags = fields.map((f) => `[${f.label}]`).join(' ')
+
+    return `${baseText} ${tags}`.trim()
+  }
   const toggleField = (field: SelectedField) => {
-    setSelectedFields((prev) =>
-      prev.find((f) => f.key === field.key)
-        ? prev.filter((f) => f.key !== field.key)
-        : [...prev, field],
-    )
-    if (input.endsWith(':')) setInput(input.slice(0, -1))
+    setSelectedFields((prev) => {
+      let nextFields
+
+      if (prev.find((f) => f.key === field.key)) {
+        nextFields = prev.filter((f) => f.key !== field.key)
+      } else {
+        nextFields = [...prev, field]
+      }
+
+      setInput((prevInput) =>
+        injectFieldsIntoInput(prevInput || 'Mejora este campo:', nextFields),
+      )
+
+      return nextFields
+    })
+
     setShowSuggestions(false)
+  }
+  const buildPrompt = (userInput: string) => {
+    if (selectedFields.length === 0) return userInput
+
+    const fieldsText = selectedFields
+      .map((f) => `- ${f.label}: ${f.value || '(sin contenido)'}`)
+      .join('\n')
+
+    return `
+${userInput || 'Mejora los siguientes campos:'}
+
+Campos a analizar:
+${fieldsText}
+`.trim()
   }
 
   const handleSend = async (promptOverride?: string) => {
-    const textToSend = promptOverride || input
-    if (!textToSend.trim() && selectedFields.length === 0) return
+    const rawText = promptOverride || input
+    if (!rawText.trim() && selectedFields.length === 0) return
+
+    const finalPrompt = buildPrompt(rawText)
 
     const userMsg = {
       id: Date.now().toString(),
       role: 'user',
-      content: textToSend,
+      content: finalPrompt,
     }
+
     setMessages((prev) => [...prev, userMsg])
     setInput('')
     setIsLoading(true)
 
-    // Aquí simularías la llamada a la API enviando 'selectedFields' como contexto
     setTimeout(() => {
       const mockText =
         'Sugerencia generada basada en los campos seleccionados...'
+
       setMessages((prev) => [
         ...prev,
         {
           id: Date.now().toString(),
           role: 'assistant',
-          content: `He analizado ${selectedFields.length > 0 ? selectedFields.map((f) => f.label).join(', ') : 'tu solicitud'}. Aquí tienes una propuesta:\n\n${mockText}`,
+          content: `He analizado ${selectedFields
+            .map((f) => f.label)
+            .join(', ')}. Aquí tienes una propuesta:\n\n${mockText}`,
         },
       ])
+
       setPendingSuggestion({ text: mockText })
       setIsLoading(false)
     }, 1200)
   }
-
   return (
     <div className="flex h-[calc(100vh-160px)] max-h-[calc(100vh-160px)] w-full gap-6 overflow-hidden p-4">
       {/* PANEL DE CHAT PRINCIPAL */}
@@ -169,27 +208,8 @@ function RouteComponent() {
         <div className="shrink-0 border-b bg-white p-3">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-[10px] font-bold text-slate-400 uppercase">
-              Campos a mejorar:
+              Mejorar con IA
             </span>
-            {selectedFields.map((field) => (
-              <div
-                key={field.key}
-                className="animate-in zoom-in-95 flex items-center gap-1.5 rounded-lg border border-teal-100 bg-teal-50 px-2 py-1 text-xs font-medium text-teal-700"
-              >
-                {field.label}
-                <button
-                  onClick={() => toggleField(field)}
-                  className="hover:text-red-500"
-                >
-                  <X size={12} />
-                </button>
-              </div>
-            ))}
-            {selectedFields.length === 0 && (
-              <span className="text-xs text-slate-400 italic">
-                Escribe ":" para añadir campos
-              </span>
-            )}
           </div>
         </div>
 

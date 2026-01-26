@@ -178,7 +178,7 @@ export async function plans_history(planId: UUID): Promise<Array<CambioPlan>> {
   const { data, error } = await supabase
     .from('cambios_plan')
     .select(
-      'id,plan_estudio_id,cambiado_por,cambiado_en,tipo,campo,valor_anterior,valor_nuevo,interaccion_ia_id',
+      'id,plan_estudio_id,cambiado_por,cambiado_en,tipo,campo,valor_anterior,valor_nuevo',
     )
     .eq('plan_estudio_id', planId)
     .order('cambiado_en', { ascending: false })
