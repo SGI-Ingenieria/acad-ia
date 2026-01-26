@@ -24,7 +24,7 @@ const EDGE = {
 
   plans_import_from_files: 'plans_import_from_files',
 
-  plans_update_fields: 'plans_update_fields',
+  // plans_update_fields: 'plans_update_fields',
   plans_update_map: 'plans_update_map',
   plans_transition_state: 'plans_transition_state',
 
@@ -299,7 +299,26 @@ export async function plans_update_fields(
   planId: UUID,
   patch: PlansUpdateFieldsPatch,
 ): Promise<PlanEstudio> {
-  return invokeEdge<PlanEstudio>(EDGE.plans_update_fields, { planId, patch })
+  const supabase = supabaseBrowser()
+  
+  const { data, error } = await supabase
+    .from('planes_estudio')
+    .update(patch)
+    .eq('id', planId)
+    .select(
+      `
+      *,
+      carreras (*, facultades(*)),
+      estructuras_plan (*),
+      estados_plan (*)
+    `,
+    )
+    .single()
+
+  throwIfError(error)
+  return requireData(data, 'No se pudo actualizar el plan.')
+  // Alternativa Edge Function:
+  // return invokeEdge<PlanEstudio>(EDGE.plans_update_fields, { planId, patch })
 }
 
 /** Operaciones del mapa curricular (mover/reordenar) */
