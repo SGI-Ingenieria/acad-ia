@@ -49,8 +49,8 @@ export type NewPlanWizardState = {
     } | null
   }
   iaConfig?: {
-    descripcionEnfoque: string
-    notasAdicionales?: string
+    descripcionEnfoqueAcademico: string
+    instruccionesAdicionalesIA?: string
     archivosReferencia: Array<string>
     repositoriosReferencia?: Array<string>
     archivosAdjuntos?: Array<UploadedFile>

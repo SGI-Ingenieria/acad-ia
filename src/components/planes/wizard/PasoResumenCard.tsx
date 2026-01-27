@@ -116,13 +116,13 @@ export function PasoResumenCard({ wizard }: { wizard: NewPlanWizardState }) {
                     <div>
                       <span className="text-muted-foreground">Enfoque: </span>
                       <span className="font-medium">
-                        {wizard.iaConfig?.descripcionEnfoque || '—'}
+                        {wizard.iaConfig?.descripcionEnfoqueAcademico || '—'}
                       </span>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Notas: </span>
                       <span className="font-medium">
-                        {wizard.iaConfig?.notasAdicionales || '—'}
+                        {wizard.iaConfig?.instruccionesAdicionalesIA || '—'}
                       </span>
                     </div>
                     {archivosRef.length > 0 && (
