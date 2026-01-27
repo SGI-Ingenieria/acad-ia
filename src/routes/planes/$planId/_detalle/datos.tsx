@@ -6,6 +6,12 @@ import type { DatosGeneralesField } from '@/types/plan'
 
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { usePlan } from '@/data'
 // import { toast } from 'sonner' // Asegúrate de tener sonner instalado o quita la línea
 export const Route = createFileRoute('/planes/$planId/_detalle/datos')({
@@ -28,24 +34,41 @@ function DatosGeneralesPage() {
 
   // Efecto para transformar data?.datos en el arreglo de campos
   useEffect(() => {
-    // 2. Validación de seguridad para sourceData
-    const sourceData = data?.datos
+    const properties = data?.estructuras_plan?.definicion?.properties
 
-    if (sourceData && typeof sourceData === 'object') {
+    const valores = data?.datos as Record<string, unknown>
+
+    if (properties && typeof properties === 'object') {
       const datosTransformados: Array<DatosGeneralesField> = Object.entries(
-        sourceData,
-      ).map(([key, value], index) => ({
-        id: (index + 1).toString(),
-        label: formatLabel(key),
-        // Forzamos el valor a string de forma segura
-        value: typeof value === 'string' ? value : value?.toString() || '',
-        requerido: true,
-        tipo: 'texto',
-      }))
+        properties,
+      ).map(([key, schema], index) => {
+        const rawValue = valores[key]
+
+        return {
+          id: (index + 1).toString(),
+          label: schema?.title || formatLabel(key),
+          helperText: schema?.description || '',
+          holder: schema?.examples || '',
+          value:
+            rawValue !== undefined && rawValue !== null ? String(rawValue) : '',
+
+          requerido: true,
+
+          // 👇 TIPO DE CAMPO
+          tipo: Array.isArray(schema?.enum)
+            ? 'select'
+            : schema?.type === 'number'
+              ? 'number'
+              : 'texto',
+
+          opciones: schema?.enum || [],
+        }
+      })
 
       setCampos(datosTransformados)
     }
-    console.log(data)
+
+    console.log(properties)
   }, [data])
 
   // 3. Manejadores de acciones (Ahora como funciones locales)
@@ -105,37 +128,58 @@ function DatosGeneralesPage() {
               }`}
             >
               {/* Header de la Card */}
-              <div className="flex items-center justify-between border-b bg-slate-50/50 px-5 py-3">
-                <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-medium text-slate-700">
-                    {campo.label}
-                  </h3>
-                  {campo.requerido && (
-                    <span className="text-xs text-red-500">*</span>
+              <TooltipProvider>
+                <div className="flex items-center justify-between border-b bg-slate-50/50 px-5 py-3">
+                  <div className="flex items-center gap-2">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <h3 className="cursor-help text-sm font-medium text-slate-700">
+                          {campo.label}
+                        </h3>
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs text-xs">
+                        {campo.helperText || 'Información del campo'}
+                      </TooltipContent>
+                    </Tooltip>
+
+                    {campo.requerido && (
+                      <span className="text-xs text-red-500">*</span>
+                    )}
+                  </div>
+
+                  {!isEditing && (
+                    <div className="flex gap-1">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-teal-600"
+                            onClick={() => handleIARequest(campo.value)}
+                          >
+                            <Sparkles size={14} />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Generar con IA</TooltipContent>
+                      </Tooltip>
+
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => handleEdit(campo)}
+                          >
+                            <Pencil size={14} />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Editar campo</TooltipContent>
+                      </Tooltip>
+                    </div>
                   )}
                 </div>
-
-                {!isEditing && (
-                  <div className="flex gap-1">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-teal-600"
-                      onClick={() => handleIARequest(campo.value)}
-                    >
-                      <Sparkles size={14} />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => handleEdit(campo)}
-                    >
-                      <Pencil size={14} />
-                    </Button>
-                  </div>
-                )}
-              </div>
+              </TooltipProvider>
 
               {/* Contenido de la Card */}
               <div className="p-5">
@@ -145,6 +189,7 @@ function DatosGeneralesPage() {
                       value={editValue}
                       onChange={(e) => setEditValue(e.target.value)}
                       className="min-h-[120px]"
+                      placeholder={campo.holder}
                     />
                     <div className="flex justify-end gap-2">
                       <Button

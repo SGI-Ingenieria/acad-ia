@@ -65,12 +65,15 @@ export interface Plan {
   estadoActual: PlanStatus
 }
 
-export interface DatosGeneralesField {
+export type DatosGeneralesField = {
   id: string
   label: string
+  helperText?: string
+  holder?: string
   value: string
-  tipo: 'texto' | 'lista' | 'parrafo'
   requerido: boolean
+  tipo: 'texto' | 'parrafo' | 'lista' | 'number' | 'select'
+  opciones?: Array<string>
 }
 
 export interface CambioPlan {
