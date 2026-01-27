@@ -76,7 +76,7 @@ const ReferenciasParaIA = ({
             placeholder="Buscar archivo existente..."
             className="m-1 mb-1.5"
           />
-          <div className="flex h-72 flex-col gap-0.5 overflow-y-auto">
+          <div className="flex h-96 flex-col gap-0.5 overflow-y-auto">
             {archivosFiltrados.map((archivo) => (
               <Label
                 key={archivo.id}
@@ -123,7 +123,7 @@ const ReferenciasParaIA = ({
             placeholder="Buscar repositorio..."
             className="m-1 mb-1.5"
           />
-          <div className="flex h-72 flex-col gap-0.5 overflow-y-auto">
+          <div className="flex h-96 flex-col gap-0.5 overflow-y-auto">
             {repositoriosFiltrados.map((repositorio) => (
               <Label
                 key={repositorio.id}
@@ -163,12 +163,13 @@ const ReferenciasParaIA = ({
       icon: Upload,
 
       content: (
-        <div>
+        <div className="p-1">
           <FileDropzone
             persistentFiles={uploadedFiles}
             onFilesChange={onFilesChange}
             title="Sube archivos de referencia"
             description="Documentos que serán usados como contexto para la generación"
+            autoScrollToDropzone={true}
           />
         </div>
       ),
@@ -177,7 +178,12 @@ const ReferenciasParaIA = ({
 
   return (
     <div className="flex w-full flex-col gap-1">
-      <Label>Referencias para la IA</Label>
+      <Label>
+        Referencias para la IA{' '}
+        <span className="text-xs font-normal text-gray-500 dark:text-gray-400">
+          (Opcional)
+        </span>
+      </Label>
 
       <Tabs defaultValue="archivos-existentes" className="gap-4">
         <TabsList className="w-full">

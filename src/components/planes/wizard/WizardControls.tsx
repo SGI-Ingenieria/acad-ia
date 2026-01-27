@@ -1,9 +1,12 @@
 import { useNavigate } from '@tanstack/react-router'
 
+import type { NivelPlanEstudio, TipoCiclo } from '@/data/types/domain'
 import type { NewPlanWizardState } from '@/features/planes/nuevo/types'
+// import type { Database } from '@/types/supabase'
 
 import { Button } from '@/components/ui/button'
-import { useGeneratePlanAI } from '@/data/hooks/usePlans'
+// import { supabaseBrowser } from '@/data'
+import { useCreatePlanManual, useGeneratePlanAI } from '@/data/hooks/usePlans'
 
 export function WizardControls({
   errorMessage,
@@ -28,6 +31,8 @@ export function WizardControls({
 }) {
   const navigate = useNavigate()
   const generatePlanAI = useGeneratePlanAI()
+  const createPlanManual = useCreatePlanManual()
+  // const supabaseClient = supabaseBrowser()
   // const persistPlanFromAI = usePersistPlanFromAI()
 
   const handleCreate = async () => {
@@ -60,8 +65,10 @@ export function WizardControls({
             estructuraPlanId: wizard.datosBasicos.estructuraPlanId as string,
           },
           iaConfig: {
-            descripcionEnfoque: wizard.iaConfig?.descripcionEnfoque || '',
-            notasAdicionales: wizard.iaConfig?.notasAdicionales || '',
+            descripcionEnfoqueAcademico:
+              wizard.iaConfig?.descripcionEnfoqueAcademico || '',
+            instruccionesAdicionalesIA:
+              wizard.iaConfig?.instruccionesAdicionalesIA || '',
             archivosReferencia: wizard.iaConfig?.archivosReferencia || [],
             repositoriosIds: wizard.iaConfig?.repositoriosReferencia || [],
             archivosAdjuntos: wizard.iaConfig?.archivosAdjuntos || [],
@@ -73,22 +80,32 @@ export function WizardControls({
         const data = await generatePlanAI.mutateAsync(aiInput as any)
         console.log(`${new Date().toISOString()} - Plan IA generado`, data)
 
-        navigate({ to: `/planes/${data.plan.id}` })
+        navigate({
+          to: `/planes/${data.plan.id}/datos`,
+          state: { showConfetti: true },
+        })
         return
       }
 
-      // Fallback mocks for non-IA origins
-      await new Promise((r) => setTimeout(r, 900))
-      const nuevoId = (() => {
-        if (wizard.tipoOrigen === 'MANUAL') return 'plan_new_manual_001'
-        if (
-          wizard.tipoOrigen === 'CLONADO_INTERNO' ||
-          wizard.tipoOrigen === 'CLONADO_TRADICIONAL'
-        )
-          return 'plan_new_clone_001'
-        return 'plan_new_import_001'
-      })()
-      navigate({ to: `/planes/${nuevoId}` })
+      if (wizard.tipoOrigen === 'MANUAL') {
+        // Crear plan vacío manualmente usando el hook
+        const plan = await createPlanManual.mutateAsync({
+          carreraId: wizard.datosBasicos.carreraId,
+          estructuraId: wizard.datosBasicos.estructuraPlanId as string,
+          nombre: wizard.datosBasicos.nombrePlan,
+          nivel: wizard.datosBasicos.nivel as NivelPlanEstudio,
+          tipoCiclo: wizard.datosBasicos.tipoCiclo as TipoCiclo,
+          numCiclos: (wizard.datosBasicos.numCiclos as number) || 1,
+          datos: {},
+        })
+
+        // Navegar al nuevo plan
+        navigate({
+          to: `/planes/${plan.id}/datos`,
+          state: { showConfetti: true },
+        })
+        return
+      }
     } catch (err: any) {
       setWizard((w) => ({
         ...w,

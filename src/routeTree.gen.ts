@@ -148,7 +148,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/planes': typeof PlanesListaRouteRouteWithChildren
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
-  '/planes/$planId': typeof PlanesPlanIdIndexRoute
+  '/planes/$planId': typeof PlanesPlanIdDetalleRouteRouteWithChildren
   '/planes/$planId/asignaturas': typeof PlanesPlanIdAsignaturasListaRouteRouteWithChildren
   '/planes/nuevo': typeof PlanesListaNuevoRoute
   '/planes/$planId/': typeof PlanesPlanIdIndexRoute
@@ -326,10 +326,14 @@ declare module '@tanstack/react-router' {
       id: '/planes/$planId/'
       path: '/planes/$planId'
 <<<<<<< HEAD
+<<<<<<< HEAD
       fullPath: '/planes/$planId/'
 =======
       fullPath: '/planes/$planId'
 >>>>>>> 4950f7efbf664bbd31ac8a673fe594af5baf07f6
+=======
+      fullPath: '/planes/$planId/'
+>>>>>>> cbe4e54 (Se cierran incidencias #10, #21, #24, #25; se añade generación manual de planes)
       preLoaderRoute: typeof PlanesPlanIdIndexRouteImport
       parentRoute: typeof rootRouteImport
     }

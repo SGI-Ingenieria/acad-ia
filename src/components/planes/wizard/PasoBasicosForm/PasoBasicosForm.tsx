@@ -215,7 +215,15 @@ export function PasoBasicosForm({
             id="numCiclos"
             type="number"
             min={1}
+            step={1}
+            inputMode="numeric"
+            pattern="[0-9]*"
             value={wizard.datosBasicos.numCiclos ?? ''}
+            onKeyDown={(e) => {
+              if (['.', ',', '-', 'e', 'E', '+'].includes(e.key)) {
+                e.preventDefault()
+              }
+            }}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
               onChange(
                 (w): NewPlanWizardState => ({
@@ -223,10 +231,15 @@ export function PasoBasicosForm({
                   datosBasicos: {
                     ...w.datosBasicos,
                     // Keep undefined when the input is empty so the field stays optional
-                    numCiclos:
-                      e.target.value === ''
-                        ? undefined
-                        : Number(e.target.value),
+                    numCiclos: (() => {
+                      const raw = e.target.value
+                      if (raw === '') return undefined
+                      const asNumber = Number(raw)
+                      if (Number.isNaN(asNumber)) return undefined
+                      // Coerce to positive integer (natural numbers without zero)
+                      const n = Math.floor(Math.abs(asNumber))
+                      return n >= 1 ? n : 1
+                    })(),
                   },
                 }),
               )
