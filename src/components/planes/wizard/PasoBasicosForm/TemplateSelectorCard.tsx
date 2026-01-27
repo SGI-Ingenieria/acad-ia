@@ -75,7 +75,7 @@ export function TemplateSelectorCard({
 
   const handleTemplateChange = (value: string) => {
     const template = templatesData.find((t) => t.id === value)
-    const firstVersion = template?.versions?.[0] ?? ''
+    const firstVersion = template?.versions[0] ?? ''
     if (onChange) {
       onChange({ templateId: value, version: firstVersion })
     } else {

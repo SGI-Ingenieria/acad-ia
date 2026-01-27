@@ -34,8 +34,8 @@ export function useNuevoPlanWizard() {
       archivoAsignaturasExcelId: null,
     },
     iaConfig: {
-      descripcionEnfoque: '',
-      notasAdicionales: '',
+      descripcionEnfoqueAcademico: '',
+      instruccionesAdicionalesIA: '',
       archivosReferencia: [],
       repositoriosReferencia: [],
       archivosAdjuntos: [],
@@ -65,7 +65,7 @@ export function useNuevoPlanWizard() {
     if (wizard.tipoOrigen === 'MANUAL') return true
     if (wizard.tipoOrigen === 'IA') {
       // Requerimos descripción del enfoque y notas adicionales
-      return !!wizard.iaConfig?.descripcionEnfoque
+      return !!wizard.iaConfig?.descripcionEnfoqueAcademico
     }
     if (wizard.tipoOrigen === 'CLONADO_INTERNO') {
       return !!wizard.clonInterno?.planOrigenId

@@ -4,10 +4,8 @@ import ReferenciasParaIA from './ReferenciasParaIA'
 import type { UploadedFile } from './FileDropZone'
 import type { NewPlanWizardState } from '@/features/planes/nuevo/types'
 
-import { Button } from '@/components/ui/button'
 import {
   Card,
-  CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
@@ -46,18 +44,18 @@ export function PasoDetallesPanel({
     return (
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-1">
-          <Label htmlFor="desc">Descripción del enfoque</Label>
+          <Label htmlFor="desc">Descripción del enfoque académico</Label>
           <textarea
             id="desc"
             className="bg-background text-foreground ring-offset-background focus-visible:ring-ring min-h-24 w-full rounded-md border px-3 py-2 text-sm shadow-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
             placeholder="Describe el enfoque del programa…"
-            value={wizard.iaConfig?.descripcionEnfoque || ''}
+            value={wizard.iaConfig?.descripcionEnfoqueAcademico || ''}
             onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
               onChange((w) => ({
                 ...w,
                 iaConfig: {
                   ...(w.iaConfig || ({} as any)),
-                  descripcionEnfoque: e.target.value,
+                  descripcionEnfoqueAcademico: e.target.value,
                 },
               }))
             }
@@ -66,7 +64,7 @@ export function PasoDetallesPanel({
 
         <div className="flex flex-col gap-1">
           <Label htmlFor="notas">
-            Notas adicionales
+            Instrucciones adicionales para la IA
             <span className="text-xs font-normal text-gray-500 dark:text-gray-400">
               (Opcional)
             </span>
@@ -75,13 +73,13 @@ export function PasoDetallesPanel({
             id="notas"
             className="bg-background text-foreground ring-offset-background focus-visible:ring-ring min-h-24 w-full rounded-md border px-3 py-2 text-sm shadow-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
             placeholder="Lineamientos institucionales, restricciones, etc."
-            value={wizard.iaConfig?.notasAdicionales || ''}
+            value={wizard.iaConfig?.instruccionesAdicionalesIA || ''}
             onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
               onChange((w) => ({
                 ...w,
                 iaConfig: {
                   ...(w.iaConfig || ({} as any)),
-                  notasAdicionales: e.target.value,
+                  InstruccionesAdicionalesIA: e.target.value,
                 },
               }))
             }
@@ -133,38 +131,6 @@ export function PasoDetallesPanel({
             )
           }
         />
-        <div className="flex items-center justify-between">
-          <div className="text-muted-foreground text-sm">
-            Opcional: se pueden adjuntar recursos IA más adelante.
-          </div>
-          <Button disabled={isLoading}>
-            {isLoading ? 'Generando…' : 'Generar borrador con IA'}
-          </Button>
-        </div>
-
-        {wizard.resumen.previewPlan && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Preview IA</CardTitle>
-              <CardDescription>
-                Asignaturas aprox.:{' '}
-                {wizard.resumen.previewPlan.numAsignaturasAprox}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ul className="text-muted-foreground list-disc pl-5 text-sm">
-                {wizard.resumen.previewPlan.secciones?.map((s) => (
-                  <li key={s.id}>
-                    <span className="text-foreground font-medium">
-                      {s.titulo}:
-                    </span>{' '}
-                    {s.resumen}
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
-        )}
       </div>
     )
   }

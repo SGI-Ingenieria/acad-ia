@@ -3,6 +3,7 @@ import { invokeEdge } from '../supabase/invokeEdge'
 
 import { buildRange, requireData, throwIfError } from './_helpers'
 
+import type { Database } from '../../types/supabase'
 import type {
   Asignatura,
   CambioPlan,
@@ -24,7 +25,7 @@ const EDGE = {
 
   plans_import_from_files: 'plans_import_from_files',
 
-  plans_update_fields: 'plans_update_fields',
+  // plans_update_fields: 'plans_update_fields',
   plans_update_map: 'plans_update_map',
   plans_transition_state: 'plans_transition_state',
 
@@ -201,7 +202,56 @@ export type PlansCreateManualInput = {
 export async function plans_create_manual(
   input: PlansCreateManualInput,
 ): Promise<PlanEstudio> {
-  return invokeEdge<PlanEstudio>(EDGE.plans_create_manual, input)
+  const supabase = supabaseBrowser()
+
+  // 1. Obtener estado 'BORRADOR'
+  const { data: estado, error: estadoError } = await supabase
+    .from('estados_plan')
+    .select('id,clave,orden')
+    .ilike('clave', 'BORRADOR%')
+    .order('orden', { ascending: true })
+    .limit(1)
+    .maybeSingle()
+
+  if (estadoError) {
+    throw new Error(estadoError.message)
+  }
+
+  // 2. Preparar insert
+  const planInsert: Database['public']['Tables']['planes_estudio']['Insert'] = {
+    activo: true,
+    actualizado_en: new Date().toISOString(),
+    carrera_id: input.carreraId,
+    creado_en: new Date().toISOString(),
+    datos: input.datos || {},
+    estado_actual_id: estado?.id || null,
+    estructura_id: input.estructuraId,
+    nivel: input.nivel,
+    nombre: input.nombre,
+    numero_ciclos: input.numCiclos,
+    tipo_ciclo: input.tipoCiclo,
+    tipo_origen: 'MANUAL',
+  }
+
+  // 3. Insertar
+  const { data: nuevoPlan, error: planError } = await supabase
+    .from('planes_estudio')
+    .insert([planInsert])
+    .select(
+      `
+      *,
+      carreras (*, facultades(*)),
+      estructuras_plan (*),
+      estados_plan (*)
+      `,
+    )
+    .single()
+
+  if (planError) {
+    throw new Error(planError.message)
+  }
+
+  return nuevoPlan as unknown as PlanEstudio
 }
 
 /** Wizard: IA genera preview JSON (Edge Function) */
@@ -299,7 +349,26 @@ export async function plans_update_fields(
   planId: UUID,
   patch: PlansUpdateFieldsPatch,
 ): Promise<PlanEstudio> {
-  return invokeEdge<PlanEstudio>(EDGE.plans_update_fields, { planId, patch })
+  const supabase = supabaseBrowser()
+  
+  const { data, error } = await supabase
+    .from('planes_estudio')
+    .update(patch)
+    .eq('id', planId)
+    .select(
+      `
+      *,
+      carreras (*, facultades(*)),
+      estructuras_plan (*),
+      estados_plan (*)
+    `,
+    )
+    .single()
+
+  throwIfError(error)
+  return requireData(data, 'No se pudo actualizar el plan.')
+  // Alternativa Edge Function:
+  // return invokeEdge<PlanEstudio>(EDGE.plans_update_fields, { planId, patch })
 }
 
 /** Operaciones del mapa curricular (mover/reordenar) */

@@ -1,10 +1,16 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import {
+  createFileRoute,
+  useNavigate,
+  useLocation,
+} from '@tanstack/react-router'
+// import confetti from 'canvas-confetti'
 import { Pencil, Check, X, Sparkles, AlertCircle } from 'lucide-react'
 import { useState, useEffect } from 'react'
 
 import type { DatosGeneralesField } from '@/types/plan'
 
 import { Button } from '@/components/ui/button'
+import { lateralConfetti } from '@/components/ui/lateral-confetti'
 import { Textarea } from '@/components/ui/textarea'
 import {
   Tooltip,
@@ -13,6 +19,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { usePlan } from '@/data'
+
 // import { toast } from 'sonner' // Asegúrate de tener sonner instalado o quita la línea
 export const Route = createFileRoute('/planes/$planId/_detalle/datos')({
   component: DatosGeneralesPage,
@@ -31,6 +38,15 @@ function DatosGeneralesPage() {
   const [campos, setCampos] = useState<Array<DatosGeneralesField>>([])
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editValue, setEditValue] = useState('')
+  const location = useLocation()
+
+  // Confetti al llegar desde creación
+  useEffect(() => {
+    if (location.state.showConfetti) {
+      lateralConfetti()
+      window.history.replaceState({}, document.title) // Limpiar el estado para que no se repita
+    }
+  }, [location.state])
 
   // Efecto para transformar data?.datos en el arreglo de campos
   useEffect(() => {

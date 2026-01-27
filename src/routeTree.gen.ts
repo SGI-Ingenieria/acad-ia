@@ -321,7 +321,19 @@ declare module '@tanstack/react-router' {
     '/planes/$planId/': {
       id: '/planes/$planId/'
       path: '/planes/$planId'
+<<<<<<< HEAD
       fullPath: '/planes/$planId/'
+=======
+<<<<<<< HEAD
+<<<<<<< HEAD
+      fullPath: '/planes/$planId/'
+=======
+      fullPath: '/planes/$planId'
+>>>>>>> 4950f7efbf664bbd31ac8a673fe594af5baf07f6
+=======
+      fullPath: '/planes/$planId/'
+>>>>>>> cbe4e54 (Se cierran incidencias #10, #21, #24, #25; se añade generación manual de planes)
+>>>>>>> 9584cd0c048cf1f4477a4db80947de38e6c75632
       preLoaderRoute: typeof PlanesPlanIdIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
