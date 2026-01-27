@@ -1,5 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { CheckCircle2, Circle, Clock } from 'lucide-react'
+import { CheckCircle2, Clock } from 'lucide-react'
+
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -74,7 +75,7 @@ function RouteComponent() {
               </div>
               <div className="mt-2 w-px flex-1 bg-slate-200" />
             </div>
-            <Card className="flex-1 border-blue-500 bg-blue-50/10">
+            {/* <Card className="flex-1 border-blue-500 bg-blue-50/10">
               <CardHeader className="flex flex-row items-center justify-between py-3">
                 <div>
                   <CardTitle className="text-lg text-blue-700">
@@ -97,11 +98,11 @@ function RouteComponent() {
                   <li>Mapa curricular aprobado preliminarmente</li>
                 </ul>
               </CardContent>
-            </Card>
+            </Card> */}
           </div>
 
           {/* Estado: Pendiente */}
-          <div className="relative flex gap-4 pb-4">
+          {/* <div className="relative flex gap-4 pb-4">
             <div className="flex flex-col items-center">
               <div className="rounded-full bg-slate-100 p-1 text-slate-400">
                 <Circle className="h-6 w-6" />
@@ -113,7 +114,7 @@ function RouteComponent() {
                 <Badge variant="outline">Pendiente</Badge>
               </CardHeader>
             </Card>
-          </div>
+          </div> */}
         </div>
 
         {/* LADO DERECHO: Formulario de Transición */}
@@ -145,7 +146,7 @@ function RouteComponent() {
                 />
               </div>
 
-              <Button className="w-full bg-teal-600 hover:bg-teal-700">
+              <Button className="w-full bg-teal-600 hover:bg-teal-700" disabled>
                 Avanzar a Revisión Expertos
               </Button>
             </CardContent>

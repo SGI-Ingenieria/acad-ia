@@ -62,16 +62,33 @@ function EditableHeaderField({
 }) {
   const textValue = String(value)
 
+  // Manejador para cuando el usuario termina de editar (pierde el foco)
+  const handleBlur = (e: React.FocusEvent<HTMLSpanElement>) => {
+    const newValue = e.currentTarget.innerText
+    if (newValue !== textValue) {
+      onSave(newValue)
+    }
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLSpanElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      e.currentTarget.blur() // Forzamos el guardado al presionar Enter
+    }
+  }
+
   return (
-    <input
-      type="text"
-      value={textValue}
-      // El truco es usar el atributo "size" o calcular el ancho dinámicamente
-      style={{ width: `${Math.max(textValue.length, 1)}ch` }}
-      onChange={(e) => onSave(e.target.value)}
-      onBlur={(e) => onSave(e.target.value)}
-      className={`border-none bg-transparent outline-none focus:ring-2 focus:ring-blue-400 ${className ?? ''}`}
-    />
+    // eslint-disable-next-line jsx-a11y/no-static-element-interactions
+    <span
+      contentEditable
+      suppressContentEditableWarning={true} // Evita el warning de React por tener hijos y contentEditable
+      spellCheck={false}
+      onBlur={handleBlur}
+      onKeyDown={handleKeyDown}
+      className={`inline-block cursor-text rounded-sm px-1 transition-all hover:bg-white/10 focus:bg-white/20 focus:ring-2 focus:ring-blue-400/50 focus:outline-none ${className ?? ''} `}
+    >
+      {textValue}
+    </span>
   )
 }
 
