@@ -204,7 +204,7 @@ function DatosGeneralesPage() {
                     <Textarea
                       value={editValue}
                       onChange={(e) => setEditValue(e.target.value)}
-                      className="min-h-[120px]"
+                      className="min-h-30"
                       placeholder={campo.holder}
                     />
                     <div className="flex justify-end gap-2">
@@ -225,7 +225,7 @@ function DatosGeneralesPage() {
                     </div>
                   </div>
                 ) : (
-                  <div className="min-h-[100px]">
+                  <div className="min-h-25">
                     {campo.value ? (
                       <div className="text-sm leading-relaxed text-slate-600">
                         {campo.tipo === 'lista' ? (

@@ -322,6 +322,7 @@ declare module '@tanstack/react-router' {
       id: '/planes/$planId/'
       path: '/planes/$planId'
 <<<<<<< HEAD
+<<<<<<< HEAD
       fullPath: '/planes/$planId/'
 =======
 <<<<<<< HEAD
@@ -334,6 +335,9 @@ declare module '@tanstack/react-router' {
       fullPath: '/planes/$planId/'
 >>>>>>> cbe4e54 (Se cierran incidencias #10, #21, #24, #25; se añade generación manual de planes)
 >>>>>>> 9584cd0c048cf1f4477a4db80947de38e6c75632
+=======
+      fullPath: '/planes/$planId/'
+>>>>>>> 9d72010 (Fallback elegante de vista no encontrada)
       preLoaderRoute: typeof PlanesPlanIdIndexRouteImport
       parentRoute: typeof rootRouteImport
     }

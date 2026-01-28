@@ -7,6 +7,8 @@ import TanStackQueryDevtools from '../integrations/tanstack-query/devtools'
 
 import type { QueryClient } from '@tanstack/react-query'
 
+import { NotFoundPage } from '@/components/ui/NotFoundPage'
+
 interface MyRouterContext {
   queryClient: QueryClient
 }
@@ -30,6 +32,8 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
       />
     </>
   ),
+
+  notFoundComponent: () => <NotFoundPage />,
 
   errorComponent: ({ error, reset }) => {
     return (

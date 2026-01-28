@@ -123,6 +123,8 @@ export async function plans_list(
 }
 
 export async function plans_get(planId: UUID): Promise<PlanEstudio> {
+  console.log('plans_get')
+
   const supabase = supabaseBrowser()
 
   const { data, error } = await supabase
@@ -350,7 +352,7 @@ export async function plans_update_fields(
   patch: PlansUpdateFieldsPatch,
 ): Promise<PlanEstudio> {
   const supabase = supabaseBrowser()
-  
+
   const { data, error } = await supabase
     .from('planes_estudio')
     .update(patch)

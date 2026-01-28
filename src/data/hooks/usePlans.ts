@@ -53,7 +53,10 @@ export function usePlanes(filters: PlanListFilters) {
 export function usePlan(planId: UUID | null | undefined) {
   return useQuery({
     queryKey: planId ? qk.plan(planId) : ['planes', 'detail', null],
-    queryFn: () => plans_get(planId as UUID),
+    queryFn: () => {
+      console.log('usePlan')
+      return plans_get(planId as UUID)
+    },
     enabled: Boolean(planId),
   })
 }

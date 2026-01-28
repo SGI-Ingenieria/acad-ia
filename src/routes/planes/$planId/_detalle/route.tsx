@@ -1,4 +1,4 @@
-import { createFileRoute, Outlet, Link } from '@tanstack/react-router'
+import { createFileRoute, Outlet, Link, notFound } from '@tanstack/react-router'
 import {
   ChevronLeft,
   GraduationCap,
@@ -17,10 +17,37 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { NotFoundPage } from '@/components/ui/NotFoundPage'
 import { Skeleton } from '@/components/ui/skeleton'
+import { plans_get } from '@/data/api/plans.api'
 import { usePlan } from '@/data/hooks/usePlans'
+import { qk } from '@/data/query/keys'
 
 export const Route = createFileRoute('/planes/$planId/_detalle')({
+  loader: async ({ context: { queryClient }, params: { planId } }) => {
+    try {
+      console.log('loader')
+
+      await queryClient.ensureQueryData({
+        queryKey: qk.plan(planId),
+        queryFn: () => plans_get(planId),
+      })
+    } catch (e: any) {
+      // PGRST116: The result contains 0 rows
+      if (e?.code === 'PGRST116') {
+        throw notFound()
+      }
+      throw e
+    }
+  },
+  notFoundComponent: () => {
+    return (
+      <NotFoundPage
+        title="Plan de Estudios no encontrado"
+        message="El plan de estudios que intentas consultar no existe o no tienes permisos para verlo."
+      />
+    )
+  },
   component: RouteComponent,
 })
 
@@ -86,11 +113,11 @@ function RouteComponent() {
         </div>
       </div>
 
-      <div className="mx-auto max-w-[1600px] space-y-8 p-8">
+      <div className="mx-auto max-w-400 space-y-8 p-8">
         {/* Header del Plan */}
         {isLoading ? (
           /* ===== SKELETON ===== */
-          <div className="mx-auto max-w-[1600px] p-8">
+          <div className="mx-auto max-w-400 p-8">
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
               {Array.from({ length: 6 }).map((_, i) => (
                 <DatosGeneralesSkeleton key={i} />
@@ -237,7 +264,7 @@ const InfoCard = forwardRef<
     <div
       ref={ref}
       {...props}
-      className={`flex h-[72px] w-full items-center gap-4 rounded-xl border border-slate-200/60 bg-slate-50/50 p-4 shadow-sm transition-all ${
+      className={`flex h-18 w-full items-center gap-4 rounded-xl border border-slate-200/60 bg-slate-50/50 p-4 shadow-sm transition-all ${
         isEditable
           ? 'cursor-pointer hover:border-teal-200 hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/40'
           : ''

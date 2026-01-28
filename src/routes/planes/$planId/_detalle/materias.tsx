@@ -139,7 +139,7 @@ function MateriasPage() {
 
       {/* Barra de Filtros Avanzada */}
       <div className="flex flex-wrap items-center gap-3 rounded-xl border bg-slate-50 p-4">
-        <div className="relative min-w-[240px] flex-1">
+        <div className="relative min-w-60 flex-1">
           <Search className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
           <Input
             placeholder="Buscar por nombre o clave..."
@@ -153,7 +153,7 @@ function MateriasPage() {
           <Filter className="text-muted-foreground mr-1 h-4 w-4" />
 
           <Select value={filterTipo} onValueChange={setFilterTipo}>
-            <SelectTrigger className="w-[140px] bg-white">
+            <SelectTrigger className="w-35 bg-white">
               <SelectValue placeholder="Tipo" />
             </SelectTrigger>
             <SelectContent>
@@ -164,7 +164,7 @@ function MateriasPage() {
           </Select>
 
           <Select value={filterEstado} onValueChange={setFilterEstado}>
-            <SelectTrigger className="w-[140px] bg-white">
+            <SelectTrigger className="w-35 bg-white">
               <SelectValue placeholder="Estado" />
             </SelectTrigger>
             <SelectContent>
@@ -176,7 +176,7 @@ function MateriasPage() {
           </Select>
 
           <Select value={filterLinea} onValueChange={setFilterLinea}>
-            <SelectTrigger className="w-[180px] bg-white">
+            <SelectTrigger className="w-45 bg-white">
               <SelectValue placeholder="Línea" />
             </SelectTrigger>
             <SelectContent>
@@ -196,14 +196,14 @@ function MateriasPage() {
         <Table>
           <TableHeader>
             <TableRow className="bg-slate-50/50">
-              <TableHead className="w-[120px]">Clave</TableHead>
+              <TableHead className="w-30">Clave</TableHead>
               <TableHead>Nombre</TableHead>
               <TableHead className="text-center">Créditos</TableHead>
               <TableHead className="text-center">Ciclo</TableHead>
               <TableHead>Línea Curricular</TableHead>
               <TableHead>Tipo</TableHead>
               <TableHead>Estado</TableHead>
-              <TableHead className="w-[50px]"></TableHead>
+              <TableHead className="w-12.5"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>

@@ -118,7 +118,10 @@ export function WizardControls({
   }
 
   return (
-    <div className="flex items-center justify-between">
+    <div className="flex grow items-center justify-between">
+      <Button variant="secondary" onClick={onPrev} disabled={disablePrev}>
+        Anterior
+      </Button>
       <div className="flex-1">
         {errorMessage && (
           <span className="text-destructive text-sm font-medium">
@@ -126,20 +129,15 @@ export function WizardControls({
           </span>
         )}
       </div>
-      <div className="flex gap-4">
-        <Button variant="secondary" onClick={onPrev} disabled={disablePrev}>
-          Anterior
+      {isLastStep ? (
+        <Button onClick={handleCreate} disabled={disableCreate}>
+          Crear plan
         </Button>
-        {isLastStep ? (
-          <Button onClick={handleCreate} disabled={disableCreate}>
-            Crear plan
-          </Button>
-        ) : (
-          <Button onClick={onNext} disabled={disableNext}>
-            Siguiente
-          </Button>
-        )}
-      </div>
+      ) : (
+        <Button onClick={onNext} disabled={disableNext}>
+          Siguiente
+        </Button>
+      )}
     </div>
   )
 }
