@@ -300,6 +300,9 @@ function Tab({
       params={params}
       className="border-b-2 border-transparent pb-3 text-sm font-medium text-slate-500 transition-all hover:text-slate-800"
       activeProps={{ className: 'border-teal-600 text-teal-700 font-bold' }}
+      activeOptions={{
+        exact: true,
+      }}
     >
       {children}
     </Link>

@@ -17,14 +17,13 @@ import { Route as PlanesListaRouteRouteImport } from './routes/planes/_lista/rou
 import { Route as PlanesListaNuevoRouteImport } from './routes/planes/_lista/nuevo'
 import { Route as PlanesPlanIdAsignaturasRouteRouteImport } from './routes/planes/$planId/asignaturas/route'
 import { Route as PlanesPlanIdDetalleRouteRouteImport } from './routes/planes/$planId/_detalle/route'
-import { Route as PlanesPlanIdAsignaturasIndexRouteImport } from './routes/planes/$planId/asignaturas/index'
 import { Route as PlanesPlanIdDetalleIndexRouteImport } from './routes/planes/$planId/_detalle/index'
-import { Route as PlanesPlanIdDetalleMateriasRouteImport } from './routes/planes/$planId/_detalle/materias'
 import { Route as PlanesPlanIdDetalleMapaRouteImport } from './routes/planes/$planId/_detalle/mapa'
 import { Route as PlanesPlanIdDetalleIaplanRouteImport } from './routes/planes/$planId/_detalle/iaplan'
 import { Route as PlanesPlanIdDetalleHistorialRouteImport } from './routes/planes/$planId/_detalle/historial'
 import { Route as PlanesPlanIdDetalleFlujoRouteImport } from './routes/planes/$planId/_detalle/flujo'
 import { Route as PlanesPlanIdDetalleDocumentoRouteImport } from './routes/planes/$planId/_detalle/documento'
+import { Route as PlanesPlanIdDetalleAsignaturasRouteImport } from './routes/planes/$planId/_detalle/asignaturas'
 import { Route as PlanesPlanIdAsignaturasListaRouteRouteImport } from './routes/planes/$planId/asignaturas/_lista/route'
 import { Route as PlanesPlanIdAsignaturasAsignaturaIdRouteRouteImport } from './routes/planes/$planId/asignaturas/$asignaturaId/route'
 import { Route as PlanesPlanIdAsignaturasListaNuevaRouteImport } from './routes/planes/$planId/asignaturas/_lista/nueva'
@@ -71,22 +70,10 @@ const PlanesPlanIdDetalleRouteRoute =
     path: '/planes/$planId',
     getParentRoute: () => rootRouteImport,
   } as any)
-const PlanesPlanIdAsignaturasIndexRoute =
-  PlanesPlanIdAsignaturasIndexRouteImport.update({
-    id: '/',
-    path: '/',
-    getParentRoute: () => PlanesPlanIdAsignaturasRouteRoute,
-  } as any)
 const PlanesPlanIdDetalleIndexRoute =
   PlanesPlanIdDetalleIndexRouteImport.update({
     id: '/',
     path: '/',
-    getParentRoute: () => PlanesPlanIdDetalleRouteRoute,
-  } as any)
-const PlanesPlanIdDetalleMateriasRoute =
-  PlanesPlanIdDetalleMateriasRouteImport.update({
-    id: '/materias',
-    path: '/materias',
     getParentRoute: () => PlanesPlanIdDetalleRouteRoute,
   } as any)
 const PlanesPlanIdDetalleMapaRoute = PlanesPlanIdDetalleMapaRouteImport.update({
@@ -118,6 +105,12 @@ const PlanesPlanIdDetalleDocumentoRoute =
     path: '/documento',
     getParentRoute: () => PlanesPlanIdDetalleRouteRoute,
   } as any)
+const PlanesPlanIdDetalleAsignaturasRoute =
+  PlanesPlanIdDetalleAsignaturasRouteImport.update({
+    id: '/asignaturas',
+    path: '/asignaturas',
+    getParentRoute: () => PlanesPlanIdDetalleRouteRoute,
+  } as any)
 const PlanesPlanIdAsignaturasListaRouteRoute =
   PlanesPlanIdAsignaturasListaRouteRouteImport.update({
     id: '/_lista',
@@ -143,7 +136,7 @@ export interface FileRoutesByFullPath {
   '/planes': typeof PlanesListaRouteRouteWithChildren
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
   '/planes/$planId': typeof PlanesPlanIdDetalleRouteRouteWithChildren
-  '/planes/$planId/asignaturas': typeof PlanesPlanIdAsignaturasListaRouteRouteWithChildren
+  '/planes/$planId/asignaturas': typeof PlanesPlanIdDetalleAsignaturasRoute
   '/planes/nuevo': typeof PlanesListaNuevoRoute
   '/planes/$planId/asignaturas/$asignaturaId': typeof PlanesPlanIdAsignaturasAsignaturaIdRouteRoute
   '/planes/$planId/documento': typeof PlanesPlanIdDetalleDocumentoRoute
@@ -151,9 +144,7 @@ export interface FileRoutesByFullPath {
   '/planes/$planId/historial': typeof PlanesPlanIdDetalleHistorialRoute
   '/planes/$planId/iaplan': typeof PlanesPlanIdDetalleIaplanRoute
   '/planes/$planId/mapa': typeof PlanesPlanIdDetalleMapaRoute
-  '/planes/$planId/materias': typeof PlanesPlanIdDetalleMateriasRoute
   '/planes/$planId/': typeof PlanesPlanIdDetalleIndexRoute
-  '/planes/$planId/asignaturas/': typeof PlanesPlanIdAsignaturasIndexRoute
   '/planes/$planId/asignaturas/nueva': typeof PlanesPlanIdAsignaturasListaNuevaRoute
 }
 export interface FileRoutesByTo {
@@ -162,15 +153,14 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/planes': typeof PlanesListaRouteRouteWithChildren
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
+  '/planes/$planId/asignaturas': typeof PlanesPlanIdDetalleAsignaturasRoute
   '/planes/nuevo': typeof PlanesListaNuevoRoute
   '/planes/$planId/asignaturas/$asignaturaId': typeof PlanesPlanIdAsignaturasAsignaturaIdRouteRoute
-  '/planes/$planId/asignaturas': typeof PlanesPlanIdAsignaturasIndexRoute
   '/planes/$planId/documento': typeof PlanesPlanIdDetalleDocumentoRoute
   '/planes/$planId/flujo': typeof PlanesPlanIdDetalleFlujoRoute
   '/planes/$planId/historial': typeof PlanesPlanIdDetalleHistorialRoute
   '/planes/$planId/iaplan': typeof PlanesPlanIdDetalleIaplanRoute
   '/planes/$planId/mapa': typeof PlanesPlanIdDetalleMapaRoute
-  '/planes/$planId/materias': typeof PlanesPlanIdDetalleMateriasRoute
   '/planes/$planId': typeof PlanesPlanIdDetalleIndexRoute
   '/planes/$planId/asignaturas/nueva': typeof PlanesPlanIdAsignaturasListaNuevaRoute
 }
@@ -186,14 +176,13 @@ export interface FileRoutesById {
   '/planes/_lista/nuevo': typeof PlanesListaNuevoRoute
   '/planes/$planId/asignaturas/$asignaturaId': typeof PlanesPlanIdAsignaturasAsignaturaIdRouteRoute
   '/planes/$planId/asignaturas/_lista': typeof PlanesPlanIdAsignaturasListaRouteRouteWithChildren
+  '/planes/$planId/_detalle/asignaturas': typeof PlanesPlanIdDetalleAsignaturasRoute
   '/planes/$planId/_detalle/documento': typeof PlanesPlanIdDetalleDocumentoRoute
   '/planes/$planId/_detalle/flujo': typeof PlanesPlanIdDetalleFlujoRoute
   '/planes/$planId/_detalle/historial': typeof PlanesPlanIdDetalleHistorialRoute
   '/planes/$planId/_detalle/iaplan': typeof PlanesPlanIdDetalleIaplanRoute
   '/planes/$planId/_detalle/mapa': typeof PlanesPlanIdDetalleMapaRoute
-  '/planes/$planId/_detalle/materias': typeof PlanesPlanIdDetalleMateriasRoute
   '/planes/$planId/_detalle/': typeof PlanesPlanIdDetalleIndexRoute
-  '/planes/$planId/asignaturas/': typeof PlanesPlanIdAsignaturasIndexRoute
   '/planes/$planId/asignaturas/_lista/nueva': typeof PlanesPlanIdAsignaturasListaNuevaRoute
 }
 export interface FileRouteTypes {
@@ -213,9 +202,7 @@ export interface FileRouteTypes {
     | '/planes/$planId/historial'
     | '/planes/$planId/iaplan'
     | '/planes/$planId/mapa'
-    | '/planes/$planId/materias'
     | '/planes/$planId/'
-    | '/planes/$planId/asignaturas/'
     | '/planes/$planId/asignaturas/nueva'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -224,15 +211,14 @@ export interface FileRouteTypes {
     | '/login'
     | '/planes'
     | '/demo/tanstack-query'
+    | '/planes/$planId/asignaturas'
     | '/planes/nuevo'
     | '/planes/$planId/asignaturas/$asignaturaId'
-    | '/planes/$planId/asignaturas'
     | '/planes/$planId/documento'
     | '/planes/$planId/flujo'
     | '/planes/$planId/historial'
     | '/planes/$planId/iaplan'
     | '/planes/$planId/mapa'
-    | '/planes/$planId/materias'
     | '/planes/$planId'
     | '/planes/$planId/asignaturas/nueva'
   id:
@@ -247,14 +233,13 @@ export interface FileRouteTypes {
     | '/planes/_lista/nuevo'
     | '/planes/$planId/asignaturas/$asignaturaId'
     | '/planes/$planId/asignaturas/_lista'
+    | '/planes/$planId/_detalle/asignaturas'
     | '/planes/$planId/_detalle/documento'
     | '/planes/$planId/_detalle/flujo'
     | '/planes/$planId/_detalle/historial'
     | '/planes/$planId/_detalle/iaplan'
     | '/planes/$planId/_detalle/mapa'
-    | '/planes/$planId/_detalle/materias'
     | '/planes/$planId/_detalle/'
-    | '/planes/$planId/asignaturas/'
     | '/planes/$planId/asignaturas/_lista/nueva'
   fileRoutesById: FileRoutesById
 }
@@ -326,25 +311,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PlanesPlanIdDetalleRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/planes/$planId/asignaturas/': {
-      id: '/planes/$planId/asignaturas/'
-      path: '/'
-      fullPath: '/planes/$planId/asignaturas/'
-      preLoaderRoute: typeof PlanesPlanIdAsignaturasIndexRouteImport
-      parentRoute: typeof PlanesPlanIdAsignaturasRouteRoute
-    }
     '/planes/$planId/_detalle/': {
       id: '/planes/$planId/_detalle/'
       path: '/'
       fullPath: '/planes/$planId/'
       preLoaderRoute: typeof PlanesPlanIdDetalleIndexRouteImport
-      parentRoute: typeof PlanesPlanIdDetalleRouteRoute
-    }
-    '/planes/$planId/_detalle/materias': {
-      id: '/planes/$planId/_detalle/materias'
-      path: '/materias'
-      fullPath: '/planes/$planId/materias'
-      preLoaderRoute: typeof PlanesPlanIdDetalleMateriasRouteImport
       parentRoute: typeof PlanesPlanIdDetalleRouteRoute
     }
     '/planes/$planId/_detalle/mapa': {
@@ -380,6 +351,13 @@ declare module '@tanstack/react-router' {
       path: '/documento'
       fullPath: '/planes/$planId/documento'
       preLoaderRoute: typeof PlanesPlanIdDetalleDocumentoRouteImport
+      parentRoute: typeof PlanesPlanIdDetalleRouteRoute
+    }
+    '/planes/$planId/_detalle/asignaturas': {
+      id: '/planes/$planId/_detalle/asignaturas'
+      path: '/asignaturas'
+      fullPath: '/planes/$planId/asignaturas'
+      preLoaderRoute: typeof PlanesPlanIdDetalleAsignaturasRouteImport
       parentRoute: typeof PlanesPlanIdDetalleRouteRoute
     }
     '/planes/$planId/asignaturas/_lista': {
@@ -418,23 +396,23 @@ const PlanesListaRouteRouteWithChildren =
   PlanesListaRouteRoute._addFileChildren(PlanesListaRouteRouteChildren)
 
 interface PlanesPlanIdDetalleRouteRouteChildren {
+  PlanesPlanIdDetalleAsignaturasRoute: typeof PlanesPlanIdDetalleAsignaturasRoute
   PlanesPlanIdDetalleDocumentoRoute: typeof PlanesPlanIdDetalleDocumentoRoute
   PlanesPlanIdDetalleFlujoRoute: typeof PlanesPlanIdDetalleFlujoRoute
   PlanesPlanIdDetalleHistorialRoute: typeof PlanesPlanIdDetalleHistorialRoute
   PlanesPlanIdDetalleIaplanRoute: typeof PlanesPlanIdDetalleIaplanRoute
   PlanesPlanIdDetalleMapaRoute: typeof PlanesPlanIdDetalleMapaRoute
-  PlanesPlanIdDetalleMateriasRoute: typeof PlanesPlanIdDetalleMateriasRoute
   PlanesPlanIdDetalleIndexRoute: typeof PlanesPlanIdDetalleIndexRoute
 }
 
 const PlanesPlanIdDetalleRouteRouteChildren: PlanesPlanIdDetalleRouteRouteChildren =
   {
+    PlanesPlanIdDetalleAsignaturasRoute: PlanesPlanIdDetalleAsignaturasRoute,
     PlanesPlanIdDetalleDocumentoRoute: PlanesPlanIdDetalleDocumentoRoute,
     PlanesPlanIdDetalleFlujoRoute: PlanesPlanIdDetalleFlujoRoute,
     PlanesPlanIdDetalleHistorialRoute: PlanesPlanIdDetalleHistorialRoute,
     PlanesPlanIdDetalleIaplanRoute: PlanesPlanIdDetalleIaplanRoute,
     PlanesPlanIdDetalleMapaRoute: PlanesPlanIdDetalleMapaRoute,
-    PlanesPlanIdDetalleMateriasRoute: PlanesPlanIdDetalleMateriasRoute,
     PlanesPlanIdDetalleIndexRoute: PlanesPlanIdDetalleIndexRoute,
   }
 
@@ -461,7 +439,6 @@ const PlanesPlanIdAsignaturasListaRouteRouteWithChildren =
 interface PlanesPlanIdAsignaturasRouteRouteChildren {
   PlanesPlanIdAsignaturasAsignaturaIdRouteRoute: typeof PlanesPlanIdAsignaturasAsignaturaIdRouteRoute
   PlanesPlanIdAsignaturasListaRouteRoute: typeof PlanesPlanIdAsignaturasListaRouteRouteWithChildren
-  PlanesPlanIdAsignaturasIndexRoute: typeof PlanesPlanIdAsignaturasIndexRoute
 }
 
 const PlanesPlanIdAsignaturasRouteRouteChildren: PlanesPlanIdAsignaturasRouteRouteChildren =
@@ -470,7 +447,6 @@ const PlanesPlanIdAsignaturasRouteRouteChildren: PlanesPlanIdAsignaturasRouteRou
       PlanesPlanIdAsignaturasAsignaturaIdRouteRoute,
     PlanesPlanIdAsignaturasListaRouteRoute:
       PlanesPlanIdAsignaturasListaRouteRouteWithChildren,
-    PlanesPlanIdAsignaturasIndexRoute: PlanesPlanIdAsignaturasIndexRoute,
   }
 
 const PlanesPlanIdAsignaturasRouteRouteWithChildren =
