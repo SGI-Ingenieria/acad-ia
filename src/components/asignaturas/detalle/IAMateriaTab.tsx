@@ -87,7 +87,8 @@ export function IAMateriaTab({
   const availableFields = useMemo(() => {
     // Extraemos las claves directamente del objeto datosGenerales
     // ["nombre", "descripcion", "perfil_de_egreso", "fines_de_aprendizaje_o_formacion"]
-    return Object.keys(datosGenerales).map((key) => {
+    if (!datosGenerales.datos) return []
+    return Object.keys(datosGenerales.datos).map((key) => {
       // Buscamos si existe un nombre amigable en la estructura de campos
       const estructuraCampo = campos.find((c) => c.id === key)
 
@@ -110,12 +111,15 @@ export function IAMateriaTab({
     const state = routerState.location.state as any
 
     if (state?.prefillCampo && availableFields.length > 0) {
+      console.log(state?.prefillCampo)
+      console.log(availableFields)
+
       const field = availableFields.find((f) => f.key === state.prefillCampo)
 
       if (field && !selectedFields.find((sf) => sf.key === field.key)) {
         setSelectedFields([field])
         // Sincronizamos el texto inicial con el campo pre-seleccionado
-        setInput(`Mejora el campo ${field.key}: `)
+        setInput(`Mejora el campo ${field.label}: `)
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -139,37 +143,32 @@ export function IAMateriaTab({
     setSelectedFields((prev) => {
       const isSelected = prev.find((f) => f.key === field.key)
 
-      // Si lo estamos seleccionando (no estaba antes)
-      if (!isSelected) {
-        // Actualizamos el texto del input:
-        // Si termina en ":", lo reemplazamos por el key para que sea "Mejora perfil_de_egreso "
-        // Si no, simplemente lo añadimos al final.
-        setInput((prevText) => {
-          const [beforeColon, afterColon = ''] = prevText.split(':')
-
-          // Campos ya escritos después de :
-          const existingKeys = afterColon
-            .split(',')
-            .map((k) => k.trim())
-            .filter(Boolean)
-
-          // Si ya existe, no lo volvemos a agregar
-          if (existingKeys.includes(field.key)) {
-            return prevText
-          }
-
-          const updatedKeys = [...existingKeys, field.key].join(', ')
-
-          return `${beforeColon.trim()}: ${updatedKeys} `
-        })
-
-        return [field]
+      // 1. Si ya está seleccionado, lo quitamos (Toggle OFF)
+      if (isSelected) {
+        return prev.filter((f) => f.key !== field.key)
       }
 
-      // Si lo estamos deseleccionando, solo quitamos el tag
-      return prev.filter((f) => f.key !== field.key)
+      // 2. Si no está, lo agregamos a la lista (Toggle ON)
+      const newSelected = [...prev, field]
+
+      // 3. Actualizamos el texto del input para reflejar los títulos (labels)
+      setInput((prevText) => {
+        // Separamos lo que el usuario escribió antes del disparador ":"
+        // y lo que viene después (posibles keys/labels previos)
+        const parts = prevText.split(':')
+        const beforeColon = parts[0]
+
+        // Creamos un string con los labels de todos los campos seleccionados
+        const labelsPath = newSelected.map((f) => f.label).join(', ')
+
+        return `${beforeColon.trim()}: ${labelsPath} `
+      })
+
+      return newSelected
     })
-    setShowSuggestions(false)
+
+    // Opcional: mantener abierto si quieres que el usuario elija varios seguidos
+    // setShowSuggestions(false)
   }
 
   const buildPrompt = (userInput: string) => {
