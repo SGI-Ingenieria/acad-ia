@@ -62,7 +62,7 @@ const mapAsignaturas = (asigApi: Array<any> = []): Array<Materia> => {
   }))
 }
 
-export const Route = createFileRoute('/planes/$planId/_detalle/materias')({
+export const Route = createFileRoute('/planes/$planId/_detalle/asignaturas')({
   component: MateriasPage,
 })
 

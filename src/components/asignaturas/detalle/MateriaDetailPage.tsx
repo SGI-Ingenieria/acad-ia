@@ -22,6 +22,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { useSubject } from '@/data/hooks/useSubjects'
 import {
   mockMateria,
@@ -150,7 +156,7 @@ export default function MateriaDetailPage() {
   /* ---------- sincronizar API ---------- */
   useEffect(() => {
     if (asignaturasApi?.datos) {
-      setDatosGenerales(asignaturasApi.datos)
+      setDatosGenerales(asignaturasApi)
     }
   }, [asignaturasApi])
 
@@ -211,7 +217,7 @@ export default function MateriaDetailPage() {
       <section className="bg-gradient-to-b from-[#0b1d3a] to-[#0e2a5c] text-white">
         <div className="mx-auto max-w-7xl px-6 py-10">
           <Link
-            to="/planes/$planId/materias"
+            to="/planes/$planId/asignaturas"
             params={{ planId }}
             className="mb-4 flex items-center gap-2 text-sm text-blue-200 hover:text-white"
           >
@@ -392,6 +398,13 @@ function DatosGenerales({
   const formatTitle = (key: string): string =>
     key.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())
 
+  // 1. Extraemos la definición de la estructura (los metadatos)
+  const structureProps =
+    data?.estructuras_asignatura?.definicion?.properties || {}
+
+  // 2. Extraemos los valores reales (el contenido redactado)
+  const valoresActuales = data?.datos || {}
+
   return (
     <div className="animate-in fade-in mx-auto max-w-7xl space-y-8 px-4 py-8 duration-500">
       {/* Encabezado de la Sección */}
@@ -413,19 +426,47 @@ function DatosGenerales({
           {isLoading && <p>Cargando información...</p>}
 
           {!isLoading &&
-            Object.entries(data).map(([key, value]) => (
-              <InfoCard
-                asignaturaId={asignaturaId}
-                key={key}
-                clave={key}
-                title={formatTitle(key)}
-                initialContent={value}
-                onEnhanceAI={(contenido) => {
-                  console.log('Llevar a IA:', contenido)
-                  // Aquí tu lógica: setPestañaActiva('mejorar-con-ia');
-                }}
-              />
-            ))}
+            Object.entries(structureProps).map(
+              ([key, config]: [string, any]) => {
+                // 1. METADATOS (Vienen de structureProps -> config)
+                const cardTitle = config.title || key
+                const description = config.description || ''
+
+                // Obtenemos el placeholder del arreglo 'examples' de la estructura
+                const placeholder =
+                  config.examples && config.examples.length > 0
+                    ? config.examples[0]
+                    : ''
+
+                // 2. CONTENIDO REAL (Viene de data.datos -> valoresActuales)
+                // El problema: Si 'description' en 'datos' es igual a la de la 'estructura',
+                // el usuario aún no ha redactado nada real.
+
+                const valActual = valoresActuales[key]
+
+                // Lógica para determinar si mostrar el contenido o dejarlo vacío (para que salga el placeholder)
+                // Si el contenido en 'datos' es idéntico a la instrucción de la 'estructura',
+                // asumimos que no hay contenido real todavía.
+                const isContentEmpty =
+                  !valActual?.description ||
+                  valActual.description === config.description
+
+                const currentContent = valActual.description ?? ''
+
+                return (
+                  <InfoCard
+                    asignaturaId={asignaturaId}
+                    key={key}
+                    clave={key}
+                    title={cardTitle}
+                    initialContent={currentContent} // Si es igual a la descripción de la SEP, pasamos vacío
+                    placeholder={placeholder} // Aquí irá "Primer semestre", "MAT-101", etc.
+                    description={description} // El texto largo de "Indicar el ciclo..."
+                    onEnhanceAI={(contenido) => console.log(contenido)}
+                  />
+                )
+              },
+            )}
         </div>
 
         {/* Columna Lateral (Información Secundaria) */}
@@ -469,11 +510,14 @@ function DatosGenerales({
 
 interface InfoCardProps {
   asignaturaId?: string
-  clave: string
+  clave?: string
   title: string
   initialContent: any
+  placeholder?: string
+  description?: string
+  required?: boolean // Nueva prop para el asterisco
   type?: 'text' | 'requirements' | 'evaluation'
-  onEnhanceAI?: (content: any) => void // Nueva prop para la acción de IA
+  onEnhanceAI?: (content: any) => void
 }
 
 function InfoCard({
@@ -481,76 +525,111 @@ function InfoCard({
   clave,
   title,
   initialContent,
+  placeholder,
+  description,
+  required,
   type = 'text',
-  onEnhanceAI,
 }: InfoCardProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [data, setData] = useState(initialContent)
-  const [tempText, setTempText] = useState(
-    type === 'text' ? initialContent : JSON.stringify(initialContent, null, 2),
-  )
+  const [tempText, setTempText] = useState(initialContent)
   const navigate = useNavigate()
+
+  useEffect(() => {
+    setData(initialContent)
+    setTempText(initialContent)
+  }, [initialContent])
+
   const handleSave = () => {
     setData(tempText)
     setIsEditing(false)
+    // Aquí iría tu lógica de guardado a la DB
   }
-  const handleIARequest = (data) => {
-    console.log(data)
-    console.log(asignaturaId)
+
+  const handleIARequest = (campoClave: string) => {
+    console.log(placeholder)
 
     navigate({
       to: '/planes/$planId/asignaturas/$asignaturaId',
-      params: {
-        asignaturaId: asignaturaId,
-      },
+      params: { asignaturaId: asignaturaId! },
       state: {
         activeTab: 'ia',
-        prefillCampo: data,
-        prefillContenido: data, // el contenido actual del card
+        prefillCampo: campoClave,
+        prefillContenido: data,
       } as any,
     })
   }
 
   return (
-    <Card className="transition-all hover:border-slate-300">
-      <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-3">
-        <CardTitle className="text-sm font-bold text-slate-700">
-          {title}
-        </CardTitle>
+    <Card className="overflow-hidden transition-all hover:border-slate-300">
+      <TooltipProvider>
+        <CardHeader className="border-b bg-slate-50/50 px-5 py-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <CardTitle className="cursor-help text-sm font-bold text-slate-700">
+                    {title}
+                  </CardTitle>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-xs text-xs">
+                  {description || 'Información del campo'}
+                </TooltipContent>
+              </Tooltip>
 
-        {!isEditing && (
-          <div className="flex gap-1">
-            {/* NUEVO: Botón de Mejorar con IA */}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 text-blue-500 hover:bg-blue-50 hover:text-blue-600"
-              onClick={() => handleIARequest(clave)} // Enviamos la data actual a la IA
-              title="Mejorar con IA"
-            >
-              <Sparkles className="h-4 w-4" />
-            </Button>
+              {required && (
+                <span
+                  className="text-sm font-bold text-red-500"
+                  title="Requerido"
+                >
+                  *
+                </span>
+              )}
+            </div>
 
-            {/* Botón de Editar original */}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 text-slate-400"
-              onClick={() => setIsEditing(true)}
-            >
-              <Pencil className="h-3 w-3" />
-            </Button>
+            {!isEditing && (
+              <div className="flex gap-1">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-blue-500 hover:bg-blue-100"
+                      onClick={() => handleIARequest(clave)}
+                    >
+                      <Sparkles className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Mejorar con IA</TooltipContent>
+                </Tooltip>
+
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-slate-400"
+                      onClick={() => setIsEditing(true)}
+                    >
+                      <Pencil className="h-3 w-3" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Editar campo</TooltipContent>
+                </Tooltip>
+              </div>
+            )}
           </div>
-        )}
-      </CardHeader>
+        </CardHeader>
+      </TooltipProvider>
 
-      <CardContent>
+      <CardContent className="pt-4">
         {isEditing ? (
           <div className="space-y-3">
             <Textarea
               value={tempText}
+              placeholder={placeholder}
               onChange={(e) => setTempText(e.target.value)}
-              className="min-h-[100px] text-xs"
+              className="min-h-[120px] text-sm leading-relaxed"
             />
             <div className="flex justify-end gap-2">
               <Button
@@ -570,10 +649,17 @@ function InfoCard({
             </div>
           </div>
         ) : (
-          <div className="text-sm">
+          <div className="text-sm leading-relaxed text-slate-600">
+            {type === 'text' &&
+              (data ? (
+                <p className="whitespace-pre-wrap">{data}</p>
+              ) : (
+                <p className="text-slate-400 italic">
+                  Sin información. Ejemplo: {placeholder}
+                </p>
+              ))}
             {type === 'requirements' && <RequirementsView items={data} />}
             {type === 'evaluation' && <EvaluationView items={data} />}
-            {type === 'text' && <p className="text-slate-600">{data}</p>}
           </div>
         )}
       </CardContent>
