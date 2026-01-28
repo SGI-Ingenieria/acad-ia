@@ -216,7 +216,7 @@ function RouteComponent() {
         {/* 4. Navegación de Tabs */}
         <div className="scrollbar-hide overflow-x-auto border-b">
           <nav className="flex min-w-max gap-8">
-            <Tab to="/planes/$planId/datos" params={{ planId }}>
+            <Tab to="/planes/$planId/" params={{ planId }}>
               Datos Generales
             </Tab>
             <Tab to="/planes/$planId/mapa" params={{ planId }}>

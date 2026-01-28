@@ -21,7 +21,7 @@ import {
 import { usePlan } from '@/data'
 
 // import { toast } from 'sonner' // Asegúrate de tener sonner instalado o quita la línea
-export const Route = createFileRoute('/planes/$planId/_detalle/datos')({
+export const Route = createFileRoute('/planes/$planId/_detalle/')({
   component: DatosGeneralesPage,
 })
 
@@ -204,8 +204,8 @@ function DatosGeneralesPage() {
                     <Textarea
                       value={editValue}
                       onChange={(e) => setEditValue(e.target.value)}
-                      className="min-h-30"
-                      placeholder={campo.holder}
+                      className="placeholder:text-muted-foreground/70 min-h-30 not-italic placeholder:italic"
+                      placeholder={`Ej. ${campo.holder[0] as string}`}
                     />
                     <div className="flex justify-end gap-2">
                       <Button

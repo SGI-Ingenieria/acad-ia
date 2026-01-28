@@ -211,7 +211,7 @@ export default function MateriaDetailPage() {
       <section className="bg-gradient-to-b from-[#0b1d3a] to-[#0e2a5c] text-white">
         <div className="mx-auto max-w-7xl px-6 py-10">
           <Link
-            to="/planes/$planId"
+            to="/planes/$planId/materias"
             params={{ planId }}
             className="mb-4 flex items-center gap-2 text-sm text-blue-200 hover:text-white"
           >
