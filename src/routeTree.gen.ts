@@ -12,21 +12,19 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as PlanesListaRouteImport } from './routes/planes/_lista'
 import { Route as DemoTanstackQueryRouteImport } from './routes/demo/tanstack-query'
-import { Route as PlanesListaRouteRouteImport } from './routes/planes/_lista/route'
 import { Route as PlanesListaNuevoRouteImport } from './routes/planes/_lista/nuevo'
-import { Route as PlanesPlanIdAsignaturasRouteRouteImport } from './routes/planes/$planId/asignaturas/route'
-import { Route as PlanesPlanIdDetalleRouteRouteImport } from './routes/planes/$planId/_detalle/route'
+import { Route as PlanesPlanIdDetalleRouteImport } from './routes/planes/$planId/_detalle'
 import { Route as PlanesPlanIdDetalleIndexRouteImport } from './routes/planes/$planId/_detalle/index'
+import { Route as PlanesPlanIdAsignaturasAsignaturaIdRouteImport } from './routes/planes/$planId/asignaturas/$asignaturaId'
 import { Route as PlanesPlanIdDetalleMapaRouteImport } from './routes/planes/$planId/_detalle/mapa'
 import { Route as PlanesPlanIdDetalleIaplanRouteImport } from './routes/planes/$planId/_detalle/iaplan'
 import { Route as PlanesPlanIdDetalleHistorialRouteImport } from './routes/planes/$planId/_detalle/historial'
 import { Route as PlanesPlanIdDetalleFlujoRouteImport } from './routes/planes/$planId/_detalle/flujo'
 import { Route as PlanesPlanIdDetalleDocumentoRouteImport } from './routes/planes/$planId/_detalle/documento'
-import { Route as PlanesPlanIdDetalleAsignaturasRouteImport } from './routes/planes/$planId/_detalle/asignaturas'
-import { Route as PlanesPlanIdAsignaturasListaRouteRouteImport } from './routes/planes/$planId/asignaturas/_lista/route'
-import { Route as PlanesPlanIdAsignaturasAsignaturaIdRouteRouteImport } from './routes/planes/$planId/asignaturas/$asignaturaId/route'
-import { Route as PlanesPlanIdAsignaturasListaNuevaRouteImport } from './routes/planes/$planId/asignaturas/_lista/nueva'
+import { Route as PlanesPlanIdDetalleAsignaturasIndexRouteImport } from './routes/planes/$planId/_detalle/asignaturas/index'
+import { Route as PlanesPlanIdDetalleAsignaturasNuevaRouteImport } from './routes/planes/$planId/_detalle/asignaturas/nueva'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -43,147 +41,133 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PlanesListaRoute = PlanesListaRouteImport.update({
+  id: '/planes/_lista',
+  path: '/planes',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DemoTanstackQueryRoute = DemoTanstackQueryRouteImport.update({
   id: '/demo/tanstack-query',
   path: '/demo/tanstack-query',
   getParentRoute: () => rootRouteImport,
 } as any)
-const PlanesListaRouteRoute = PlanesListaRouteRouteImport.update({
-  id: '/planes/_lista',
-  path: '/planes',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const PlanesListaNuevoRoute = PlanesListaNuevoRouteImport.update({
   id: '/nuevo',
   path: '/nuevo',
-  getParentRoute: () => PlanesListaRouteRoute,
+  getParentRoute: () => PlanesListaRoute,
 } as any)
-const PlanesPlanIdAsignaturasRouteRoute =
-  PlanesPlanIdAsignaturasRouteRouteImport.update({
-    id: '/planes/$planId/asignaturas',
-    path: '/planes/$planId/asignaturas',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const PlanesPlanIdDetalleRouteRoute =
-  PlanesPlanIdDetalleRouteRouteImport.update({
-    id: '/planes/$planId/_detalle',
-    path: '/planes/$planId',
-    getParentRoute: () => rootRouteImport,
-  } as any)
+const PlanesPlanIdDetalleRoute = PlanesPlanIdDetalleRouteImport.update({
+  id: '/planes/$planId/_detalle',
+  path: '/planes/$planId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PlanesPlanIdDetalleIndexRoute =
   PlanesPlanIdDetalleIndexRouteImport.update({
     id: '/',
     path: '/',
-    getParentRoute: () => PlanesPlanIdDetalleRouteRoute,
+    getParentRoute: () => PlanesPlanIdDetalleRoute,
+  } as any)
+const PlanesPlanIdAsignaturasAsignaturaIdRoute =
+  PlanesPlanIdAsignaturasAsignaturaIdRouteImport.update({
+    id: '/planes/$planId/asignaturas/$asignaturaId',
+    path: '/planes/$planId/asignaturas/$asignaturaId',
+    getParentRoute: () => rootRouteImport,
   } as any)
 const PlanesPlanIdDetalleMapaRoute = PlanesPlanIdDetalleMapaRouteImport.update({
   id: '/mapa',
   path: '/mapa',
-  getParentRoute: () => PlanesPlanIdDetalleRouteRoute,
+  getParentRoute: () => PlanesPlanIdDetalleRoute,
 } as any)
 const PlanesPlanIdDetalleIaplanRoute =
   PlanesPlanIdDetalleIaplanRouteImport.update({
     id: '/iaplan',
     path: '/iaplan',
-    getParentRoute: () => PlanesPlanIdDetalleRouteRoute,
+    getParentRoute: () => PlanesPlanIdDetalleRoute,
   } as any)
 const PlanesPlanIdDetalleHistorialRoute =
   PlanesPlanIdDetalleHistorialRouteImport.update({
     id: '/historial',
     path: '/historial',
-    getParentRoute: () => PlanesPlanIdDetalleRouteRoute,
+    getParentRoute: () => PlanesPlanIdDetalleRoute,
   } as any)
 const PlanesPlanIdDetalleFlujoRoute =
   PlanesPlanIdDetalleFlujoRouteImport.update({
     id: '/flujo',
     path: '/flujo',
-    getParentRoute: () => PlanesPlanIdDetalleRouteRoute,
+    getParentRoute: () => PlanesPlanIdDetalleRoute,
   } as any)
 const PlanesPlanIdDetalleDocumentoRoute =
   PlanesPlanIdDetalleDocumentoRouteImport.update({
     id: '/documento',
     path: '/documento',
-    getParentRoute: () => PlanesPlanIdDetalleRouteRoute,
+    getParentRoute: () => PlanesPlanIdDetalleRoute,
   } as any)
-const PlanesPlanIdDetalleAsignaturasRoute =
-  PlanesPlanIdDetalleAsignaturasRouteImport.update({
-    id: '/asignaturas',
-    path: '/asignaturas',
-    getParentRoute: () => PlanesPlanIdDetalleRouteRoute,
+const PlanesPlanIdDetalleAsignaturasIndexRoute =
+  PlanesPlanIdDetalleAsignaturasIndexRouteImport.update({
+    id: '/asignaturas/',
+    path: '/asignaturas/',
+    getParentRoute: () => PlanesPlanIdDetalleRoute,
   } as any)
-const PlanesPlanIdAsignaturasListaRouteRoute =
-  PlanesPlanIdAsignaturasListaRouteRouteImport.update({
-    id: '/_lista',
-    getParentRoute: () => PlanesPlanIdAsignaturasRouteRoute,
-  } as any)
-const PlanesPlanIdAsignaturasAsignaturaIdRouteRoute =
-  PlanesPlanIdAsignaturasAsignaturaIdRouteRouteImport.update({
-    id: '/$asignaturaId',
-    path: '/$asignaturaId',
-    getParentRoute: () => PlanesPlanIdAsignaturasRouteRoute,
-  } as any)
-const PlanesPlanIdAsignaturasListaNuevaRoute =
-  PlanesPlanIdAsignaturasListaNuevaRouteImport.update({
-    id: '/nueva',
-    path: '/nueva',
-    getParentRoute: () => PlanesPlanIdAsignaturasListaRouteRoute,
+const PlanesPlanIdDetalleAsignaturasNuevaRoute =
+  PlanesPlanIdDetalleAsignaturasNuevaRouteImport.update({
+    id: '/asignaturas/nueva',
+    path: '/asignaturas/nueva',
+    getParentRoute: () => PlanesPlanIdDetalleRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
-  '/planes': typeof PlanesListaRouteRouteWithChildren
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
-  '/planes/$planId': typeof PlanesPlanIdDetalleRouteRouteWithChildren
-  '/planes/$planId/asignaturas': typeof PlanesPlanIdDetalleAsignaturasRoute
+  '/planes': typeof PlanesListaRouteWithChildren
+  '/planes/$planId': typeof PlanesPlanIdDetalleRouteWithChildren
   '/planes/nuevo': typeof PlanesListaNuevoRoute
-  '/planes/$planId/asignaturas/$asignaturaId': typeof PlanesPlanIdAsignaturasAsignaturaIdRouteRoute
   '/planes/$planId/documento': typeof PlanesPlanIdDetalleDocumentoRoute
   '/planes/$planId/flujo': typeof PlanesPlanIdDetalleFlujoRoute
   '/planes/$planId/historial': typeof PlanesPlanIdDetalleHistorialRoute
   '/planes/$planId/iaplan': typeof PlanesPlanIdDetalleIaplanRoute
   '/planes/$planId/mapa': typeof PlanesPlanIdDetalleMapaRoute
+  '/planes/$planId/asignaturas/$asignaturaId': typeof PlanesPlanIdAsignaturasAsignaturaIdRoute
   '/planes/$planId/': typeof PlanesPlanIdDetalleIndexRoute
-  '/planes/$planId/asignaturas/nueva': typeof PlanesPlanIdAsignaturasListaNuevaRoute
+  '/planes/$planId/asignaturas/nueva': typeof PlanesPlanIdDetalleAsignaturasNuevaRoute
+  '/planes/$planId/asignaturas/': typeof PlanesPlanIdDetalleAsignaturasIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
-  '/planes': typeof PlanesListaRouteRouteWithChildren
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
-  '/planes/$planId/asignaturas': typeof PlanesPlanIdDetalleAsignaturasRoute
+  '/planes': typeof PlanesListaRouteWithChildren
   '/planes/nuevo': typeof PlanesListaNuevoRoute
-  '/planes/$planId/asignaturas/$asignaturaId': typeof PlanesPlanIdAsignaturasAsignaturaIdRouteRoute
   '/planes/$planId/documento': typeof PlanesPlanIdDetalleDocumentoRoute
   '/planes/$planId/flujo': typeof PlanesPlanIdDetalleFlujoRoute
   '/planes/$planId/historial': typeof PlanesPlanIdDetalleHistorialRoute
   '/planes/$planId/iaplan': typeof PlanesPlanIdDetalleIaplanRoute
   '/planes/$planId/mapa': typeof PlanesPlanIdDetalleMapaRoute
+  '/planes/$planId/asignaturas/$asignaturaId': typeof PlanesPlanIdAsignaturasAsignaturaIdRoute
   '/planes/$planId': typeof PlanesPlanIdDetalleIndexRoute
-  '/planes/$planId/asignaturas/nueva': typeof PlanesPlanIdAsignaturasListaNuevaRoute
+  '/planes/$planId/asignaturas/nueva': typeof PlanesPlanIdDetalleAsignaturasNuevaRoute
+  '/planes/$planId/asignaturas': typeof PlanesPlanIdDetalleAsignaturasIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
-  '/planes/_lista': typeof PlanesListaRouteRouteWithChildren
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
-  '/planes/$planId/_detalle': typeof PlanesPlanIdDetalleRouteRouteWithChildren
-  '/planes/$planId/asignaturas': typeof PlanesPlanIdAsignaturasRouteRouteWithChildren
+  '/planes/_lista': typeof PlanesListaRouteWithChildren
+  '/planes/$planId/_detalle': typeof PlanesPlanIdDetalleRouteWithChildren
   '/planes/_lista/nuevo': typeof PlanesListaNuevoRoute
-  '/planes/$planId/asignaturas/$asignaturaId': typeof PlanesPlanIdAsignaturasAsignaturaIdRouteRoute
-  '/planes/$planId/asignaturas/_lista': typeof PlanesPlanIdAsignaturasListaRouteRouteWithChildren
-  '/planes/$planId/_detalle/asignaturas': typeof PlanesPlanIdDetalleAsignaturasRoute
   '/planes/$planId/_detalle/documento': typeof PlanesPlanIdDetalleDocumentoRoute
   '/planes/$planId/_detalle/flujo': typeof PlanesPlanIdDetalleFlujoRoute
   '/planes/$planId/_detalle/historial': typeof PlanesPlanIdDetalleHistorialRoute
   '/planes/$planId/_detalle/iaplan': typeof PlanesPlanIdDetalleIaplanRoute
   '/planes/$planId/_detalle/mapa': typeof PlanesPlanIdDetalleMapaRoute
+  '/planes/$planId/asignaturas/$asignaturaId': typeof PlanesPlanIdAsignaturasAsignaturaIdRoute
   '/planes/$planId/_detalle/': typeof PlanesPlanIdDetalleIndexRoute
-  '/planes/$planId/asignaturas/_lista/nueva': typeof PlanesPlanIdAsignaturasListaNuevaRoute
+  '/planes/$planId/_detalle/asignaturas/nueva': typeof PlanesPlanIdDetalleAsignaturasNuevaRoute
+  '/planes/$planId/_detalle/asignaturas/': typeof PlanesPlanIdDetalleAsignaturasIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -191,66 +175,64 @@ export interface FileRouteTypes {
     | '/'
     | '/dashboard'
     | '/login'
-    | '/planes'
     | '/demo/tanstack-query'
+    | '/planes'
     | '/planes/$planId'
-    | '/planes/$planId/asignaturas'
     | '/planes/nuevo'
-    | '/planes/$planId/asignaturas/$asignaturaId'
     | '/planes/$planId/documento'
     | '/planes/$planId/flujo'
     | '/planes/$planId/historial'
     | '/planes/$planId/iaplan'
     | '/planes/$planId/mapa'
+    | '/planes/$planId/asignaturas/$asignaturaId'
     | '/planes/$planId/'
     | '/planes/$planId/asignaturas/nueva'
+    | '/planes/$planId/asignaturas/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/dashboard'
     | '/login'
-    | '/planes'
     | '/demo/tanstack-query'
-    | '/planes/$planId/asignaturas'
+    | '/planes'
     | '/planes/nuevo'
-    | '/planes/$planId/asignaturas/$asignaturaId'
     | '/planes/$planId/documento'
     | '/planes/$planId/flujo'
     | '/planes/$planId/historial'
     | '/planes/$planId/iaplan'
     | '/planes/$planId/mapa'
+    | '/planes/$planId/asignaturas/$asignaturaId'
     | '/planes/$planId'
     | '/planes/$planId/asignaturas/nueva'
+    | '/planes/$planId/asignaturas'
   id:
     | '__root__'
     | '/'
     | '/dashboard'
     | '/login'
-    | '/planes/_lista'
     | '/demo/tanstack-query'
+    | '/planes/_lista'
     | '/planes/$planId/_detalle'
-    | '/planes/$planId/asignaturas'
     | '/planes/_lista/nuevo'
-    | '/planes/$planId/asignaturas/$asignaturaId'
-    | '/planes/$planId/asignaturas/_lista'
-    | '/planes/$planId/_detalle/asignaturas'
     | '/planes/$planId/_detalle/documento'
     | '/planes/$planId/_detalle/flujo'
     | '/planes/$planId/_detalle/historial'
     | '/planes/$planId/_detalle/iaplan'
     | '/planes/$planId/_detalle/mapa'
+    | '/planes/$planId/asignaturas/$asignaturaId'
     | '/planes/$planId/_detalle/'
-    | '/planes/$planId/asignaturas/_lista/nueva'
+    | '/planes/$planId/_detalle/asignaturas/nueva'
+    | '/planes/$planId/_detalle/asignaturas/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DashboardRoute: typeof DashboardRoute
   LoginRoute: typeof LoginRoute
-  PlanesListaRouteRoute: typeof PlanesListaRouteRouteWithChildren
   DemoTanstackQueryRoute: typeof DemoTanstackQueryRoute
-  PlanesPlanIdDetalleRouteRoute: typeof PlanesPlanIdDetalleRouteRouteWithChildren
-  PlanesPlanIdAsignaturasRouteRoute: typeof PlanesPlanIdAsignaturasRouteRouteWithChildren
+  PlanesListaRoute: typeof PlanesListaRouteWithChildren
+  PlanesPlanIdDetalleRoute: typeof PlanesPlanIdDetalleRouteWithChildren
+  PlanesPlanIdAsignaturasAsignaturaIdRoute: typeof PlanesPlanIdAsignaturasAsignaturaIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -276,6 +258,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/planes/_lista': {
+      id: '/planes/_lista'
+      path: '/planes'
+      fullPath: '/planes'
+      preLoaderRoute: typeof PlanesListaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/demo/tanstack-query': {
       id: '/demo/tanstack-query'
       path: '/demo/tanstack-query'
@@ -283,32 +272,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DemoTanstackQueryRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/planes/_lista': {
-      id: '/planes/_lista'
-      path: '/planes'
-      fullPath: '/planes'
-      preLoaderRoute: typeof PlanesListaRouteRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/planes/_lista/nuevo': {
       id: '/planes/_lista/nuevo'
       path: '/nuevo'
       fullPath: '/planes/nuevo'
       preLoaderRoute: typeof PlanesListaNuevoRouteImport
-      parentRoute: typeof PlanesListaRouteRoute
-    }
-    '/planes/$planId/asignaturas': {
-      id: '/planes/$planId/asignaturas'
-      path: '/planes/$planId/asignaturas'
-      fullPath: '/planes/$planId/asignaturas'
-      preLoaderRoute: typeof PlanesPlanIdAsignaturasRouteRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof PlanesListaRoute
     }
     '/planes/$planId/_detalle': {
       id: '/planes/$planId/_detalle'
       path: '/planes/$planId'
       fullPath: '/planes/$planId'
-      preLoaderRoute: typeof PlanesPlanIdDetalleRouteRouteImport
+      preLoaderRoute: typeof PlanesPlanIdDetalleRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/planes/$planId/_detalle/': {
@@ -316,153 +291,115 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/planes/$planId/'
       preLoaderRoute: typeof PlanesPlanIdDetalleIndexRouteImport
-      parentRoute: typeof PlanesPlanIdDetalleRouteRoute
+      parentRoute: typeof PlanesPlanIdDetalleRoute
+    }
+    '/planes/$planId/asignaturas/$asignaturaId': {
+      id: '/planes/$planId/asignaturas/$asignaturaId'
+      path: '/planes/$planId/asignaturas/$asignaturaId'
+      fullPath: '/planes/$planId/asignaturas/$asignaturaId'
+      preLoaderRoute: typeof PlanesPlanIdAsignaturasAsignaturaIdRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/planes/$planId/_detalle/mapa': {
       id: '/planes/$planId/_detalle/mapa'
       path: '/mapa'
       fullPath: '/planes/$planId/mapa'
       preLoaderRoute: typeof PlanesPlanIdDetalleMapaRouteImport
-      parentRoute: typeof PlanesPlanIdDetalleRouteRoute
+      parentRoute: typeof PlanesPlanIdDetalleRoute
     }
     '/planes/$planId/_detalle/iaplan': {
       id: '/planes/$planId/_detalle/iaplan'
       path: '/iaplan'
       fullPath: '/planes/$planId/iaplan'
       preLoaderRoute: typeof PlanesPlanIdDetalleIaplanRouteImport
-      parentRoute: typeof PlanesPlanIdDetalleRouteRoute
+      parentRoute: typeof PlanesPlanIdDetalleRoute
     }
     '/planes/$planId/_detalle/historial': {
       id: '/planes/$planId/_detalle/historial'
       path: '/historial'
       fullPath: '/planes/$planId/historial'
       preLoaderRoute: typeof PlanesPlanIdDetalleHistorialRouteImport
-      parentRoute: typeof PlanesPlanIdDetalleRouteRoute
+      parentRoute: typeof PlanesPlanIdDetalleRoute
     }
     '/planes/$planId/_detalle/flujo': {
       id: '/planes/$planId/_detalle/flujo'
       path: '/flujo'
       fullPath: '/planes/$planId/flujo'
       preLoaderRoute: typeof PlanesPlanIdDetalleFlujoRouteImport
-      parentRoute: typeof PlanesPlanIdDetalleRouteRoute
+      parentRoute: typeof PlanesPlanIdDetalleRoute
     }
     '/planes/$planId/_detalle/documento': {
       id: '/planes/$planId/_detalle/documento'
       path: '/documento'
       fullPath: '/planes/$planId/documento'
       preLoaderRoute: typeof PlanesPlanIdDetalleDocumentoRouteImport
-      parentRoute: typeof PlanesPlanIdDetalleRouteRoute
+      parentRoute: typeof PlanesPlanIdDetalleRoute
     }
-    '/planes/$planId/_detalle/asignaturas': {
-      id: '/planes/$planId/_detalle/asignaturas'
+    '/planes/$planId/_detalle/asignaturas/': {
+      id: '/planes/$planId/_detalle/asignaturas/'
       path: '/asignaturas'
-      fullPath: '/planes/$planId/asignaturas'
-      preLoaderRoute: typeof PlanesPlanIdDetalleAsignaturasRouteImport
-      parentRoute: typeof PlanesPlanIdDetalleRouteRoute
+      fullPath: '/planes/$planId/asignaturas/'
+      preLoaderRoute: typeof PlanesPlanIdDetalleAsignaturasIndexRouteImport
+      parentRoute: typeof PlanesPlanIdDetalleRoute
     }
-    '/planes/$planId/asignaturas/_lista': {
-      id: '/planes/$planId/asignaturas/_lista'
-      path: ''
-      fullPath: '/planes/$planId/asignaturas'
-      preLoaderRoute: typeof PlanesPlanIdAsignaturasListaRouteRouteImport
-      parentRoute: typeof PlanesPlanIdAsignaturasRouteRoute
-    }
-    '/planes/$planId/asignaturas/$asignaturaId': {
-      id: '/planes/$planId/asignaturas/$asignaturaId'
-      path: '/$asignaturaId'
-      fullPath: '/planes/$planId/asignaturas/$asignaturaId'
-      preLoaderRoute: typeof PlanesPlanIdAsignaturasAsignaturaIdRouteRouteImport
-      parentRoute: typeof PlanesPlanIdAsignaturasRouteRoute
-    }
-    '/planes/$planId/asignaturas/_lista/nueva': {
-      id: '/planes/$planId/asignaturas/_lista/nueva'
-      path: '/nueva'
+    '/planes/$planId/_detalle/asignaturas/nueva': {
+      id: '/planes/$planId/_detalle/asignaturas/nueva'
+      path: '/asignaturas/nueva'
       fullPath: '/planes/$planId/asignaturas/nueva'
-      preLoaderRoute: typeof PlanesPlanIdAsignaturasListaNuevaRouteImport
-      parentRoute: typeof PlanesPlanIdAsignaturasListaRouteRoute
+      preLoaderRoute: typeof PlanesPlanIdDetalleAsignaturasNuevaRouteImport
+      parentRoute: typeof PlanesPlanIdDetalleRoute
     }
   }
 }
 
-interface PlanesListaRouteRouteChildren {
+interface PlanesListaRouteChildren {
   PlanesListaNuevoRoute: typeof PlanesListaNuevoRoute
 }
 
-const PlanesListaRouteRouteChildren: PlanesListaRouteRouteChildren = {
+const PlanesListaRouteChildren: PlanesListaRouteChildren = {
   PlanesListaNuevoRoute: PlanesListaNuevoRoute,
 }
 
-const PlanesListaRouteRouteWithChildren =
-  PlanesListaRouteRoute._addFileChildren(PlanesListaRouteRouteChildren)
+const PlanesListaRouteWithChildren = PlanesListaRoute._addFileChildren(
+  PlanesListaRouteChildren,
+)
 
-interface PlanesPlanIdDetalleRouteRouteChildren {
-  PlanesPlanIdDetalleAsignaturasRoute: typeof PlanesPlanIdDetalleAsignaturasRoute
+interface PlanesPlanIdDetalleRouteChildren {
   PlanesPlanIdDetalleDocumentoRoute: typeof PlanesPlanIdDetalleDocumentoRoute
   PlanesPlanIdDetalleFlujoRoute: typeof PlanesPlanIdDetalleFlujoRoute
   PlanesPlanIdDetalleHistorialRoute: typeof PlanesPlanIdDetalleHistorialRoute
   PlanesPlanIdDetalleIaplanRoute: typeof PlanesPlanIdDetalleIaplanRoute
   PlanesPlanIdDetalleMapaRoute: typeof PlanesPlanIdDetalleMapaRoute
   PlanesPlanIdDetalleIndexRoute: typeof PlanesPlanIdDetalleIndexRoute
+  PlanesPlanIdDetalleAsignaturasNuevaRoute: typeof PlanesPlanIdDetalleAsignaturasNuevaRoute
+  PlanesPlanIdDetalleAsignaturasIndexRoute: typeof PlanesPlanIdDetalleAsignaturasIndexRoute
 }
 
-const PlanesPlanIdDetalleRouteRouteChildren: PlanesPlanIdDetalleRouteRouteChildren =
-  {
-    PlanesPlanIdDetalleAsignaturasRoute: PlanesPlanIdDetalleAsignaturasRoute,
-    PlanesPlanIdDetalleDocumentoRoute: PlanesPlanIdDetalleDocumentoRoute,
-    PlanesPlanIdDetalleFlujoRoute: PlanesPlanIdDetalleFlujoRoute,
-    PlanesPlanIdDetalleHistorialRoute: PlanesPlanIdDetalleHistorialRoute,
-    PlanesPlanIdDetalleIaplanRoute: PlanesPlanIdDetalleIaplanRoute,
-    PlanesPlanIdDetalleMapaRoute: PlanesPlanIdDetalleMapaRoute,
-    PlanesPlanIdDetalleIndexRoute: PlanesPlanIdDetalleIndexRoute,
-  }
-
-const PlanesPlanIdDetalleRouteRouteWithChildren =
-  PlanesPlanIdDetalleRouteRoute._addFileChildren(
-    PlanesPlanIdDetalleRouteRouteChildren,
-  )
-
-interface PlanesPlanIdAsignaturasListaRouteRouteChildren {
-  PlanesPlanIdAsignaturasListaNuevaRoute: typeof PlanesPlanIdAsignaturasListaNuevaRoute
+const PlanesPlanIdDetalleRouteChildren: PlanesPlanIdDetalleRouteChildren = {
+  PlanesPlanIdDetalleDocumentoRoute: PlanesPlanIdDetalleDocumentoRoute,
+  PlanesPlanIdDetalleFlujoRoute: PlanesPlanIdDetalleFlujoRoute,
+  PlanesPlanIdDetalleHistorialRoute: PlanesPlanIdDetalleHistorialRoute,
+  PlanesPlanIdDetalleIaplanRoute: PlanesPlanIdDetalleIaplanRoute,
+  PlanesPlanIdDetalleMapaRoute: PlanesPlanIdDetalleMapaRoute,
+  PlanesPlanIdDetalleIndexRoute: PlanesPlanIdDetalleIndexRoute,
+  PlanesPlanIdDetalleAsignaturasNuevaRoute:
+    PlanesPlanIdDetalleAsignaturasNuevaRoute,
+  PlanesPlanIdDetalleAsignaturasIndexRoute:
+    PlanesPlanIdDetalleAsignaturasIndexRoute,
 }
 
-const PlanesPlanIdAsignaturasListaRouteRouteChildren: PlanesPlanIdAsignaturasListaRouteRouteChildren =
-  {
-    PlanesPlanIdAsignaturasListaNuevaRoute:
-      PlanesPlanIdAsignaturasListaNuevaRoute,
-  }
-
-const PlanesPlanIdAsignaturasListaRouteRouteWithChildren =
-  PlanesPlanIdAsignaturasListaRouteRoute._addFileChildren(
-    PlanesPlanIdAsignaturasListaRouteRouteChildren,
-  )
-
-interface PlanesPlanIdAsignaturasRouteRouteChildren {
-  PlanesPlanIdAsignaturasAsignaturaIdRouteRoute: typeof PlanesPlanIdAsignaturasAsignaturaIdRouteRoute
-  PlanesPlanIdAsignaturasListaRouteRoute: typeof PlanesPlanIdAsignaturasListaRouteRouteWithChildren
-}
-
-const PlanesPlanIdAsignaturasRouteRouteChildren: PlanesPlanIdAsignaturasRouteRouteChildren =
-  {
-    PlanesPlanIdAsignaturasAsignaturaIdRouteRoute:
-      PlanesPlanIdAsignaturasAsignaturaIdRouteRoute,
-    PlanesPlanIdAsignaturasListaRouteRoute:
-      PlanesPlanIdAsignaturasListaRouteRouteWithChildren,
-  }
-
-const PlanesPlanIdAsignaturasRouteRouteWithChildren =
-  PlanesPlanIdAsignaturasRouteRoute._addFileChildren(
-    PlanesPlanIdAsignaturasRouteRouteChildren,
-  )
+const PlanesPlanIdDetalleRouteWithChildren =
+  PlanesPlanIdDetalleRoute._addFileChildren(PlanesPlanIdDetalleRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DashboardRoute: DashboardRoute,
   LoginRoute: LoginRoute,
-  PlanesListaRouteRoute: PlanesListaRouteRouteWithChildren,
   DemoTanstackQueryRoute: DemoTanstackQueryRoute,
-  PlanesPlanIdDetalleRouteRoute: PlanesPlanIdDetalleRouteRouteWithChildren,
-  PlanesPlanIdAsignaturasRouteRoute:
-    PlanesPlanIdAsignaturasRouteRouteWithChildren,
+  PlanesListaRoute: PlanesListaRouteWithChildren,
+  PlanesPlanIdDetalleRoute: PlanesPlanIdDetalleRouteWithChildren,
+  PlanesPlanIdAsignaturasAsignaturaIdRoute:
+    PlanesPlanIdAsignaturasAsignaturaIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

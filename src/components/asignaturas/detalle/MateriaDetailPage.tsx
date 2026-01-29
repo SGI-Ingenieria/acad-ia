@@ -451,7 +451,7 @@ function DatosGenerales({
                   !valActual?.description ||
                   valActual.description === config.description
 
-                const currentContent = valActual.description ?? ''
+                const currentContent = valActual?.description ?? ''
 
                 return (
                   <InfoCard
@@ -654,9 +654,7 @@ function InfoCard({
               (data ? (
                 <p className="whitespace-pre-wrap">{data}</p>
               ) : (
-                <p className="text-slate-400 italic">
-                  Sin información. Ejemplo: {placeholder}
-                </p>
+                <p className="text-slate-400 italic">Sin información.</p>
               ))}
             {type === 'requirements' && <RequirementsView items={data} />}
             {type === 'evaluation' && <EvaluationView items={data} />}

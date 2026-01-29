@@ -62,7 +62,7 @@ const mapAsignaturas = (asigApi: Array<any> = []): Array<Materia> => {
   }))
 }
 
-export const Route = createFileRoute('/planes/$planId/_detalle/asignaturas')({
+export const Route = createFileRoute('/planes/$planId/_detalle/asignaturas/')({
   component: MateriasPage,
 })
 
@@ -131,7 +131,17 @@ function MateriasPage() {
           <Button variant="outline" size="sm">
             <Copy className="mr-2 h-4 w-4" /> Clonar
           </Button>
-          <Button className="bg-emerald-700 hover:bg-emerald-800">
+          <Button
+            onClick={() => {
+              console.log('planId desde asignaturas', planId)
+
+              navigate({
+                to: `/planes/${planId}/asignaturas/nueva`,
+                resetScroll: false,
+              })
+            }}
+            className="ring-offset-background bg-primary text-primary-foreground hover:bg-primary/90 inline-flex h-11 items-center justify-center gap-2 rounded-md px-8 text-sm font-medium shadow-md transition-colors"
+          >
             <Plus className="mr-2 h-4 w-4" /> Nueva Materia
           </Button>
         </div>

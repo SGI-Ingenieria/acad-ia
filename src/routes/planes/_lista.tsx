@@ -125,7 +125,11 @@ function RouteComponent() {
               </div>
             </div>
             <button
-              onClick={() => navigate({ to: '/planes/nuevo' })}
+              onClick={() => {
+                console.log('planId')
+
+                navigate({ to: '/planes/nuevo', resetScroll: false })
+              }}
               className="ring-offset-background bg-primary text-primary-foreground hover:bg-primary/90 inline-flex h-11 items-center justify-center gap-2 rounded-md px-8 text-sm font-medium shadow-md transition-colors"
             >
               <Icons.Plus /> Nuevo plan de estudios
