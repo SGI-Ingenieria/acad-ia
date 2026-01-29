@@ -12,6 +12,8 @@ import { WizardHeader } from '@/components/asignaturas/wizard/WizardHeader'
 import { defineStepper } from '@/components/stepper'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 
+const auth_get_current_user_role = () => 'JEFE_CARRERA' as const
+
 const Wizard = defineStepper(
   {
     id: 'metodo',
@@ -24,8 +26,8 @@ const Wizard = defineStepper(
     description: 'Nombre y estructura',
   },
   {
-    id: 'configuracion',
-    title: 'Configuración',
+    id: 'detalles',
+    title: 'Detalles',
     description: 'Detalles según modo',
   },
   {
@@ -34,8 +36,6 @@ const Wizard = defineStepper(
     description: 'Confirmar creación',
   },
 )
-
-const auth_get_current_user_role = () => 'JEFE_CARRERA' as const
 
 export function NuevaAsignaturaModalContainer({ planId }: { planId: string }) {
   const navigate = useNavigate()
@@ -68,57 +68,69 @@ export function NuevaAsignaturaModalContainer({ planId }: { planId: string }) {
             initialStep={Wizard.utils.getFirst().id}
             className="flex h-full flex-col"
           >
-            {({ methods }) => (
-              <>
-                <WizardHeader
-                  title="Nueva Asignatura"
-                  Wizard={Wizard}
-                  methods={{ ...methods, onClose: handleClose }}
-                />
+            {({ methods }) => {
+              const currentIndex = Wizard.utils.getIndex(methods.current.id) + 1
+              const totalSteps = Wizard.steps.length
+              const nextStep = Wizard.steps[currentIndex] ?? {
+                title: '',
+                description: '',
+              }
 
-                <div className="flex-1 overflow-y-auto bg-gray-50/30 p-6">
-                  <div className="mx-auto max-w-3xl">
-                    {Wizard.utils.getIndex(methods.current.id) === 0 && (
-                      <Wizard.Stepper.Panel>
-                        <PasoMetodoCardGroup
-                          wizard={wizard}
-                          onChange={setWizard}
-                        />
-                      </Wizard.Stepper.Panel>
-                    )}
-                    {Wizard.utils.getIndex(methods.current.id) === 1 && (
-                      <Wizard.Stepper.Panel>
-                        <PasoBasicosForm wizard={wizard} onChange={setWizard} />
-                      </Wizard.Stepper.Panel>
-                    )}
-                    {Wizard.utils.getIndex(methods.current.id) === 2 && (
-                      <Wizard.Stepper.Panel>
-                        <PasoConfiguracionPanel
-                          wizard={wizard}
-                          onChange={setWizard}
-                          onGenerarIA={simularGeneracionIA}
-                        />
-                      </Wizard.Stepper.Panel>
-                    )}
-                    {Wizard.utils.getIndex(methods.current.id) === 3 && (
-                      <Wizard.Stepper.Panel>
-                        <PasoResumenCard wizard={wizard} />
-                      </Wizard.Stepper.Panel>
-                    )}
+              return (
+                <>
+                  <WizardHeader
+                    title="Nueva Asignatura"
+                    Wizard={Wizard}
+                    methods={{ ...methods, onClose: handleClose }}
+                  />
+
+                  <div className="flex-1 overflow-y-auto bg-gray-50/30 p-6">
+                    <div className="mx-auto max-w-3xl">
+                      {Wizard.utils.getIndex(methods.current.id) === 0 && (
+                        <Wizard.Stepper.Panel>
+                          <PasoMetodoCardGroup
+                            wizard={wizard}
+                            onChange={setWizard}
+                          />
+                        </Wizard.Stepper.Panel>
+                      )}
+                      {Wizard.utils.getIndex(methods.current.id) === 1 && (
+                        <Wizard.Stepper.Panel>
+                          <PasoBasicosForm
+                            wizard={wizard}
+                            onChange={setWizard}
+                          />
+                        </Wizard.Stepper.Panel>
+                      )}
+                      {Wizard.utils.getIndex(methods.current.id) === 2 && (
+                        <Wizard.Stepper.Panel>
+                          <PasoConfiguracionPanel
+                            wizard={wizard}
+                            onChange={setWizard}
+                            onGenerarIA={simularGeneracionIA}
+                          />
+                        </Wizard.Stepper.Panel>
+                      )}
+                      {Wizard.utils.getIndex(methods.current.id) === 3 && (
+                        <Wizard.Stepper.Panel>
+                          <PasoResumenCard wizard={wizard} />
+                        </Wizard.Stepper.Panel>
+                      )}
+                    </div>
                   </div>
-                </div>
 
-                <WizardControls
-                  Wizard={Wizard}
-                  methods={methods}
-                  wizard={wizard}
-                  canContinueDesdeMetodo={canContinueDesdeMetodo}
-                  canContinueDesdeBasicos={canContinueDesdeBasicos}
-                  canContinueDesdeConfig={canContinueDesdeConfig}
-                  onCreate={() => crearAsignatura(handleClose)}
-                />
-              </>
-            )}
+                  <WizardControls
+                    Wizard={Wizard}
+                    methods={methods}
+                    wizard={wizard}
+                    canContinueDesdeMetodo={canContinueDesdeMetodo}
+                    canContinueDesdeBasicos={canContinueDesdeBasicos}
+                    canContinueDesdeConfig={canContinueDesdeConfig}
+                    onCreate={() => crearAsignatura(handleClose)}
+                  />
+                </>
+              )
+            }}
           </Wizard.Stepper.Provider>
         )}
       </DialogContent>

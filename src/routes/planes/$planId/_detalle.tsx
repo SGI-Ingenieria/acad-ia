@@ -35,6 +35,8 @@ export const Route = createFileRoute('/planes/$planId/_detalle')({
     } catch (e: any) {
       // PGRST116: The result contains 0 rows
       if (e?.code === 'PGRST116') {
+        console.log('not found on', Route.path)
+
         throw notFound()
       }
       throw e
