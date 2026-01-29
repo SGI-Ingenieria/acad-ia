@@ -87,27 +87,33 @@ function RouteComponent() {
 
   // 1. Transformar datos de la API para el menú de selección
   const availableFields = useMemo(() => {
-    if (!data?.datos) return []
-    return Object.entries(data.datos).map(([key, value]) => ({
-      key,
-      label: formatLabel(key),
-      value: String(value || ''),
-    }))
+    if (!data?.estructuras_plan?.definicion?.properties) return []
+    return Object.entries(data.estructuras_plan.definicion.properties).map(
+      ([key, value]) => ({
+        key,
+        label: value.title,
+        value: String(value.description || ''),
+      }),
+    )
   }, [data])
 
   // 2. Manejar el estado inicial si viene de "Datos Generales"
   useEffect(() => {
     const state = routerState.location.state as any
-    if (state?.prefill && availableFields.length > 0) {
-      // Intentamos encontrar qué campo es por su valor o si mandaste el fieldKey
-      const field = availableFields.find(
-        (f) => f.value === state.prefill || f.key === state.fieldKey,
-      )
-      if (field && !selectedFields.find((sf) => sf.key === field.key)) {
-        setSelectedFields([field])
-      }
-      setInput(`Mejora este campo: ${field?.label} `)
+    if (!state?.campo_edit || availableFields.length === 0) return
+
+    const field = availableFields.find(
+      (f) =>
+        f.value === state.campo_edit.label || f.key === state.campo_edit.clave,
+    )
+
+    if (field && !selectedFields.some((sf) => sf.key === field.key)) {
+      setSelectedFields([field])
     }
+
+    setInput((prev) =>
+      injectFieldsIntoInput(prev || 'Mejora este campo:', field ? [field] : []),
+    )
   }, [availableFields])
 
   // 3. Lógica para el disparador ":"
@@ -127,7 +133,7 @@ function RouteComponent() {
   ) => {
     const baseText = input.replace(/\[[^\]]+]/g, '').trim()
 
-    const tags = fields.map((f) => `[${f.label}]`).join(' ')
+    const tags = fields.map((f) => `${f.label}`).join(' ')
 
     return `${baseText} ${tags}`.trim()
   }

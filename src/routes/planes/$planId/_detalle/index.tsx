@@ -81,6 +81,7 @@ function DatosGeneralesPage() {
           const rawValue = valores[key]
 
           return {
+            clave: key,
             id: (index + 1).toString(),
             label: schema?.title || formatLabel(key),
             helperText: schema?.description || '',
@@ -131,14 +132,16 @@ function DatosGeneralesPage() {
     // toast.success('Cambios guardados localmente')
   }
 
-  const handleIARequest = (descripcion: string) => {
+  const handleIARequest = (clave: string) => {
+    console.log(clave)
+
     navigate({
       to: '/planes/$planId/iaplan',
       params: {
         planId: planId, // o dinámico
       },
       state: {
-        prefill: descripcion,
+        campo_edit: clave,
       } as any,
     })
   }
@@ -154,8 +157,9 @@ function DatosGeneralesPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {campos.map((campo) => {
+        {campos.map((campo, key) => {
           const isEditing = editingId === campo.id
+          console.log(campo)
 
           return (
             <div
@@ -194,7 +198,7 @@ function DatosGeneralesPage() {
                             variant="ghost"
                             size="icon"
                             className="h-8 w-8 text-teal-600"
-                            onClick={() => handleIARequest(campo.value)}
+                            onClick={() => handleIARequest(campo)}
                           >
                             <Sparkles size={14} />
                           </Button>
