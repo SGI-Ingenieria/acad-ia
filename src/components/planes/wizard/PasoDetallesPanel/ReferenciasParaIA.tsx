@@ -17,6 +17,7 @@ import {
   TabsContents,
 } from '@/components/ui/motion-tabs'
 import { ARCHIVOS, REPOSITORIOS } from '@/features/planes/nuevo/catalogs'
+import { cn } from '@/lib/utils'
 
 const ReferenciasParaIA = ({
   selectedArchivoIds = [],
@@ -87,7 +88,10 @@ const ReferenciasParaIA = ({
                   onCheckedChange={(checked) =>
                     onToggleArchivo?.(archivo.id, !!checked)
                   }
-                  className="peer border-primary ring-offset-background data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground focus-visible:ring-ring h-5 w-5 shrink-0 rounded-sm border focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+                  className={cn(
+                    'peer border-primary ring-offset-background data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground focus-visible:ring-ring h-5 w-5 shrink-0 rounded-sm border focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50',
+                    selectedArchivoIds.includes(archivo.id) ? '' : 'invisible',
+                  )}
                 />
 
                 <FileText className="text-muted-foreground h-4 w-4" />
@@ -134,7 +138,12 @@ const ReferenciasParaIA = ({
                   onCheckedChange={(checked) =>
                     onToggleRepositorio?.(repositorio.id, !!checked)
                   }
-                  className="peer border-primary ring-offset-background data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground focus-visible:ring-ring h-5 w-5 shrink-0 rounded-sm border focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+                  className={cn(
+                    'peer border-primary ring-offset-background data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground focus-visible:ring-ring h-5 w-5 shrink-0 rounded-sm border focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50',
+                    selectedRepositorioIds.includes(repositorio.id)
+                      ? ''
+                      : 'invisible',
+                  )}
                 />
 
                 <FolderOpen className="text-muted-foreground h-4 w-4" />
