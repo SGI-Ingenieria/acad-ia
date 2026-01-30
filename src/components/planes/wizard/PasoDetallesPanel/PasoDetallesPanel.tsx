@@ -79,7 +79,7 @@ export function PasoDetallesPanel({
                 ...w,
                 iaConfig: {
                   ...(w.iaConfig || ({} as any)),
-                  InstruccionesAdicionalesIA: e.target.value,
+                  instruccionesAdicionalesIA: e.target.value,
                 },
               }))
             }
