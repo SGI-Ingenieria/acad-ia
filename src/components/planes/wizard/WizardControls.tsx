@@ -81,7 +81,7 @@ export function WizardControls({
         console.log(`${new Date().toISOString()} - Plan IA generado`, data)
 
         navigate({
-          to: `/planes/${data.plan.id}/datos`,
+          to: `/planes/${data.plan.id}`,
           state: { showConfetti: true },
         })
         return
@@ -101,7 +101,7 @@ export function WizardControls({
 
         // Navegar al nuevo plan
         navigate({
-          to: `/planes/${plan.id}/datos`,
+          to: `/planes/${plan.id}`,
           state: { showConfetti: true },
         })
         return
