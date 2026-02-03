@@ -10,7 +10,6 @@ import { PasoDetallesPanel } from '@/components/planes/wizard/PasoDetallesPanel/
 import { PasoModoCardGroup } from '@/components/planes/wizard/PasoModoCardGroup'
 import { PasoResumenCard } from '@/components/planes/wizard/PasoResumenCard'
 import { WizardControls } from '@/components/planes/wizard/WizardControls'
-import { WizardHeader } from '@/components/planes/wizard/WizardHeader'
 import { defineStepper } from '@/components/stepper'
 import {
   Card,
@@ -19,16 +18,12 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import { WizardLayout } from '@/components/wizard/WizardLayout'
+import { WizardResponsiveHeader } from '@/components/wizard/WizardResponsiveHeader'
 // import { useGeneratePlanAI } from '@/data/hooks/usePlans'
 
 // Mock de permisos/rol
-const auth_get_current_user_role = () => 'JEFE_CARRERA' as const
+const auth_get_current_user_role = (): string => 'JEFE_CARRERA'
 
 const Wizard = defineStepper(
   {
@@ -64,136 +59,97 @@ export default function NuevoPlanModalContainer() {
 
   // Crear plan: ahora la lógica vive en WizardControls
 
+  if (role !== 'JEFE_CARRERA') {
+    return (
+      <WizardLayout title="Nuevo plan de estudios" onClose={handleClose}>
+        <Card className="border-destructive/40">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Icons.ShieldAlert className="text-destructive h-5 w-5" />
+              Sin permisos
+            </CardTitle>
+            <CardDescription>
+              No tienes permisos para crear planes de estudio.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex justify-end">
+            <button
+              className="ring-offset-background focus:ring-ring data-[state=open]:bg-accent data-[state=open]:text-muted-foreground rounded-md border px-3 py-2 text-sm opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-none"
+              onClick={handleClose}
+            >
+              Volver
+            </button>
+          </CardContent>
+        </Card>
+      </WizardLayout>
+    )
+  }
+
   return (
-    <Dialog open={true} onOpenChange={(open) => !open && handleClose()}>
-      <DialogContent
-        className="flex h-[90vh] w-[calc(100%-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-4xl"
-        onInteractOutside={(e) => {
-          e.preventDefault()
-        }}
-      >
-        {role !== 'JEFE_CARRERA' ? (
-          <>
-            <DialogHeader className="flex-none border-b p-6">
-              <DialogTitle>Nuevo plan de estudios</DialogTitle>
-            </DialogHeader>
-            <div className="flex-1 p-6">
-              <Card className="border-destructive/40">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Icons.ShieldAlert className="text-destructive h-5 w-5" />
-                    Sin permisos
-                  </CardTitle>
-                  <CardDescription>
-                    No tienes permisos para crear planes de estudio.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="flex justify-end">
-                  <button
-                    className="ring-offset-background focus:ring-ring data-[state=open]:bg-accent data-[state=open]:text-muted-foreground rounded-md border px-3 py-2 text-sm opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-none"
-                    onClick={handleClose}
-                  >
-                    Volver
-                  </button>
-                </CardContent>
-              </Card>
-            </div>
-          </>
-        ) : (
-          <Wizard.Stepper.Provider
-            initialStep={Wizard.utils.getFirst().id}
-            className="flex h-full flex-col"
+    <Wizard.Stepper.Provider
+      initialStep={Wizard.utils.getFirst().id}
+      className="flex h-full flex-col"
+    >
+      {({ methods }) => {
+        const idx = Wizard.utils.getIndex(methods.current.id)
+
+        return (
+          <WizardLayout
+            title="Nuevo plan de estudios"
+            onClose={handleClose}
+            headerSlot={
+              <WizardResponsiveHeader wizard={Wizard} methods={methods} />
+            }
+            footerSlot={
+              <Wizard.Stepper.Controls>
+                <WizardControls
+                  errorMessage={wizard.errorMessage}
+                  onPrev={() => methods.prev()}
+                  onNext={() => methods.next()}
+                  disablePrev={idx === 0 || wizard.isLoading}
+                  disableNext={
+                    wizard.isLoading ||
+                    (idx === 0 && !canContinueDesdeModo) ||
+                    (idx === 1 && !canContinueDesdeBasicos) ||
+                    (idx === 2 && !canContinueDesdeDetalles)
+                  }
+                  disableCreate={wizard.isLoading}
+                  isLastStep={idx >= Wizard.steps.length - 1}
+                  wizard={wizard}
+                  setWizard={setWizard}
+                />
+              </Wizard.Stepper.Controls>
+            }
           >
-            {({ methods }) => {
-              const currentIndex = Wizard.utils.getIndex(methods.current.id) + 1
-              const totalSteps = Wizard.steps.length
-              const nextStep = Wizard.steps[currentIndex] ?? {
-                title: '',
-                description: '',
-              }
-
-              return (
-                <>
-                  <WizardHeader
-                    currentIndex={currentIndex}
-                    totalSteps={totalSteps}
-                    currentTitle={methods.current.title}
-                    currentDescription={methods.current.description}
-                    nextTitle={nextStep.title}
-                    onClose={handleClose}
-                    Wizard={Wizard}
+            <div className="mx-auto max-w-3xl">
+              {idx === 0 && (
+                <Wizard.Stepper.Panel>
+                  <PasoModoCardGroup wizard={wizard} onChange={setWizard} />
+                </Wizard.Stepper.Panel>
+              )}
+              {idx === 1 && (
+                <Wizard.Stepper.Panel>
+                  <PasoBasicosForm wizard={wizard} onChange={setWizard} />
+                </Wizard.Stepper.Panel>
+              )}
+              {idx === 2 && (
+                <Wizard.Stepper.Panel>
+                  <PasoDetallesPanel
+                    wizard={wizard}
+                    onChange={setWizard}
+                    isLoading={wizard.isLoading}
                   />
-
-                  <div className="flex-1 overflow-y-auto bg-gray-50/30 p-6">
-                    <div className="mx-auto max-w-3xl">
-                      {Wizard.utils.getIndex(methods.current.id) === 0 && (
-                        <Wizard.Stepper.Panel>
-                          <PasoModoCardGroup
-                            wizard={wizard}
-                            onChange={setWizard}
-                          />
-                        </Wizard.Stepper.Panel>
-                      )}
-                      {Wizard.utils.getIndex(methods.current.id) === 1 && (
-                        <Wizard.Stepper.Panel>
-                          <PasoBasicosForm
-                            wizard={wizard}
-                            onChange={setWizard}
-                          />
-                        </Wizard.Stepper.Panel>
-                      )}
-                      {Wizard.utils.getIndex(methods.current.id) === 2 && (
-                        <Wizard.Stepper.Panel>
-                          <PasoDetallesPanel
-                            wizard={wizard}
-                            onChange={setWizard}
-                            isLoading={wizard.isLoading}
-                          />
-                        </Wizard.Stepper.Panel>
-                      )}
-                      {Wizard.utils.getIndex(methods.current.id) === 3 && (
-                        <Wizard.Stepper.Panel>
-                          <PasoResumenCard wizard={wizard} />
-                        </Wizard.Stepper.Panel>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="flex-none border-t bg-white p-6">
-                    <Wizard.Stepper.Controls>
-                      <WizardControls
-                        errorMessage={wizard.errorMessage}
-                        onPrev={() => methods.prev()}
-                        onNext={() => methods.next()}
-                        disablePrev={
-                          Wizard.utils.getIndex(methods.current.id) === 0 ||
-                          wizard.isLoading
-                        }
-                        disableNext={
-                          wizard.isLoading ||
-                          (Wizard.utils.getIndex(methods.current.id) === 0 &&
-                            !canContinueDesdeModo) ||
-                          (Wizard.utils.getIndex(methods.current.id) === 1 &&
-                            !canContinueDesdeBasicos) ||
-                          (Wizard.utils.getIndex(methods.current.id) === 2 &&
-                            !canContinueDesdeDetalles)
-                        }
-                        disableCreate={wizard.isLoading}
-                        isLastStep={
-                          Wizard.utils.getIndex(methods.current.id) >=
-                          Wizard.steps.length - 1
-                        }
-                        wizard={wizard}
-                        setWizard={setWizard}
-                      />
-                    </Wizard.Stepper.Controls>
-                  </div>
-                </>
-              )
-            }}
-          </Wizard.Stepper.Provider>
-        )}
-      </DialogContent>
-    </Dialog>
+                </Wizard.Stepper.Panel>
+              )}
+              {idx === 3 && (
+                <Wizard.Stepper.Panel>
+                  <PasoResumenCard wizard={wizard} />
+                </Wizard.Stepper.Panel>
+              )}
+            </div>
+          </WizardLayout>
+        )
+      }}
+    </Wizard.Stepper.Provider>
   )
 }
