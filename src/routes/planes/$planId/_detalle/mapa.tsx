@@ -33,7 +33,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { usePlanAsignaturas, usePlanLineas } from '@/data'
+import { usePlanAsignaturas, usePlanLineas, useUpdateAsignatura } from '@/data'
 
 // --- Mapeadores (Fuera del componente para mayor limpieza) ---
 const mapLineasToLineaCurricular = (
@@ -60,8 +60,9 @@ const mapAsignaturasToAsignaturas = (
     tipo: asig.tipo === 'OBLIGATORIA' ? 'obligatoria' : 'optativa',
     estado: 'borrador',
     orden: asig.orden_celda ?? 0,
-    hd: Math.floor((asig.horas_semana ?? 0) / 2),
-    hi: Math.ceil((asig.horas_semana ?? 0) / 2),
+    // Mapeo directo de los nuevos campos de la API
+    hd: asig.horas_academicas ?? 0,
+    hi: asig.horas_independientes ?? 0,
     prerrequisitos: [],
   }))
 }
@@ -183,6 +184,7 @@ function MapaCurricularPage() {
     useState<Asignatura | null>(null)
   const [hasAreaComun, setHasAreaComun] = useState(false)
   const [nombreNuevaLinea, setNombreNuevaLinea] = useState('') // Para el input de nombre personalizado
+  const { mutate: updateAsignatura, isPending } = useUpdateAsignatura()
 
   const manejarAgregarLinea = (nombre: string) => {
     const nombreNormalizado = nombre.trim()
@@ -268,13 +270,41 @@ function MapaCurricularPage() {
     setAsignaturas((prev) =>
       prev.map((m) => (m.id === editingData.id ? { ...editingData } : m)),
     )
-    setIsEditModalOpen(false)
+    // setIsEditModalOpen(false)
+    // Preparamos el patch con la estructura de tu tabla
+    const patch = {
+      nombre: editingData.nombre,
+      codigo: editingData.clave,
+      creditos: editingData.creditos,
+      horas_academicas: editingData.hd,
+      horas_independientes: editingData.hi,
+      numero_ciclo: editingData.ciclo,
+      linea_plan_id: editingData.lineaCurricularId,
+      tipo: editingData.tipo.toUpperCase(), // Asegurar que coincida con el ENUM (OBLIGATORIA/OPTATIVA)
+      // datos: editingData.datos, // Si editaste algo del JSONB
+    }
+
+    updateAsignatura(
+      { asignaturaId: editingData.id, patch },
+      {
+        onSuccess: () => {
+          setIsEditModalOpen(false)
+          // Opcional: Mostrar un toast de éxito
+        },
+        onError: (error) => {
+          console.error('Error al guardar:', error)
+          alert('Hubo un error al guardar los cambios.')
+        },
+      },
+    )
   }
 
   // 2. MODIFICACIÓN: Zona de soltado siempre visible
   // Cambiamos la condición: Mostramos la sección si hay asignaturas sin asignar
   // O si simplemente queremos tener el "depósito" disponible.
-  const unassignedAsignaturas = asignaturas.filter((m) => m.ciclo === null)
+  const unassignedAsignaturas = asignaturas.filter(
+    (m) => m.ciclo === null || m.lineaCurricularId === null,
+  )
 
   // --- Lógica de Gestión ---
   const agregarLinea = (nombre: string) => {
@@ -309,7 +339,7 @@ function MapaCurricularPage() {
 
   const getSubtotalLinea = (lineaId: string) => {
     return asignaturas
-      .filter((m) => m.lineaCurricularId === lineaId && m.ciclo !== null)
+      .filter((m) => m.lineaCurricularId === lineaId && m.ciclo !== null) // Aseguramos que pertenezca a la línea Y tenga ciclo
       .reduce(
         (acc, m) => ({
           cr: acc.cr + (m.creditos || 0),
@@ -332,6 +362,7 @@ function MapaCurricularPage() {
   ) => {
     e.preventDefault()
     if (draggedAsignatura) {
+      // 1. Actualización optimista del UI
       setAsignaturas((prev) =>
         prev.map((m) =>
           m.id === draggedAsignatura
@@ -339,6 +370,23 @@ function MapaCurricularPage() {
             : m,
         ),
       )
+
+      // 2. Persistir en la API
+      const patch = {
+        numero_ciclo: ciclo,
+        linea_plan_id: lineaId,
+      }
+
+      updateAsignatura(
+        { asignaturaId: draggedAsignatura, patch },
+        {
+          onError: (error) => {
+            console.error('Error al mover:', error)
+            // Opcional: Revertir el estado local si falla
+          },
+        },
+      )
+
       setDraggedAsignatura(null)
     }
   }
@@ -373,10 +421,15 @@ function MapaCurricularPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          {asignaturas.filter((m) => !m.ciclo).length > 0 && (
+          {asignaturas.filter((m) => !m.ciclo || !m.lineaCurricularId).length >
+            0 && (
             <Badge className="border-amber-100 bg-amber-50 text-amber-600 hover:bg-amber-50">
               <AlertTriangle size={14} className="mr-1" />{' '}
-              {asignaturas.filter((m) => !m.ciclo).length} sin asignar
+              {
+                asignaturas.filter((m) => !m.ciclo || !m.lineaCurricularId)
+                  .length
+              }{' '}
+              sin asignar
             </Badge>
           )}
           <DropdownMenu>
@@ -482,6 +535,8 @@ function MapaCurricularPage() {
                   <div
                     key={ciclo}
                     onDragOver={handleDragOver}
+                    // ANTES: onDrop={(e) => handleDrop(e, null, null)}
+                    // AHORA: Usamos las variables 'ciclo' y 'linea.id' del map
                     onDrop={(e) => handleDrop(e, ciclo, linea.id)}
                     className="min-h-[140px] space-y-2 rounded-xl border-2 border-dashed border-slate-100 bg-slate-50/20 p-2"
                   >
@@ -593,7 +648,10 @@ function MapaCurricularPage() {
 
       {/* Modal de Edición */}
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-        <DialogContent className="sm:max-w-[550px]">
+        <DialogContent
+          className="sm:max-w-[550px]"
+          onInteractOutside={(e) => e.preventDefault()}
+        >
           <DialogHeader>
             <DialogTitle className="font-bold text-slate-700">
               Editar Asignatura
@@ -739,32 +797,61 @@ function MapaCurricularPage() {
                 </div>
               </div>
 
-              {/* Fila 4: Seriación (Igual a tu imagen) */}
+              {/* Fila 4: Seriación (Prerrequisitos) */}
               <div className="space-y-2">
                 <label className="text-xs font-bold text-slate-500 uppercase">
                   Seriación (Prerrequisitos)
                 </label>
-                <Select>
+                <Select
+                  onValueChange={(val) => {
+                    // Evitamos duplicados en la lista de prerrequisitos local
+                    if (!editingData.prerrequisitos.includes(val)) {
+                      setEditingData({
+                        ...editingData,
+                        prerrequisitos: [...editingData.prerrequisitos, val],
+                      })
+                    }
+                  }}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Seleccionar asignatura..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {asignaturas.map((m) => (
-                      <SelectItem key={m.id} value={m.clave}>
-                        {m.nombre}
-                      </SelectItem>
-                    ))}
+                    {/* FILTRO CLAVE: 
+                      Solo mostramos materias cuyo ID sea diferente al de la materia que estamos editando 
+                  */}
+                    {asignaturas
+                      .filter((m) => m.id !== editingData.id)
+                      .map((m) => (
+                        <SelectItem key={m.id} value={m.clave}>
+                          {m.nombre} ({m.clave})
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
-                <div className="mt-2 flex gap-2">
-                  {/* Aquí usamos el array vacío que inicializamos en el mapeador */}
+
+                {/* Visualización de los prerrequisitos seleccionados */}
+                <div className="mt-2 flex flex-wrap gap-2">
                   {editingData.prerrequisitos.map((pre) => (
                     <Badge
                       key={pre}
                       variant="secondary"
                       className="bg-slate-100 text-slate-600"
                     >
-                      {pre} <span className="ml-1 cursor-pointer">×</span>
+                      {pre}
+                      <button
+                        className="ml-1 hover:text-red-500"
+                        onClick={() => {
+                          setEditingData({
+                            ...editingData,
+                            prerrequisitos: editingData.prerrequisitos.filter(
+                              (p) => p !== pre,
+                            ),
+                          })
+                        }}
+                      >
+                        ×
+                      </button>
                     </Badge>
                   ))}
                 </div>

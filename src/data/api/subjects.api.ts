@@ -1,6 +1,9 @@
 import { supabaseBrowser } from '../supabase/client'
 import { invokeEdge } from '../supabase/invokeEdge'
+
 import { throwIfError, requireData } from './_helpers'
+
+import type { DocumentoResult } from './plans.api'
 import type {
   Asignatura,
   BibliografiaAsignatura,
@@ -8,7 +11,6 @@ import type {
   TipoAsignatura,
   UUID,
 } from '../types/domain'
-import type { DocumentoResult } from './plans.api'
 
 const EDGE = {
   subjects_create_manual: 'subjects_create_manual',
@@ -32,7 +34,7 @@ export async function subjects_get(subjectId: UUID): Promise<Asignatura> {
     .from('asignaturas')
     .select(
       `
-      id,plan_estudio_id,estructura_id,facultad_propietaria_id,codigo,nombre,tipo,creditos,horas_semana,numero_ciclo,linea_plan_id,orden_celda,datos,contenido_tematico,tipo_origen,meta_origen,creado_por,actualizado_por,creado_en,actualizado_en,
+      id,plan_estudio_id,estructura_id,codigo,nombre,tipo,creditos,numero_ciclo,linea_plan_id,orden_celda,datos,contenido_tematico,tipo_origen,meta_origen,creado_por,actualizado_por,creado_en,actualizado_en,
       planes_estudio(
         id,carrera_id,estructura_id,nombre,nivel,tipo_ciclo,numero_ciclos,datos,estado_actual_id,activo,tipo_origen,meta_origen,creado_por,actualizado_por,creado_en,actualizado_en,
         carreras(id,facultad_id,nombre,nombre_corto,clave_sep,activa, facultades(id,nombre,nombre_corto,color,icono))
@@ -49,7 +51,7 @@ export async function subjects_get(subjectId: UUID): Promise<Asignatura> {
 
 export async function subjects_history(
   subjectId: UUID,
-): Promise<CambioAsignatura[]> {
+): Promise<Array<CambioAsignatura>> {
   const supabase = supabaseBrowser()
   const { data, error } = await supabase
     .from('cambios_asignatura')
@@ -65,7 +67,7 @@ export async function subjects_history(
 
 export async function subjects_bibliografia_list(
   subjectId: UUID,
-): Promise<BibliografiaAsignatura[]> {
+): Promise<Array<BibliografiaAsignatura>> {
   const supabase = supabaseBrowser()
   const { data, error } = await supabase
     .from('bibliografia_asignatura')
@@ -112,9 +114,9 @@ export async function ai_generate_subject(payload: {
   iaConfig: {
     descripcionEnfoque: string
     notasAdicionales?: string
-    archivosExistentesIds?: UUID[]
-    repositoriosIds?: UUID[]
-    archivosAdhocIds?: UUID[]
+    archivosExistentesIds?: Array<UUID>
+    repositoriosIds?: Array<UUID>
+    archivosAdhocIds?: Array<UUID>
     usarMCP?: boolean
   }
 }): Promise<any> {
@@ -145,7 +147,7 @@ export async function subjects_clone_from_existing(payload: {
 export async function subjects_import_from_file(payload: {
   planId: UUID
   archivoWordAsignaturaId: UUID
-  archivosAdicionalesIds?: UUID[]
+  archivosAdicionalesIds?: Array<UUID>
 }): Promise<Asignatura> {
   return invokeEdge<Asignatura>(EDGE.subjects_import_from_file, payload)
 }
@@ -175,7 +177,7 @@ export async function subjects_update_fields(
 
 export async function subjects_update_contenido(
   subjectId: UUID,
-  unidades: any[],
+  unidades: Array<any>,
 ): Promise<Asignatura> {
   return invokeEdge<Asignatura>(EDGE.subjects_update_contenido, {
     subjectId,
@@ -223,4 +225,21 @@ export async function subjects_get_document(
   return invokeEdge<DocumentoResult | null>(EDGE.subjects_get_document, {
     subjectId,
   })
+}
+
+export async function asignaturas_update(
+  asignaturaId: UUID,
+  patch: Partial<Asignatura>, // O tu tipo específico para el Patch de materias
+): Promise<Asignatura> {
+  const supabase = supabaseBrowser()
+
+  const { data, error } = await supabase
+    .from('asignaturas')
+    .update(patch)
+    .eq('id', asignaturaId)
+    .select() // Trae la materia actualizada
+    .single()
+
+  throwIfError(error)
+  return requireData(data, 'No se pudo actualizar la asignatura.')
 }

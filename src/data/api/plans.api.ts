@@ -165,7 +165,7 @@ export async function plan_asignaturas_list(
   const { data, error } = await supabase
     .from('asignaturas')
     .select(
-      'id,plan_estudio_id,estructura_id,facultad_propietaria_id,codigo,nombre,tipo,creditos,horas_semana,numero_ciclo,linea_plan_id,orden_celda,datos,contenido_tematico,tipo_origen,meta_origen,creado_por,actualizado_por,creado_en,actualizado_en',
+      'id,plan_estudio_id,horas_academicas, horas_independientes,estructura_id,codigo,nombre,tipo,creditos,numero_ciclo,linea_plan_id,orden_celda,datos,contenido_tematico,tipo_origen,meta_origen,creado_por,actualizado_por,creado_en,actualizado_en',
     )
     .eq('plan_estudio_id', planId)
     .order('numero_ciclo', { ascending: true, nullsFirst: false })
