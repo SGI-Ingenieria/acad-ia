@@ -11,6 +11,7 @@ import {
   subjects_generate_document,
   subjects_get,
   subjects_get_document,
+  subjects_get_structure_catalog,
   subjects_history,
   subjects_import_from_file,
   subjects_persist_from_ai,
@@ -65,6 +66,13 @@ export function useSubjectDocumento(subjectId: UUID | null | undefined) {
     queryFn: () => subjects_get_document(subjectId as UUID),
     enabled: Boolean(subjectId),
     staleTime: 30_000,
+  })
+}
+
+export function useSubjectEstructuras() {
+  return useQuery({
+    queryKey: qk.estructurasAsignatura(),
+    queryFn: () => subjects_get_structure_catalog(),
   })
 }
 

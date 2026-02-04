@@ -3,62 +3,71 @@ import type { NewSubjectWizardState } from '@/features/asignaturas/nueva/types'
 import { Button } from '@/components/ui/button'
 
 export function WizardControls({
-  Wizard,
-  methods,
   wizard,
-  canContinueDesdeMetodo,
-  canContinueDesdeBasicos,
-  canContinueDesdeConfig,
+  setWizard,
+  errorMessage,
+  onPrev,
+  onNext,
+  disablePrev,
+  disableNext,
+  disableCreate,
+  isLastStep,
   onCreate,
 }: {
-  Wizard: any
-  methods: any
   wizard: NewSubjectWizardState
-  canContinueDesdeMetodo: boolean
-  canContinueDesdeBasicos: boolean
-  canContinueDesdeConfig: boolean
-  onCreate: () => void
+  setWizard: React.Dispatch<React.SetStateAction<NewSubjectWizardState>>
+  errorMessage?: string | null
+  onPrev: () => void
+  onNext: () => void
+  disablePrev: boolean
+  disableNext: boolean
+  disableCreate: boolean
+  isLastStep: boolean
+  onCreate: () => Promise<void> | void
 }) {
-  const idx = Wizard.utils.getIndex(methods.current.id)
-  const isLast = idx >= Wizard.steps.length - 1
+  const handleCreate = async () => {
+    setWizard((w) => ({
+      ...w,
+      isLoading: true,
+      errorMessage: null,
+    }))
+
+    try {
+      await onCreate()
+    } catch (err: any) {
+      setWizard((w) => ({
+        ...w,
+        isLoading: false,
+        errorMessage: err?.message ?? 'Error creando la asignatura',
+      }))
+    } finally {
+      setWizard((w) => ({ ...w, isLoading: false }))
+    }
+  }
 
   return (
-    <div className="flex items-center justify-between">
+    <div className="flex grow items-center justify-between">
+      <Button variant="secondary" onClick={onPrev} disabled={disablePrev}>
+        Anterior
+      </Button>
+
       <div className="flex-1">
-        {wizard.errorMessage && (
+        {(errorMessage ?? wizard.errorMessage) && (
           <span className="text-destructive text-sm font-medium">
-            {wizard.errorMessage}
+            {errorMessage ?? wizard.errorMessage}
           </span>
         )}
       </div>
 
-      <div className="flex gap-4">
-        <Button
-          variant="secondary"
-          onClick={() => methods.prev()}
-          disabled={idx === 0 || wizard.isLoading}
-        >
-          Anterior
+      {isLastStep ? (
+        <Button onClick={handleCreate} disabled={disableCreate}>
+          {wizard.isLoading ? 'Creando...' : 'Crear Asignatura'}
         </Button>
-
-        {!isLast ? (
-          <Button
-            onClick={() => methods.next()}
-            disabled={
-              wizard.isLoading ||
-              (idx === 0 && !canContinueDesdeMetodo) ||
-              (idx === 1 && !canContinueDesdeBasicos) ||
-              (idx === 2 && !canContinueDesdeConfig)
-            }
-          >
-            Siguiente
-          </Button>
-        ) : (
-          <Button onClick={onCreate} disabled={wizard.isLoading}>
-            {wizard.isLoading ? 'Creando...' : 'Crear Asignatura'}
-          </Button>
-        )}
-      </div>
+      ) : (
+        <Button onClick={onNext} disabled={disableNext}>
+          Siguiente
+        </Button>
+      )}
     </div>
   )
 }

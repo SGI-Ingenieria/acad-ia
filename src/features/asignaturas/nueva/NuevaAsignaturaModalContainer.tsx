@@ -4,7 +4,7 @@ import * as Icons from 'lucide-react'
 import { useNuevaAsignaturaWizard } from './hooks/useNuevaAsignaturaWizard'
 
 import { PasoBasicosForm } from '@/components/asignaturas/wizard/PasoBasicosForm'
-import { PasoConfiguracionPanel } from '@/components/asignaturas/wizard/PasoConfiguracionPanel'
+import { PasoDetallesPanel } from '@/components/asignaturas/wizard/PasoDetallesPanel'
 import { PasoMetodoCardGroup } from '@/components/asignaturas/wizard/PasoMetodoCardGroup'
 import { PasoResumenCard } from '@/components/asignaturas/wizard/PasoResumenCard'
 import { WizardControls } from '@/components/asignaturas/wizard/WizardControls'
@@ -54,7 +54,7 @@ export function NuevaAsignaturaModalContainer({ planId }: { planId: string }) {
     setWizard,
     canContinueDesdeMetodo,
     canContinueDesdeBasicos,
-    canContinueDesdeConfig,
+    canContinueDesdeDetalles,
     simularGeneracionIA,
     crearAsignatura,
   } = useNuevaAsignaturaWizard(planId)
@@ -104,13 +104,24 @@ export function NuevaAsignaturaModalContainer({ planId }: { planId: string }) {
             footerSlot={
               <Wizard.Stepper.Controls>
                 <WizardControls
-                  Wizard={Wizard}
-                  methods={methods}
+                  errorMessage={wizard.errorMessage}
+                  onPrev={() => methods.prev()}
+                  onNext={() => methods.next()}
+                  disablePrev={idx === 0 || wizard.isLoading}
+                  disableNext={
+                    wizard.isLoading ||
+                    (idx === 0 && !canContinueDesdeMetodo) ||
+                    (idx === 1 && !canContinueDesdeBasicos) ||
+                    (idx === 2 && !canContinueDesdeDetalles)
+                  }
+                  disableCreate={wizard.isLoading}
+                  isLastStep={idx >= Wizard.steps.length - 1}
                   wizard={wizard}
-                  canContinueDesdeMetodo={canContinueDesdeMetodo}
-                  canContinueDesdeBasicos={canContinueDesdeBasicos}
-                  canContinueDesdeConfig={canContinueDesdeConfig}
-                  onCreate={() => crearAsignatura(handleClose)}
+                  setWizard={setWizard}
+                  onCreate={async () => {
+                    await crearAsignatura()
+                    handleClose()
+                  }}
                 />
               </Wizard.Stepper.Controls>
             }
@@ -130,7 +141,7 @@ export function NuevaAsignaturaModalContainer({ planId }: { planId: string }) {
 
               {idx === 2 && (
                 <Wizard.Stepper.Panel>
-                  <PasoConfiguracionPanel
+                  <PasoDetallesPanel
                     wizard={wizard}
                     onChange={setWizard}
                     onGenerarIA={simularGeneracionIA}

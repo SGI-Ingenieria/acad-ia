@@ -11,6 +11,7 @@ import type {
   TipoAsignatura,
   UUID,
 } from '../types/domain'
+import type { Database } from '@/types/supabase'
 
 const EDGE = {
   subjects_create_manual: 'subjects_create_manual',
@@ -225,6 +226,23 @@ export async function subjects_get_document(
   return invokeEdge<DocumentoResult | null>(EDGE.subjects_get_document, {
     subjectId,
   })
+}
+
+export async function subjects_get_structure_catalog(): Promise<
+  Array<Database['public']['Tables']['estructuras_asignatura']['Row']>
+> {
+  const supabase = supabaseBrowser()
+
+  const { data, error } = await supabase
+    .from('estructuras_asignatura')
+    .select('*')
+    .order('nombre', { ascending: true })
+
+  if (error) {
+    throw error
+  }
+
+  return data
 }
 
 export async function asignaturas_update(
