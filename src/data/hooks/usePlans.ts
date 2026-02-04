@@ -23,6 +23,7 @@ import {
   plans_update_fields,
   plans_update_map,
 } from '../api/plans.api'
+import { lineas_delete } from '../api/subjects.api'
 import { qk } from '../query/keys'
 
 import type {
@@ -254,6 +255,18 @@ export function useGeneratePlanDocumento() {
     onSuccess: (_doc, planId) => {
       qc.invalidateQueries({ queryKey: qk.planDocumento(planId) })
       qc.invalidateQueries({ queryKey: qk.planHistorial(planId) })
+    },
+  })
+}
+
+export function useDeleteLinea() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: lineas_delete,
+    onSuccess: (idEliminado) => {
+      // Invalidamos para que las materias y líneas se refresquen
+      qc.invalidateQueries({ queryKey: ['plan_lineas'] })
+      qc.invalidateQueries({ queryKey: ['plan_asignaturas'] })
     },
   })
 }

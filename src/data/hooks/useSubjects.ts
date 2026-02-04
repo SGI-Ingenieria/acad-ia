@@ -3,6 +3,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   ai_generate_subject,
   asignaturas_update,
+  lineas_insert,
+  lineas_update,
   subjects_bibliografia_list,
   subjects_clone_from_existing,
   subjects_create_manual,
@@ -219,6 +221,31 @@ export function useUpdateAsignatura() {
 
       // 3. Si tienes una lista general de asignaturas, también la invalidamos
       qc.invalidateQueries({ queryKey: ['asignaturas', 'list'] })
+    },
+  })
+}
+
+export function useCreateLinea() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: lineas_insert,
+    onSuccess: (nuevaLinea) => {
+      qc.invalidateQueries({
+        queryKey: ['plan_lineas', nuevaLinea.plan_estudio_id],
+      })
+    },
+  })
+}
+
+export function useUpdateLinea() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (vars: { lineaId: string; patch: any }) =>
+      lineas_update(vars.lineaId, vars.patch),
+    onSuccess: (updated) => {
+      qc.invalidateQueries({
+        queryKey: ['plan_lineas', updated.plan_estudio_id],
+      })
     },
   })
 }
