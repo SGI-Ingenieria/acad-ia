@@ -1,11 +1,11 @@
 import * as Icons from 'lucide-react'
 
+import type { UploadedFile } from '@/components/planes/wizard/PasoDetallesPanel/FileDropZone'
 import type { NewSubjectWizardState } from '@/features/asignaturas/nueva/types'
 
-import { Button } from '@/components/ui/button'
+import ReferenciasParaIA from '@/components/planes/wizard/PasoDetallesPanel/ReferenciasParaIA'
 import {
   Card,
-  CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
@@ -21,22 +21,21 @@ import {
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import {
-  ARCHIVOS_SISTEMA_MOCK,
   FACULTADES,
   MATERIAS_MOCK,
   PLANES_MOCK,
 } from '@/features/asignaturas/nueva/catalogs'
 
-export function PasoConfiguracionPanel({
+export function PasoDetallesPanel({
   wizard,
   onChange,
-  onGenerarIA,
+  onGenerarIA: _onGenerarIA,
 }: {
   wizard: NewSubjectWizardState
   onChange: React.Dispatch<React.SetStateAction<NewSubjectWizardState>>
   onGenerarIA: () => void
 }) {
-  if (wizard.modoCreacion === 'MANUAL') {
+  if (wizard.tipoOrigen === 'MANUAL') {
     return (
       <Card>
         <CardHeader>
@@ -50,116 +49,104 @@ export function PasoConfiguracionPanel({
     )
   }
 
-  if (wizard.modoCreacion === 'IA') {
+  if (wizard.tipoOrigen === 'IA') {
     return (
-      <div className="grid gap-4">
-        <div className="grid gap-1">
-          <Label>Descripción del enfoque</Label>
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-1">
+          <Label>Descripción del enfoque académico</Label>
           <Textarea
-            placeholder="Ej. Asignatura teórica-práctica enfocada en patrones de diseño..."
-            value={wizard.iaConfig?.descripcionEnfoque}
+            placeholder="Describe el enfoque, alcance y público objetivo. Ej.: Teórica-práctica enfocada en patrones de diseño, con proyectos semanales."
+            value={wizard.iaConfig?.descripcionEnfoqueAcademico}
             onChange={(e) =>
-              onChange((w) => ({
+              onChange(
+                (w): NewSubjectWizardState => ({
+                  ...w,
+                  iaConfig: {
+                    ...w.iaConfig!,
+                    descripcionEnfoqueAcademico: e.target.value,
+                  },
+                }),
+              )
+            }
+            className="placeholder:text-muted-foreground/70 min-h-25 font-medium not-italic placeholder:font-normal placeholder:italic"
+          />
+        </div>
+        <div className="flex flex-col gap-1">
+          <Label>
+            Instrucciones adicionales para la IA
+            <span className="text-xs font-normal text-gray-500 dark:text-gray-400">
+              (Opcional)
+            </span>
+          </Label>
+          <Textarea
+            placeholder="Opcional: restricciones y preferencias. Ej.: incluye bibliografía en español, evita contenido avanzado, prioriza evaluación por proyectos."
+            value={wizard.iaConfig?.instruccionesAdicionalesIA}
+            onChange={(e) =>
+              onChange(
+                (w): NewSubjectWizardState => ({
+                  ...w,
+                  iaConfig: {
+                    ...w.iaConfig!,
+                    instruccionesAdicionalesIA: e.target.value,
+                  },
+                }),
+              )
+            }
+            className="placeholder:text-muted-foreground/70 font-medium not-italic placeholder:font-normal placeholder:italic"
+          />
+        </div>
+
+        <ReferenciasParaIA
+          selectedArchivoIds={wizard.iaConfig?.archivosReferencia || []}
+          selectedRepositorioIds={wizard.iaConfig?.repositoriosReferencia || []}
+          uploadedFiles={wizard.iaConfig?.archivosAdjuntos || []}
+          onToggleArchivo={(id, checked) =>
+            onChange((w): NewSubjectWizardState => {
+              const prev = w.iaConfig?.archivosReferencia || []
+              const next = checked
+                ? [...prev, id]
+                : prev.filter((a) => a !== id)
+              return {
                 ...w,
                 iaConfig: {
                   ...w.iaConfig!,
-                  descripcionEnfoque: e.target.value,
+                  archivosReferencia: next,
                 },
-              }))
-            }
-            className="min-h-25"
-          />
-        </div>
-        <div className="grid gap-1">
-          <Label>Notas adicionales</Label>
-          <Textarea
-            placeholder="Restricciones, bibliografía sugerida, etc."
-            value={wizard.iaConfig?.notasAdicionales}
-            onChange={(e) =>
-              onChange((w) => ({
+              }
+            })
+          }
+          onToggleRepositorio={(id, checked) =>
+            onChange((w): NewSubjectWizardState => {
+              const prev = w.iaConfig?.repositoriosReferencia || []
+              const next = checked
+                ? [...prev, id]
+                : prev.filter((r) => r !== id)
+              return {
                 ...w,
-                iaConfig: { ...w.iaConfig!, notasAdicionales: e.target.value },
-              }))
-            }
-          />
-        </div>
-
-        <div className="grid gap-2">
-          <Label>Archivos de contexto (Opcional)</Label>
-          <div className="flex flex-col gap-2 rounded-md border p-3">
-            {ARCHIVOS_SISTEMA_MOCK.map((file) => (
-              <div key={file.id} className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id={file.id}
-                  checked={wizard.iaConfig?.archivosExistentesIds.includes(
-                    file.id,
-                  )}
-                  onChange={(e) => {
-                    const checked = e.target.checked
-                    onChange((w) => ({
-                      ...w,
-                      iaConfig: {
-                        ...w.iaConfig!,
-                        archivosExistentesIds: checked
-                          ? [
-                              ...(w.iaConfig?.archivosExistentesIds || []),
-                              file.id,
-                            ]
-                          : w.iaConfig?.archivosExistentesIds.filter(
-                              (id) => id !== file.id,
-                            ) || [],
-                      },
-                    }))
-                  }}
-                />
-                <Label htmlFor={file.id} className="font-normal">
-                  {file.name}
-                </Label>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="flex justify-end">
-          <Button onClick={onGenerarIA} disabled={wizard.isLoading}>
-            {wizard.isLoading ? (
-              <>
-                <Icons.Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Generando...
-              </>
-            ) : (
-              <>
-                <Icons.Sparkles className="mr-2 h-4 w-4" /> Generar Preview
-              </>
-            )}
-          </Button>
-        </div>
-
-        {wizard.resumen.previewAsignatura && (
-          <Card className="bg-muted/50 border-dashed">
-            <CardHeader>
-              <CardTitle className="text-base">Vista previa generada</CardTitle>
-            </CardHeader>
-            <CardContent className="text-muted-foreground text-sm">
-              <p>
-                <strong>Objetivo:</strong>{' '}
-                {wizard.resumen.previewAsignatura.objetivo}
-              </p>
-              <p className="mt-2">
-                Se detectaron {wizard.resumen.previewAsignatura.unidades}{' '}
-                unidades temáticas y{' '}
-                {wizard.resumen.previewAsignatura.bibliografiaCount} fuentes
-                bibliográficas.
-              </p>
-            </CardContent>
-          </Card>
-        )}
+                iaConfig: {
+                  ...w.iaConfig!,
+                  repositoriosReferencia: next,
+                },
+              }
+            })
+          }
+          onFilesChange={(files: Array<UploadedFile>) =>
+            onChange(
+              (w): NewSubjectWizardState => ({
+                ...w,
+                iaConfig: {
+                  ...w.iaConfig!,
+                  archivosAdjuntos: files,
+                },
+              }),
+            )
+          }
+        />
       </div>
     )
   }
 
-  if (wizard.subModoClonado === 'INTERNO') {
+  if (wizard.tipoOrigen === 'CLONADO_INTERNO') {
     return (
       <div className="grid gap-4">
         <div className="grid gap-2 sm:grid-cols-3">
@@ -217,12 +204,22 @@ export function PasoConfiguracionPanel({
           {MATERIAS_MOCK.map((m) => (
             <div
               key={m.id}
+              role="button"
+              tabIndex={0}
               onClick={() =>
                 onChange((w) => ({
                   ...w,
                   clonInterno: { ...w.clonInterno, asignaturaOrigenId: m.id },
                 }))
               }
+              onKeyDown={(e) => {
+                if (e.key !== 'Enter' && e.key !== ' ') return
+                e.preventDefault()
+                onChange((w) => ({
+                  ...w,
+                  clonInterno: { ...w.clonInterno, asignaturaOrigenId: m.id },
+                }))
+              }}
               className={`hover:bg-accent flex cursor-pointer items-center justify-between rounded-md border p-3 ${
                 wizard.clonInterno?.asignaturaOrigenId === m.id
                   ? 'border-primary bg-primary/5 ring-primary ring-1'
@@ -245,7 +242,7 @@ export function PasoConfiguracionPanel({
     )
   }
 
-  if (wizard.subModoClonado === 'TRADICIONAL') {
+  if (wizard.tipoOrigen === 'CLONADO_TRADICIONAL') {
     return (
       <div className="grid gap-4">
         <div className="rounded-lg border border-dashed p-8 text-center">

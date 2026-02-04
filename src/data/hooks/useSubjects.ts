@@ -1,11 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { qk } from '../query/keys'
-import type { UUID } from '../types/domain'
-import type {
-  BibliografiaUpsertInput,
-  SubjectsCreateManualInput,
-  SubjectsUpdateFieldsPatch,
-} from '../api/subjects.api'
+
 import {
   ai_generate_subject,
   subjects_bibliografia_list,
@@ -14,6 +8,7 @@ import {
   subjects_generate_document,
   subjects_get,
   subjects_get_document,
+  subjects_get_structure_catalog,
   subjects_history,
   subjects_import_from_file,
   subjects_persist_from_ai,
@@ -21,6 +16,14 @@ import {
   subjects_update_contenido,
   subjects_update_fields,
 } from '../api/subjects.api'
+import { qk } from '../query/keys'
+
+import type {
+  BibliografiaUpsertInput,
+  SubjectsCreateManualInput,
+  SubjectsUpdateFieldsPatch,
+} from '../api/subjects.api'
+import type { UUID } from '../types/domain'
 
 export function useSubject(subjectId: UUID | null | undefined) {
   return useQuery({
@@ -60,6 +63,13 @@ export function useSubjectDocumento(subjectId: UUID | null | undefined) {
     queryFn: () => subjects_get_document(subjectId as UUID),
     enabled: Boolean(subjectId),
     staleTime: 30_000,
+  })
+}
+
+export function useSubjectEstructuras() {
+  return useQuery({
+    queryKey: qk.estructurasAsignatura(),
+    queryFn: () => subjects_get_structure_catalog(),
   })
 }
 
@@ -159,7 +169,7 @@ export function useUpdateSubjectContenido() {
   const qc = useQueryClient()
 
   return useMutation({
-    mutationFn: (vars: { subjectId: UUID; unidades: any[] }) =>
+    mutationFn: (vars: { subjectId: UUID; unidades: Array<any> }) =>
       subjects_update_contenido(vars.subjectId, vars.unidades),
     onSuccess: (updated) => {
       qc.setQueryData(qk.asignatura(updated.id), updated)

@@ -90,7 +90,7 @@ export function PasoDetallesPanel({
           selectedRepositorioIds={wizard.iaConfig?.repositoriosReferencia || []}
           uploadedFiles={wizard.iaConfig?.archivosAdjuntos || []}
           onToggleArchivo={(id, checked) =>
-            onChange((w) => {
+            onChange((w): NewPlanWizardState => {
               const prev = w.iaConfig?.archivosReferencia || []
               const next = checked
                 ? [...prev, id]
@@ -105,7 +105,7 @@ export function PasoDetallesPanel({
             })
           }
           onToggleRepositorio={(id, checked) =>
-            onChange((w) => {
+            onChange((w): NewPlanWizardState => {
               const prev = w.iaConfig?.repositoriosReferencia || []
               const next = checked
                 ? [...prev, id]
