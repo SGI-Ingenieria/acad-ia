@@ -243,3 +243,52 @@ export async function asignaturas_update(
   throwIfError(error)
   return requireData(data, 'No se pudo actualizar la asignatura.')
 }
+
+// Insertar una nueva línea
+export async function lineas_insert(linea: {
+  nombre: string
+  plan_estudio_id: string
+  orden: number
+  area?: string
+}) {
+  const supabase = supabaseBrowser()
+  const { data, error } = await supabase
+    .from('lineas_plan') // Asegúrate que el nombre de la tabla sea correcto
+    .insert([linea])
+    .select()
+    .single()
+
+  if (error) throw error
+  return data
+}
+
+// Actualizar una línea existente
+export async function lineas_update(
+  lineaId: string,
+  patch: { nombre?: string; orden?: number; area?: string },
+) {
+  const supabase = supabaseBrowser()
+  const { data, error } = await supabase
+    .from('lineas_plan')
+    .update(patch)
+    .eq('id', lineaId)
+    .select()
+    .single()
+
+  if (error) throw error
+  return data
+}
+
+export async function lineas_delete(lineaId: string) {
+  const supabase = supabaseBrowser()
+
+  // Nota: Si configuraste "ON DELETE SET NULL" en tu base de datos,
+  // las asignaturas se desvincularán solas. Si no, Supabase podría dar error.
+  const { error } = await supabase
+    .from('lineas_plan')
+    .delete()
+    .eq('id', lineaId)
+
+  if (error) throw error
+  return lineaId
+}

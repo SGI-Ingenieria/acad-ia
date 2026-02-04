@@ -1,3 +1,4 @@
+/* eslint-disable jsx-a11y/click-events-have-key-events */
 /* eslint-disable jsx-a11y/label-has-associated-control */
 import { createFileRoute } from '@tanstack/react-router'
 import {
@@ -33,7 +34,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { usePlanAsignaturas, usePlanLineas, useUpdateAsignatura } from '@/data'
+import {
+  useCreateLinea,
+  useDeleteLinea,
+  usePlanAsignaturas,
+  usePlanLineas,
+  useUpdateAsignatura,
+  useUpdateLinea,
+} from '@/data'
 
 // --- Mapeadores (Fuera del componente para mayor limpieza) ---
 const mapLineasToLineaCurricular = (
@@ -166,8 +174,11 @@ export const Route = createFileRoute('/planes/$planId/_detalle/mapa')({
 function MapaCurricularPage() {
   const { planId } = Route.useParams() // Idealmente usa el ID de la ruta
   const { ciclo } = Route.useSearch()
-  console.log(ciclo)
-
+  const [editingLineaId, setEditingLineaId] = useState<string | null>(null)
+  const [tempNombreLinea, setTempNombreLinea] = useState('')
+  const { mutate: createLinea } = useCreateLinea()
+  const { mutate: updateLineaApi } = useUpdateLinea()
+  const { mutate: deleteLineaApi } = useDeleteLinea()
   // 1. Fetch de Datos
   const { data: asignaturasApi, isLoading: loadingAsig } =
     usePlanAsignaturas(planId)
@@ -189,55 +200,78 @@ function MapaCurricularPage() {
   const manejarAgregarLinea = (nombre: string) => {
     const nombreNormalizado = nombre.trim()
 
-    // 1. Validar que no esté vacío
+    // 1. Validar vacío
     if (!nombreNormalizado) return
 
-    // 2. Validar duplicados (Insensible a mayúsculas/minúsculas y acentos)
-    const nombreParaComparar = nombreNormalizado
+    // 2. Validar duplicados en el estado local (Insensible a mayúsculas/acentos)
+    const nombreBusqueda = nombreNormalizado
       .toLowerCase()
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')
 
     const yaExiste = lineas.some((l) => {
-      const lineaNombreBase = l.nombre
+      const lineaExistente = l.nombre
         .toLowerCase()
         .normalize('NFD')
         .replace(/[\u0300-\u036f]/g, '')
-      return lineaNombreBase === nombreParaComparar
+      return lineaExistente === nombreBusqueda
     })
 
     if (yaExiste) {
-      alert(`La línea "${nombreNormalizado}" ya existe.`)
-      return
+      alert(`La línea "${nombreNormalizado}" ya existe en este plan.`)
+      return // DETIENE la ejecución aquí, no llega a la mutación
     }
 
-    // 3. Validar Área Común (usando tu lógica previa)
-    const esAreaComun =
-      nombreNormalizado.toLowerCase() === 'área común' ||
-      nombreNormalizado.toLowerCase() === 'area comun'
+    // 3. Si pasa las validaciones, procedemos con la persistencia
+    const maxOrden = lineas.reduce((max, l) => Math.max(max, l.orden || 0), 0)
 
-    if (esAreaComun && hasAreaComun) {
-      alert('El Área Común ya ha sido agregada.')
-      return
-    }
-
-    // 4. Agregar la línea si todo está bien
-    const nueva = {
-      id: crypto.randomUUID(),
-      nombre: nombreNormalizado,
-      orden: lineas.length + 1,
-      color: '#1976d2',
-    }
-
-    setLineas([...lineas, nueva])
-
-    if (esAreaComun) {
-      setHasAreaComun(true)
-    }
-
-    setNombreNuevaLinea('') // Limpiar input
+    createLinea(
+      {
+        nombre: nombreNormalizado,
+        plan_estudio_id: planId,
+        orden: maxOrden + 1,
+        area: 'sin asignar',
+      },
+      {
+        onSuccess: (nueva) => {
+          // Sincronización local que ya teníamos
+          const mapeada = {
+            id: nueva.id,
+            nombre: nueva.nombre,
+            orden: nueva.orden,
+            color: '#1976d2',
+          }
+          setLineas((prev) => [...prev, mapeada])
+          setNombreNuevaLinea('')
+        },
+      },
+    )
   }
+  const guardarEdicionLinea = (id: string) => {
+    if (!tempNombreLinea.trim()) {
+      setEditingLineaId(null)
+      return
+    }
 
+    updateLineaApi(
+      {
+        lineaId: id,
+        patch: { nombre: tempNombreLinea.trim() },
+      },
+      {
+        onSuccess: (lineaActualizada) => {
+          // ACTUALIZACIÓN MANUAL DEL ESTADO LOCAL
+          setLineas((prev) =>
+            prev.map((l) =>
+              l.id === id ? { ...l, nombre: lineaActualizada.nombre } : l,
+            ),
+          )
+          setEditingLineaId(null)
+          setTempNombreLinea('')
+        },
+      },
+    )
+  }
   const tieneAreaComun = useMemo(() => {
     return lineas.some(
       (l) =>
@@ -313,14 +347,37 @@ function MapaCurricularPage() {
   }
 
   const borrarLinea = (id: string) => {
-    setAsignaturas((prev) =>
-      prev.map((m) =>
-        m.lineaCurricularId === id
-          ? { ...m, ciclo: null, lineaCurricularId: null }
-          : m,
-      ),
-    )
-    setLineas((prev) => prev.filter((l) => l.id !== id))
+    // 1. Opcional: Confirmación de seguridad
+    if (
+      !confirm(
+        '¿Estás seguro de eliminar esta línea? Las materias asignadas volverán a la bandeja de entrada.',
+      )
+    ) {
+      return
+    }
+
+    // 2. Llamada a la API
+    deleteLineaApi(id, {
+      onSuccess: () => {
+        // 3. Actualización instantánea del estado local
+
+        // Primero: Las materias que estaban en esa línea pasan a ser "huérfanas"
+        setAsignaturas((prev) =>
+          prev.map((asig) =>
+            asig.lineaCurricularId === id
+              ? { ...asig, ciclo: null, lineaCurricularId: null }
+              : asig,
+          ),
+        )
+
+        // Segundo: Quitamos la línea del estado
+        setLineas((prev) => prev.filter((l) => l.id !== id))
+      },
+      onError: (error) => {
+        console.error(error)
+        alert('No se pudo eliminar la línea. Verifica si tiene dependencias.')
+      },
+    })
   }
 
   // --- Selectores/Cálculos ---
@@ -523,11 +580,33 @@ function MapaCurricularPage() {
                 <div
                   className={`flex items-center justify-between rounded-xl border-l-4 p-4 ${lineColors[idx % lineColors.length]}`}
                 >
-                  <span className="text-xs font-bold">{linea.nombre}</span>
+                  {editingLineaId === linea.id ? (
+                    <Input
+                      autoFocus
+                      className="h-7 bg-white text-xs"
+                      value={tempNombreLinea}
+                      onChange={(e) => setTempNombreLinea(e.target.value)}
+                      onBlur={() => guardarEdicionLinea(linea.id)}
+                      onKeyDown={(e) =>
+                        e.key === 'Enter' && guardarEdicionLinea(linea.id)
+                      }
+                    />
+                  ) : (
+                    <span
+                      className="cursor-pointer text-xs font-bold hover:underline"
+                      onClick={() => {
+                        setEditingLineaId(linea.id)
+                        setTempNombreLinea(linea.nombre)
+                      }}
+                    >
+                      {linea.nombre}
+                    </span>
+                  )}
+
                   <Trash2
                     size={14}
                     className="cursor-pointer text-slate-400 hover:text-red-500"
-                    onClick={() => borrarLinea(linea.id)}
+                    onClick={() => borrarLinea(linea.id)} // Aquí también podrías añadir una mutación delete
                   />
                 </div>
 
