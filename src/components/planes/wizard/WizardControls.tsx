@@ -77,11 +77,11 @@ export function WizardControls({
 
         console.log(`${new Date().toISOString()} - Enviando a generar plan IA`)
 
-        const data = await generatePlanAI.mutateAsync(aiInput as any)
-        console.log(`${new Date().toISOString()} - Plan IA generado`, data)
+        const plan = await generatePlanAI.mutateAsync(aiInput as any)
+        console.log(`${new Date().toISOString()} - Plan IA generado`, plan)
 
         navigate({
-          to: `/planes/${data.plan.id}`,
+          to: `/planes/${plan.id}`,
           state: { showConfetti: true },
         })
         return
@@ -122,7 +122,7 @@ export function WizardControls({
       <Button variant="secondary" onClick={onPrev} disabled={disablePrev}>
         Anterior
       </Button>
-      <div className="flex-1">
+      <div className="mx-2 flex-1">
         {errorMessage && (
           <span className="text-destructive text-sm font-medium">
             {errorMessage}
