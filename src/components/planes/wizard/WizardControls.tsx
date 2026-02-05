@@ -1,5 +1,6 @@
 import { useNavigate } from '@tanstack/react-router'
 
+import type { AIGeneratePlanInput } from '@/data'
 import type { NivelPlanEstudio, TipoCiclo } from '@/data/types/domain'
 import type { NewPlanWizardState } from '@/features/planes/nuevo/types'
 // import type { Database } from '@/types/supabase'
@@ -54,11 +55,11 @@ export function WizardControls({
             ? wizard.datosBasicos.numCiclos
             : 1
 
-        const aiInput = {
+        const aiInput: AIGeneratePlanInput = {
           datosBasicos: {
             nombrePlan: wizard.datosBasicos.nombrePlan,
-            carreraId: wizard.datosBasicos.carrera.id || undefined,
-            facultadId: wizard.datosBasicos.facultad.id || undefined,
+            carreraId: wizard.datosBasicos.carrera.id,
+            facultadId: wizard.datosBasicos.facultad.id,
             nivel: wizard.datosBasicos.nivel as string,
             tipoCiclo: tipoCicloSafe,
             numCiclos: numCiclosSafe,

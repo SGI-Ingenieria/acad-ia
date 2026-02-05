@@ -1,6 +1,10 @@
+import { useNavigate } from '@tanstack/react-router'
+
+import type { AIGenerateSubjectInput } from '@/data'
 import type { NewSubjectWizardState } from '@/features/asignaturas/nueva/types'
 
 import { Button } from '@/components/ui/button'
+import { useGenerateSubjectAI } from '@/data'
 
 export function WizardControls({
   wizard,
@@ -12,7 +16,6 @@ export function WizardControls({
   disableNext,
   disableCreate,
   isLastStep,
-  onCreate,
 }: {
   wizard: NewSubjectWizardState
   setWizard: React.Dispatch<React.SetStateAction<NewSubjectWizardState>>
@@ -23,8 +26,9 @@ export function WizardControls({
   disableNext: boolean
   disableCreate: boolean
   isLastStep: boolean
-  onCreate: () => Promise<void> | void
 }) {
+  const navigate = useNavigate()
+  const generateSubjectAI = useGenerateSubjectAI()
   const handleCreate = async () => {
     setWizard((w) => ({
       ...w,
@@ -33,7 +37,46 @@ export function WizardControls({
     }))
 
     try {
-      await onCreate()
+      if (wizard.tipoOrigen === 'IA') {
+        const aiInput: AIGenerateSubjectInput = {
+          plan_estudio_id: wizard.plan_estudio_id,
+          datosBasicos: {
+            nombre: wizard.datosBasicos.nombre,
+            codigo: wizard.datosBasicos.codigo,
+            tipo: wizard.datosBasicos.tipo!,
+            creditos: wizard.datosBasicos.creditos!,
+            horasIndependientes: wizard.datosBasicos.horasIndependientes,
+            horasAcademicas: wizard.datosBasicos.horasAcademicas,
+            estructuraId: wizard.datosBasicos.estructuraId!,
+          },
+          iaConfig: {
+            descripcionEnfoqueAcademico:
+              wizard.iaConfig!.descripcionEnfoqueAcademico,
+            instruccionesAdicionalesIA:
+              wizard.iaConfig!.instruccionesAdicionalesIA,
+            archivosReferencia: wizard.iaConfig!.archivosReferencia,
+            repositoriosReferencia:
+              wizard.iaConfig!.repositoriosReferencia || [],
+            archivosAdjuntos: wizard.iaConfig!.archivosAdjuntos || [],
+          },
+        }
+
+        console.log(
+          `${new Date().toISOString()} - Enviando a generar asignatura con IA`,
+        )
+
+        const asignatura = await generateSubjectAI.mutateAsync(aiInput)
+        console.log(
+          `${new Date().toISOString()} - Asignatura IA generada`,
+          asignatura,
+        )
+
+        navigate({
+          to: `/planes/${wizard.plan_estudio_id}/asignaturas/${asignatura.id}`,
+          state: { showConfetti: true },
+        })
+        return
+      }
     } catch (err: any) {
       setWizard((w) => ({
         ...w,

@@ -118,10 +118,6 @@ export function NuevaAsignaturaModalContainer({ planId }: { planId: string }) {
                   isLastStep={idx >= Wizard.steps.length - 1}
                   wizard={wizard}
                   setWizard={setWizard}
-                  onCreate={async () => {
-                    await crearAsignatura()
-                    handleClose()
-                  }}
                 />
               </Wizard.Stepper.Controls>
             }

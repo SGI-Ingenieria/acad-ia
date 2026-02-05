@@ -97,7 +97,10 @@ export function useCreateSubjectManual() {
 }
 
 export function useGenerateSubjectAI() {
-  return useMutation({ mutationFn: ai_generate_subject })
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ai_generate_subject,
+  })
 }
 
 export function usePersistSubjectFromAI() {
