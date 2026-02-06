@@ -1,4 +1,4 @@
-/* eslint-disable jsx-a11y/click-events-have-key-events */
+/* eslint-disable jsx-a11y/no-static-element-interactions */
 /* eslint-disable jsx-a11y/label-has-associated-control */
 import { createFileRoute } from '@tanstack/react-router'
 import {
@@ -7,6 +7,7 @@ import {
   AlertTriangle,
   GripVertical,
   Trash2,
+  Pencil,
 } from 'lucide-react'
 import { useMemo, useState, useEffect } from 'react'
 
@@ -239,8 +240,13 @@ function MapaCurricularPage() {
       },
     )
   }
-  const guardarEdicionLinea = (id: string) => {
-    if (!tempNombreLinea.trim()) {
+  const guardarEdicionLinea = (id: string, nuevoNombre?: string) => {
+    // Usamos el nombre que viene por parámetro o el del estado como fallback
+    const nombreAFijar = (
+      nuevoNombre !== undefined ? nuevoNombre : tempNombreLinea
+    ).trim()
+
+    if (!nombreAFijar) {
       setEditingLineaId(null)
       return
     }
@@ -248,11 +254,10 @@ function MapaCurricularPage() {
     updateLineaApi(
       {
         lineaId: id,
-        patch: { nombre: tempNombreLinea.trim() },
+        patch: { nombre: nombreAFijar },
       },
       {
         onSuccess: (lineaActualizada) => {
-          // ACTUALIZACIÓN MANUAL DEL ESTADO LOCAL
           setLineas((prev) =>
             prev.map((l) =>
               l.id === id ? { ...l, nombre: lineaActualizada.nombre } : l,
@@ -260,6 +265,10 @@ function MapaCurricularPage() {
           )
           setEditingLineaId(null)
           setTempNombreLinea('')
+        },
+        onError: (err) => {
+          console.error('Error al actualizar linea:', err)
+          // Opcional: revertir cambios o avisar al usuario
         },
       },
     )
@@ -454,6 +463,33 @@ function MapaCurricularPage() {
     [asignaturas],
   )
 
+  const handleKeyDownLinea = (
+    e: React.KeyboardEvent<HTMLSpanElement>,
+    id: string,
+  ) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      e.currentTarget.blur()
+    }
+  }
+
+  const handleBlurLinea = (
+    e: React.FocusEvent<HTMLSpanElement>,
+    id: string,
+  ) => {
+    const nuevoNombre = e.currentTarget.textContent?.trim() || ''
+
+    // Buscamos la línea original para comparar
+    const lineaOriginal = lineas.find((l) => l.id === id)
+
+    if (nuevoNombre !== lineaOriginal?.nombre) {
+      // IMPORTANTE: Pasamos nuevoNombre directamente
+      guardarEdicionLinea(id, nuevoNombre)
+    } else {
+      setEditingLineaId(null)
+    }
+  }
+
   if (loadingAsig || loadingLineas)
     return <div className="p-10 text-center">Cargando mapa curricular...</div>
 
@@ -568,36 +604,52 @@ function MapaCurricularPage() {
                 }}
               >
                 <div
-                  className={`flex items-center justify-between rounded-xl border-l-4 p-4 ${lineColors[idx % lineColors.length]}`}
+                  className={`group relative flex items-center justify-between rounded-xl border-l-4 p-4 transition-all ${
+                    lineColors[idx % lineColors.length]
+                  } ${editingLineaId === linea.id ? 'bg-white ring-2 ring-teal-500/20' : ''}`}
                 >
-                  {editingLineaId === linea.id ? (
-                    <Input
-                      className="h-7 bg-white text-xs"
-                      value={tempNombreLinea}
-                      onChange={(e) => setTempNombreLinea(e.target.value)}
-                      onBlur={() => guardarEdicionLinea(linea.id)}
-                      onKeyDown={(e) =>
-                        e.key === 'Enter' && guardarEdicionLinea(linea.id)
-                      }
-                    />
-                  ) : (
-                    // eslint-disable-next-line jsx-a11y/no-static-element-interactions
+                  <div className="flex-1 overflow-hidden">
                     <span
-                      className="cursor-pointer text-xs font-bold hover:underline"
+                      contentEditable={editingLineaId === linea.id}
+                      suppressContentEditableWarning
+                      spellCheck={false}
+                      onKeyDown={(e) => handleKeyDownLinea(e, linea.id)}
+                      onBlur={(e) => handleBlurLinea(e, linea.id)}
                       onClick={() => {
-                        setEditingLineaId(linea.id)
-                        setTempNombreLinea(linea.nombre)
+                        if (editingLineaId !== linea.id) {
+                          setEditingLineaId(linea.id)
+                          setTempNombreLinea(linea.nombre)
+                        }
                       }}
+                      className={`block w-full text-xs font-bold break-words outline-none ${
+                        editingLineaId === linea.id
+                          ? 'cursor-text border-b border-teal-500/50 pb-1'
+                          : 'cursor-pointer'
+                      }`}
                     >
                       {linea.nombre}
                     </span>
-                  )}
+                  </div>
 
-                  <Trash2
-                    size={14}
-                    className="cursor-pointer text-slate-400 hover:text-red-500"
-                    onClick={() => borrarLinea(linea.id)} // Aquí también podrías añadir una mutación delete
-                  />
+                  <div className="flex items-center gap-2">
+                    {/* Botón de edición que aparece en hover o si está editando */}
+                    <button
+                      onClick={() => setEditingLineaId(linea.id)}
+                      className={`text-slate-400 transition-opacity hover:text-teal-600 ${
+                        editingLineaId === linea.id
+                          ? 'opacity-0'
+                          : 'opacity-0 group-hover:opacity-100'
+                      }`}
+                    >
+                      <Pencil size={12} />
+                    </button>
+
+                    <Trash2
+                      size={14}
+                      className="cursor-pointer text-slate-400 opacity-0 transition-opacity group-hover:opacity-100 hover:text-red-500"
+                      onClick={() => borrarLinea(linea.id)}
+                    />
+                  </div>
                 </div>
 
                 {ciclosArray.map((ciclo) => (
