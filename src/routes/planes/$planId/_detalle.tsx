@@ -5,12 +5,10 @@ import {
   Clock,
   Hash,
   CalendarDays,
-  Save,
 } from 'lucide-react'
 import { useState, useEffect, forwardRef } from 'react'
 
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,7 +18,7 @@ import {
 import { NotFoundPage } from '@/components/ui/NotFoundPage'
 import { Skeleton } from '@/components/ui/skeleton'
 import { plans_get } from '@/data/api/plans.api'
-import { usePlan } from '@/data/hooks/usePlans'
+import { usePlan, useUpdatePlanFields } from '@/data/hooks/usePlans'
 import { qk } from '@/data/query/keys'
 
 export const Route = createFileRoute('/planes/$planId/_detalle')({
@@ -56,6 +54,7 @@ export const Route = createFileRoute('/planes/$planId/_detalle')({
 function RouteComponent() {
   const { planId } = Route.useParams()
   const { data, isLoading } = usePlan(planId)
+  const { mutate } = useUpdatePlanFields()
 
   // Estados locales para manejar la edición "en vivo" antes de persistir
   const [nombrePlan, setNombrePlan] = useState('')
@@ -77,32 +76,37 @@ function RouteComponent() {
     'Especialidad',
   ]
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const persistChange = (patch: any) => {
+    mutate({ planId, patch })
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLSpanElement>) => {
     if (e.key === 'Enter') {
-      e.preventDefault() // Evita el salto de línea
-      e.currentTarget.blur() // Quita el foco, lo que dispara el onBlur y "guarda" en el estado
+      e.preventDefault()
+      e.currentTarget.blur() // Esto disparará el onBlur automáticamente
     }
   }
 
-  const handleSave = () => {
-    console.log('Guardando en DB...', { nombrePlan, nivelPlan })
-    // Aquí iría tu mutation
-    setIsDirty(false)
+  const handleBlurNombre = (e: React.FocusEvent<HTMLSpanElement>) => {
+    const nuevoNombre = e.currentTarget.textContent || ''
+    setNombrePlan(nuevoNombre)
+
+    // Solo guardamos si el valor es realmente distinto al de la base de datos
+    if (nuevoNombre !== data?.nombre) {
+      persistChange({ nombre: nuevoNombre })
+    }
+  }
+
+  const handleSelectNivel = (n: string) => {
+    setNivelPlan(n)
+    // Guardamos inmediatamente al seleccionar
+    if (n !== data?.nivel) {
+      persistChange({ nivel: n })
+    }
   }
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Botón Flotante de Guardar */}
-      {isDirty && (
-        <div className="animate-in fade-in slide-in-from-bottom-4 fixed right-8 bottom-8 z-50 duration-300">
-          <Button
-            onClick={handleSave}
-            className="gap-2 rounded-full bg-teal-600 px-6 shadow-xl hover:bg-teal-700"
-          >
-            <Save size={16} /> Guardar cambios del Plan
-          </Button>
-        </div>
-      )}
       {/* 1. Header Superior */}
       <div className="sticky top-0 z-20 border-b bg-white/50 shadow-sm backdrop-blur-sm">
         <div className="px-6 py-2">
@@ -116,62 +120,54 @@ function RouteComponent() {
       </div>
 
       <div className="mx-auto max-w-400 space-y-8 p-8">
-        {/* Header del Plan */}
+        {/* 2. Header del Plan */}
         {isLoading ? (
           /* ===== SKELETON ===== */
-          <div className="mx-auto max-w-400 p-8">
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <DatosGeneralesSkeleton key={i} />
-              ))}
-            </div>
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <DatosGeneralesSkeleton key={i} />
+            ))}
           </div>
         ) : (
-          <>
-            <div className="flex flex-col items-start justify-between gap-4 md:flex-row">
-              <div>
-                <h1 className="flex items-baseline gap-2 text-3xl font-bold tracking-tight text-slate-900">
-                  <span>{nivelPlan} en</span>
-                  <span
-                    role="textbox"
-                    tabIndex={0}
-                    contentEditable
-                    suppressContentEditableWarning
-                    spellCheck={false} // Quita el subrayado rojo de error ortográfico
-                    onKeyDown={handleKeyDown}
-                    onBlur={(e) =>
-                      setNombrePlan(e.currentTarget.textContent || '')
+          <div className="flex flex-col items-start justify-between gap-4 md:flex-row">
+            <div>
+              <h1 className="flex items-baseline gap-2 text-3xl font-bold tracking-tight text-slate-900">
+                <span>{nivelPlan} en</span>
+                <span
+                  role="textbox"
+                  tabIndex={0}
+                  contentEditable
+                  suppressContentEditableWarning
+                  spellCheck={false}
+                  onKeyDown={handleKeyDown}
+                  onBlur={(e) => {
+                    const nuevoNombre = e.currentTarget.textContent || ''
+                    setNombrePlan(nuevoNombre)
+                    if (nuevoNombre !== data?.nombre) {
+                      mutate({ planId, patch: { nombre: nuevoNombre } })
                     }
-                    className="cursor-text border-b border-transparent decoration-transparent transition-colors outline-none select-text hover:border-slate-300 focus:border-teal-500"
-                    style={{
-                      WebkitTextDecoration: 'none',
-                      textDecoration: 'none',
-                    }} // Doble seguridad contra subrayados
-                  >
-                    {nombrePlan}
-                  </span>
-                </h1>
-                <p className="mt-1 text-lg font-medium text-slate-500">
-                  {data?.carreras?.facultades?.nombre}{' '}
-                  {data?.carreras?.nombre_corto}
-                </p>
-              </div>
-
-              <div className="flex gap-2">
-                {/* <Badge className="gap-1 border-teal-200 bg-teal-50 px-3 text-teal-700 hover:bg-teal-100">
-              <CheckCircle2 size={12} /> {data?.estados_plan?.etiqueta}
-            </Badge> */}
-                <Badge
-                  className={`gap-1 border-teal-200 bg-teal-50 px-3 text-teal-700 hover:bg-teal-100`}
+                  }}
+                  className="cursor-text border-b border-transparent transition-colors outline-none select-text hover:border-slate-300 focus:border-teal-500"
+                  style={{ textDecoration: 'none' }}
                 >
-                  {data?.estados_plan?.etiqueta}
-                </Badge>
-              </div>
+                  {nombrePlan}
+                </span>
+              </h1>
+              <p className="mt-1 text-lg font-medium text-slate-500">
+                {data?.carreras?.facultades?.nombre}{' '}
+                {data?.carreras?.nombre_corto}
+              </p>
             </div>
-          </>
+
+            <div className="flex gap-2">
+              <Badge className="gap-1 border-teal-200 bg-teal-50 px-3 text-teal-700 hover:bg-teal-100">
+                {data?.estados_plan?.etiqueta}
+              </Badge>
+            </div>
+          </div>
         )}
 
-        {/* 3. Cards de Información con Context Menu */}
+        {/* 3. Cards de Información */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -189,7 +185,9 @@ function RouteComponent() {
                   key={n}
                   onClick={() => {
                     setNivelPlan(n)
-                    setIsDirty(true)
+                    if (n !== data?.nivel) {
+                      mutate({ planId, patch: { nivel: n } })
+                    }
                   }}
                 >
                   {n}
@@ -211,7 +209,7 @@ function RouteComponent() {
           <InfoCard
             icon={<CalendarDays className="text-slate-400" />}
             label="Creación"
-            value={data?.creado_en?.split('T')[0]} // Cortamos la fecha para que no sea tan larga
+            value={data?.creado_en?.split('T')[0]}
           />
         </div>
 

@@ -112,14 +112,67 @@ function DatosGeneralesPage() {
   }, [data])
 
   // 3. Manejadores de acciones (Ahora como funciones locales)
-  const handleEdit = (campo: DatosGeneralesField) => {
-    setEditingId(campo.id)
-    setEditValue(campo.value)
+  const handleEdit = (nuevoCampo: DatosGeneralesField) => {
+    // 1. SI YA ESTÁBAMOS EDITANDO OTRO CAMPO, GUARDAMOS EL ANTERIOR PRIMERO
+    if (editingId && editingId !== nuevoCampo.id) {
+      const campoAnterior = campos.find((c) => c.id === editingId)
+      if (campoAnterior && editValue !== campoAnterior.value) {
+        // Solo guardamos si el valor realmente cambió
+        ejecutarGuardadoSilencioso(campoAnterior, editValue)
+      }
+    }
+
+    // 2. ABRIMOS EL NUEVO CAMPO
+    setEditingId(nuevoCampo.id)
+    setEditValue(nuevoCampo.value)
   }
 
   const handleCancel = () => {
     setEditingId(null)
     setEditValue('')
+  }
+  // Función auxiliar para procesar los datos (fuera o dentro del componente)
+  const prepararDatosActualizados = (
+    data: any,
+    campo: DatosGeneralesField,
+    valor: string,
+  ) => {
+    const currentValue = data.datos[campo.clave]
+    let newValue: any
+
+    if (
+      typeof currentValue === 'object' &&
+      currentValue !== null &&
+      'description' in currentValue
+    ) {
+      newValue = { ...currentValue, description: valor }
+    } else {
+      newValue = valor
+    }
+
+    return {
+      ...data.datos,
+      [campo.clave]: newValue,
+    }
+  }
+
+  const ejecutarGuardadoSilencioso = (
+    campo: DatosGeneralesField,
+    valor: string,
+  ) => {
+    if (!data?.datos) return
+
+    const datosActualizados = prepararDatosActualizados(data, campo, valor)
+
+    updatePlan.mutate({
+      planId,
+      patch: { datos: datosActualizados },
+    })
+
+    // Actualizar UI localmente
+    setCampos((prev) =>
+      prev.map((c) => (c.id === campo.id ? { ...c, value: valor } : c)),
+    )
   }
 
   const handleSave = (campo: DatosGeneralesField) => {
@@ -161,6 +214,7 @@ function DatosGeneralesPage() {
       prev.map((c) => (c.id === campo.id ? { ...c, value: editValue } : c)),
     )
 
+    ejecutarGuardadoSilencioso(campo, editValue)
     setEditingId(null)
     setEditValue('')
   }
