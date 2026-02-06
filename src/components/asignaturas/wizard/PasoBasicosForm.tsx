@@ -27,14 +27,25 @@ export function PasoBasicosForm({
 
   const [creditosInput, setCreditosInput] = useState<string>(() => {
     const c = Number(wizard.datosBasicos.creditos ?? 0)
-    return c > 0 ? c.toFixed(2) : ''
+    let newC = c
+    console.log('antes', newC)
+
+    if (Number.isFinite(c) && c > 999) {
+      newC = 999
+    }
+    console.log('desp', newC)
+    return newC > 0 ? newC.toFixed(2) : ''
   })
   const [creditosFocused, setCreditosFocused] = useState(false)
 
   useEffect(() => {
     if (creditosFocused) return
     const c = Number(wizard.datosBasicos.creditos ?? 0)
-    setCreditosInput(c > 0 ? c.toFixed(2) : '')
+    let newC = c
+    if (Number.isFinite(c) && c > 999) {
+      newC = 999
+    }
+    setCreditosInput(newC > 0 ? newC.toFixed(2) : '')
   }, [wizard.datosBasicos.creditos, creditosFocused])
 
   return (
@@ -44,6 +55,7 @@ export function PasoBasicosForm({
         <Input
           id="nombre"
           placeholder="Ej. Matemáticas Discretas"
+          maxLength={200}
           value={wizard.datosBasicos.nombre}
           onChange={(e) =>
             onChange(
@@ -67,6 +79,7 @@ export function PasoBasicosForm({
         <Input
           id="codigo"
           placeholder="Ej. MAT-101"
+          maxLength={200}
           value={wizard.datosBasicos.codigo || ''}
           onChange={(e) =>
             onChange(
@@ -123,6 +136,7 @@ export function PasoBasicosForm({
           id="creditos"
           type="text"
           inputMode="decimal"
+          maxLength={6}
           pattern="^\\d*(?:[.,]\\d{0,2})?$"
           value={creditosInput}
           onKeyDown={(e) => {
@@ -144,7 +158,7 @@ export function PasoBasicosForm({
             }
 
             const normalized = raw.replace(',', '.')
-            const asNumber = Number.parseFloat(normalized)
+            let asNumber = Number.parseFloat(normalized)
             if (!Number.isFinite(asNumber) || asNumber <= 0) {
               setCreditosInput('')
               onChange((w) => ({
@@ -153,6 +167,9 @@ export function PasoBasicosForm({
               }))
               return
             }
+
+            // Cap to 999
+            if (asNumber > 999) asNumber = 999
 
             const fixed = asNumber.toFixed(2)
             setCreditosInput(fixed)
@@ -174,6 +191,22 @@ export function PasoBasicosForm({
 
             if (!/^\d*(?:[.,]\d{0,2})?$/.test(nextRaw)) return
 
+            // If typed number exceeds 999, cap it immediately (prevents entering >999)
+            const asNumberRaw = Number.parseFloat(nextRaw.replace(',', '.'))
+            if (Number.isFinite(asNumberRaw) && asNumberRaw > 999) {
+              // show capped value to the user
+              const cappedStr = '999.00'
+              setCreditosInput(cappedStr)
+              onChange((w) => ({
+                ...w,
+                datosBasicos: {
+                  ...w.datosBasicos,
+                  creditos: 999,
+                },
+              }))
+              return
+            }
+
             setCreditosInput(nextRaw)
 
             const asNumber = Number.parseFloat(nextRaw.replace(',', '.'))
@@ -188,94 +221,6 @@ export function PasoBasicosForm({
           }}
           className="placeholder:text-muted-foreground/70 font-medium not-italic placeholder:font-normal placeholder:italic"
           placeholder="Ej. 4.50"
-        />
-      </div>
-
-      <div className="grid gap-1">
-        <Label htmlFor="horasAcademicas">
-          Horas Académicas
-          <span className="text-xs font-normal text-gray-500 dark:text-gray-400">
-            (Opcional)
-          </span>
-        </Label>
-        <Input
-          id="horasAcademicas"
-          type="number"
-          min={1}
-          step={1}
-          inputMode="numeric"
-          pattern="[0-9]*"
-          value={wizard.datosBasicos.horasAcademicas ?? ''}
-          onKeyDown={(e) => {
-            if (['.', ',', '-', 'e', 'E', '+'].includes(e.key)) {
-              e.preventDefault()
-            }
-          }}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-            onChange(
-              (w): NewSubjectWizardState => ({
-                ...w,
-                datosBasicos: {
-                  ...w.datosBasicos,
-                  horasAcademicas: (() => {
-                    const raw = e.target.value
-                    if (raw === '') return null
-                    const asNumber = Number(raw)
-                    if (Number.isNaN(asNumber)) return null
-                    // Coerce to positive integer (natural numbers without zero)
-                    const n = Math.floor(Math.abs(asNumber))
-                    return n >= 1 ? n : 1
-                  })(),
-                },
-              }),
-            )
-          }
-          className="placeholder:text-muted-foreground/70 font-medium not-italic placeholder:font-normal placeholder:italic"
-          placeholder="Ej. 48"
-        />
-      </div>
-
-      <div className="grid gap-1">
-        <Label htmlFor="horasIndependientes">
-          Horas Independientes
-          <span className="text-xs font-normal text-gray-500 dark:text-gray-400">
-            (Opcional)
-          </span>
-        </Label>
-        <Input
-          id="horasIndependientes"
-          type="number"
-          min={1}
-          step={1}
-          inputMode="numeric"
-          pattern="[0-9]*"
-          value={wizard.datosBasicos.horasIndependientes ?? ''}
-          onKeyDown={(e) => {
-            if (['.', ',', '-', 'e', 'E', '+'].includes(e.key)) {
-              e.preventDefault()
-            }
-          }}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-            onChange(
-              (w): NewSubjectWizardState => ({
-                ...w,
-                datosBasicos: {
-                  ...w.datosBasicos,
-                  horasIndependientes: (() => {
-                    const raw = e.target.value
-                    if (raw === '') return null
-                    const asNumber = Number(raw)
-                    if (Number.isNaN(asNumber)) return null
-                    // Coerce to positive integer (natural numbers without zero)
-                    const n = Math.floor(Math.abs(asNumber))
-                    return n >= 1 ? n : 1
-                  })(),
-                },
-              }),
-            )
-          }
-          className="placeholder:text-muted-foreground/70 font-medium not-italic placeholder:font-normal placeholder:italic"
-          placeholder="Ej. 24"
         />
       </div>
 
@@ -313,6 +258,98 @@ export function PasoBasicosForm({
         <p className="text-muted-foreground text-xs">
           Define los campos requeridos (ej. Objetivos, Temario, Evaluación).
         </p>
+      </div>
+
+      <div className="grid gap-1">
+        <Label htmlFor="horasAcademicas">
+          Horas Académicas
+          <span className="text-xs font-normal text-gray-500 dark:text-gray-400">
+            (Opcional)
+          </span>
+        </Label>
+        <Input
+          id="horasAcademicas"
+          type="number"
+          min={1}
+          max={999}
+          step={1}
+          inputMode="numeric"
+          pattern="[0-9]*"
+          value={wizard.datosBasicos.horasAcademicas ?? ''}
+          onKeyDown={(e) => {
+            if (['.', ',', '-', 'e', 'E', '+'].includes(e.key)) {
+              e.preventDefault()
+            }
+          }}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+            onChange(
+              (w): NewSubjectWizardState => ({
+                ...w,
+                datosBasicos: {
+                  ...w.datosBasicos,
+                  horasAcademicas: (() => {
+                    const raw = e.target.value
+                    if (raw === '') return null
+                    const asNumber = Number(raw)
+                    if (Number.isNaN(asNumber)) return null
+                    // Coerce to positive integer (natural numbers without zero)
+                    const n = Math.floor(Math.abs(asNumber))
+                    const capped = Math.min(n >= 1 ? n : 1, 999)
+                    return capped
+                  })(),
+                },
+              }),
+            )
+          }
+          className="placeholder:text-muted-foreground/70 font-medium not-italic placeholder:font-normal placeholder:italic"
+          placeholder="Ej. 48"
+        />
+      </div>
+
+      <div className="grid gap-1">
+        <Label htmlFor="horasIndependientes">
+          Horas Independientes
+          <span className="text-xs font-normal text-gray-500 dark:text-gray-400">
+            (Opcional)
+          </span>
+        </Label>
+        <Input
+          id="horasIndependientes"
+          type="number"
+          min={1}
+          max={999}
+          step={1}
+          inputMode="numeric"
+          pattern="[0-9]*"
+          value={wizard.datosBasicos.horasIndependientes ?? ''}
+          onKeyDown={(e) => {
+            if (['.', ',', '-', 'e', 'E', '+'].includes(e.key)) {
+              e.preventDefault()
+            }
+          }}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+            onChange(
+              (w): NewSubjectWizardState => ({
+                ...w,
+                datosBasicos: {
+                  ...w.datosBasicos,
+                  horasIndependientes: (() => {
+                    const raw = e.target.value
+                    if (raw === '') return null
+                    const asNumber = Number(raw)
+                    if (Number.isNaN(asNumber)) return null
+                    // Coerce to positive integer (natural numbers without zero)
+                    const n = Math.floor(Math.abs(asNumber))
+                    const capped = Math.min(n >= 1 ? n : 1, 999)
+                    return capped
+                  })(),
+                },
+              }),
+            )
+          }
+          className="placeholder:text-muted-foreground/70 font-medium not-italic placeholder:font-normal placeholder:italic"
+          placeholder="Ej. 24"
+        />
       </div>
     </div>
   )

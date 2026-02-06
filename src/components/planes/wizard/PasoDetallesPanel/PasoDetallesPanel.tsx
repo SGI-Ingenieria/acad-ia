@@ -49,6 +49,7 @@ export function PasoDetallesPanel({
             id="desc"
             className="bg-background text-foreground ring-offset-background focus-visible:ring-ring min-h-24 w-full rounded-md border px-3 py-2 text-sm shadow-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
             placeholder="Describe el enfoque del programa…"
+            maxLength={7000}
             value={wizard.iaConfig?.descripcionEnfoqueAcademico || ''}
             onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
               onChange((w) => ({
@@ -73,6 +74,7 @@ export function PasoDetallesPanel({
             id="notas"
             className="bg-background text-foreground ring-offset-background focus-visible:ring-ring min-h-24 w-full rounded-md border px-3 py-2 text-sm shadow-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
             placeholder="Lineamientos institucionales, restricciones, etc."
+            maxLength={7000}
             value={wizard.iaConfig?.instruccionesAdicionalesIA || ''}
             onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
               onChange((w) => ({

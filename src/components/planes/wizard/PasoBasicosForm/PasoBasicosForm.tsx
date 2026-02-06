@@ -50,6 +50,7 @@ export function PasoBasicosForm({
             id="nombrePlan"
             placeholder="Ej. Ingeniería en Sistemas (2026)"
             value={wizard.datosBasicos.nombrePlan}
+            maxLength={200}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
               onChange(
                 (w): NewPlanWizardState => ({
@@ -228,6 +229,7 @@ export function PasoBasicosForm({
             id="numCiclos"
             type="number"
             min={1}
+            max={99}
             step={1}
             inputMode="numeric"
             pattern="[0-9]*"
@@ -251,7 +253,8 @@ export function PasoBasicosForm({
                       if (Number.isNaN(asNumber)) return null
                       // Coerce to positive integer (natural numbers without zero)
                       const n = Math.floor(Math.abs(asNumber))
-                      return n >= 1 ? n : 1
+                      const capped = Math.min(n >= 1 ? n : 1, 99)
+                      return capped
                     })(),
                   },
                 }),
