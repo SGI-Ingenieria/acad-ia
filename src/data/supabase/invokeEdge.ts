@@ -1,12 +1,18 @@
-import { supabaseBrowser } from "./client";
+import {
+  FunctionsFetchError,
+  FunctionsHttpError,
+  FunctionsRelayError,
+} from '@supabase/supabase-js'
 
-import type { Database } from "@/types/supabase";
-import type { SupabaseClient } from "@supabase/supabase-js";
+import { supabaseBrowser } from './client'
+
+import type { Database } from '@/types/supabase'
+import type { SupabaseClient } from '@supabase/supabase-js'
 
 export type EdgeInvokeOptions = {
-  method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
-  headers?: Record<string, string>;
-};
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
+  headers?: Record<string, string>
+}
 
 export class EdgeFunctionError extends Error {
   constructor(
@@ -15,8 +21,8 @@ export class EdgeFunctionError extends Error {
     public readonly status?: number,
     public readonly details?: unknown,
   ) {
-    super(message);
-    this.name = "EdgeFunctionError";
+    super(message)
+    this.name = 'EdgeFunctionError'
   }
 }
 
@@ -34,23 +40,69 @@ export async function invokeEdge<TOut>(
   opts: EdgeInvokeOptions = {},
   client?: SupabaseClient<Database>,
 ): Promise<TOut> {
-  const supabase = client ?? supabaseBrowser();
+  const supabase = client ?? supabaseBrowser()
 
   const { data, error } = await supabase.functions.invoke(functionName, {
     body,
-    method: opts.method ?? "POST",
+    method: opts.method ?? 'POST',
     headers: opts.headers,
-  });
+  })
 
   if (error) {
-    const anyErr = error;
-    throw new EdgeFunctionError(
-      anyErr.message ?? "Error en Edge Function",
-      functionName,
-      anyErr.status,
-      anyErr,
-    );
+    // Valores por defecto (por si falla el parseo o es otro tipo de error)
+    let message = error.message // El genérico "returned a non-2xx status code"
+    let status = undefined
+    let details: unknown = error
+
+    // 2. Verificamos si es un error HTTP (4xx o 5xx) que trae cuerpo JSON
+    if (error instanceof FunctionsHttpError) {
+      try {
+        // Obtenemos el status real (ej. 404, 400)
+        status = error.context.status
+
+        // ¡LA CLAVE! Leemos el JSON que tu Edge Function envió
+        const errorBody = await error.context.json()
+        details = errorBody
+
+        // Intentamos extraer el mensaje humano según tu estructura { error: { message: "..." } }
+        // o la estructura simple { error: "..." }
+        if (errorBody && typeof errorBody === 'object') {
+          // Caso 1: Estructura anidada (la que definimos hace poco: { error: { message: "..." } })
+          if (
+            'error' in errorBody &&
+            typeof errorBody.error === 'object' &&
+            errorBody.error !== null &&
+            'message' in errorBody.error
+          ) {
+            message = (errorBody.error as { message: string }).message
+          }
+          // Caso 2: Estructura simple ({ error: "Mensaje de error" })
+          else if (
+            'error' in errorBody &&
+            typeof errorBody.error === 'string'
+          ) {
+            message = errorBody.error
+          }
+          // Caso 3: Propiedad message directa ({ message: "..." })
+          else if (
+            'message' in errorBody &&
+            typeof errorBody.message === 'string'
+          ) {
+            message = errorBody.message
+          }
+        }
+      } catch (e) {
+        console.warn('No se pudo parsear el error JSON de la Edge Function', e)
+      }
+    } else if (error instanceof FunctionsRelayError) {
+      message = `Error de Relay Supabase: ${error.message}`
+    } else if (error instanceof FunctionsFetchError) {
+      message = `Error de conexión (Fetch): ${error.message}`
+    }
+
+    // 3. Lanzamos tu error personalizado con los datos reales extraídos
+    throw new EdgeFunctionError(message, functionName, status, details)
   }
 
-  return data as TOut;
+  return data as TOut
 }

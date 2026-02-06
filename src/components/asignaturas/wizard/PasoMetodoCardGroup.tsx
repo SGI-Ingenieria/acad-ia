@@ -1,10 +1,6 @@
 import * as Icons from 'lucide-react'
 
-import type {
-  ModoCreacion,
-  NewSubjectWizardState,
-  SubModoClonado,
-} from '@/features/asignaturas/nueva/types'
+import type { NewSubjectWizardState } from '@/features/asignaturas/nueva/types'
 
 import {
   Card,
@@ -21,19 +17,33 @@ export function PasoMetodoCardGroup({
   wizard: NewSubjectWizardState
   onChange: React.Dispatch<React.SetStateAction<NewSubjectWizardState>>
 }) {
-  const isSelected = (m: ModoCreacion) => wizard.modoCreacion === m
-  const isSubSelected = (s: SubModoClonado) => wizard.subModoClonado === s
+  const isSelected = (modo: NewSubjectWizardState['tipoOrigen']) =>
+    wizard.tipoOrigen === modo
+  const handleKeyActivate = (e: React.KeyboardEvent, cb: () => void) => {
+    const key = e.key
+    if (
+      key === 'Enter' ||
+      key === ' ' ||
+      key === 'Spacebar' ||
+      key === 'Space'
+    ) {
+      e.preventDefault()
+      e.stopPropagation()
+      cb()
+    }
+  }
 
   return (
     <div className="grid gap-4 sm:grid-cols-3">
       <Card
         className={isSelected('MANUAL') ? 'ring-ring ring-2' : ''}
         onClick={() =>
-          onChange((w) => ({
-            ...w,
-            modoCreacion: 'MANUAL',
-            subModoClonado: undefined,
-          }))
+          onChange(
+            (w): NewSubjectWizardState => ({
+              ...w,
+              tipoOrigen: 'MANUAL',
+            }),
+          )
         }
         role="button"
         tabIndex={0}
@@ -51,11 +61,12 @@ export function PasoMetodoCardGroup({
       <Card
         className={isSelected('IA') ? 'ring-ring ring-2' : ''}
         onClick={() =>
-          onChange((w) => ({
-            ...w,
-            modoCreacion: 'IA',
-            subModoClonado: undefined,
-          }))
+          onChange(
+            (w): NewSubjectWizardState => ({
+              ...w,
+              tipoOrigen: 'IA',
+            }),
+          )
         }
         role="button"
         tabIndex={0}
@@ -69,8 +80,10 @@ export function PasoMetodoCardGroup({
       </Card>
 
       <Card
-        className={isSelected('CLONADO') ? 'ring-ring ring-2' : ''}
-        onClick={() => onChange((w) => ({ ...w, modoCreacion: 'CLONADO' }))}
+        className={isSelected('OTRO') ? 'ring-ring ring-2' : ''}
+        onClick={() =>
+          onChange((w): NewSubjectWizardState => ({ ...w, tipoOrigen: 'OTRO' }))
+        }
         role="button"
         tabIndex={0}
       >
@@ -80,51 +93,79 @@ export function PasoMetodoCardGroup({
           </CardTitle>
           <CardDescription>De otra asignatura o archivo Word.</CardDescription>
         </CardHeader>
-        {wizard.modoCreacion === 'CLONADO' && (
-          <CardContent>
-            <div className="flex flex-col gap-3">
-              <div
-                role="button"
-                tabIndex={0}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onChange((w) => ({ ...w, subModoClonado: 'INTERNO' }))
-                }}
-                className={`hover:border-primary/50 hover:bg-accent flex cursor-pointer items-center gap-4 rounded-lg border p-4 text-left transition-all ${
-                  isSubSelected('INTERNO')
-                    ? 'bg-primary/5 text-primary ring-primary border-primary ring-1'
-                    : 'border-border text-muted-foreground'
-                }`}
-              >
-                <Icons.Database className="h-6 w-6 flex-none" />
-                <div className="flex flex-col">
-                  <span className="text-sm font-medium">Del sistema</span>
-                  <span className="text-xs opacity-70">
-                    Buscar en otros planes
-                  </span>
-                </div>
+        {(wizard.tipoOrigen === 'OTRO' ||
+          wizard.tipoOrigen === 'CLONADO_INTERNO' ||
+          wizard.tipoOrigen === 'CLONADO_TRADICIONAL') && (
+          <CardContent className="flex flex-col gap-3">
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={(e) => {
+                e.stopPropagation()
+                onChange(
+                  (w): NewSubjectWizardState => ({
+                    ...w,
+                    tipoOrigen: 'CLONADO_INTERNO',
+                  }),
+                )
+              }}
+              onKeyDown={(e: React.KeyboardEvent) =>
+                handleKeyActivate(e, () =>
+                  onChange(
+                    (w): NewSubjectWizardState => ({
+                      ...w,
+                      tipoOrigen: 'CLONADO_INTERNO',
+                    }),
+                  ),
+                )
+              }
+              className={`hover:border-primary/50 hover:bg-accent flex cursor-pointer items-center gap-4 rounded-lg border p-4 text-left transition-all ${
+                isSelected('CLONADO_INTERNO')
+                  ? 'bg-primary/5 text-primary ring-primary border-primary ring-1'
+                  : 'border-border text-muted-foreground'
+              }`}
+            >
+              <Icons.Database className="h-6 w-6 flex-none" />
+              <div className="flex flex-col">
+                <span className="text-sm font-medium">Del sistema</span>
+                <span className="text-xs opacity-70">
+                  Buscar en otros planes
+                </span>
               </div>
+            </div>
 
-              <div
-                role="button"
-                tabIndex={0}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onChange((w) => ({ ...w, subModoClonado: 'TRADICIONAL' }))
-                }}
-                className={`hover:border-primary/50 hover:bg-accent flex cursor-pointer items-center gap-4 rounded-lg border p-4 text-left transition-all ${
-                  isSubSelected('TRADICIONAL')
-                    ? 'bg-primary/5 text-primary ring-primary border-primary ring-1'
-                    : 'border-border text-muted-foreground'
-                }`}
-              >
-                <Icons.Upload className="h-6 w-6 flex-none" />
-                <div className="flex flex-col">
-                  <span className="text-sm font-medium">Desde archivos</span>
-                  <span className="text-xs opacity-70">
-                    Subir Word existente
-                  </span>
-                </div>
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={(e) => {
+                e.stopPropagation()
+                onChange(
+                  (w): NewSubjectWizardState => ({
+                    ...w,
+                    tipoOrigen: 'CLONADO_TRADICIONAL',
+                  }),
+                )
+              }}
+              onKeyDown={(e: React.KeyboardEvent) =>
+                handleKeyActivate(e, () =>
+                  onChange(
+                    (w): NewSubjectWizardState => ({
+                      ...w,
+                      tipoOrigen: 'CLONADO_TRADICIONAL',
+                    }),
+                  ),
+                )
+              }
+              className={`hover:border-primary/50 hover:bg-accent flex cursor-pointer items-center gap-4 rounded-lg border p-4 text-left transition-all ${
+                isSelected('CLONADO_TRADICIONAL')
+                  ? 'bg-primary/5 text-primary ring-primary border-primary ring-1'
+                  : 'border-border text-muted-foreground'
+              }`}
+            >
+              <Icons.Upload className="h-6 w-6 flex-none" />
+              <div className="flex flex-col">
+                <span className="text-sm font-medium">Desde archivos</span>
+                <span className="text-xs opacity-70">Subir Word existente</span>
               </div>
             </div>
           </CardContent>
