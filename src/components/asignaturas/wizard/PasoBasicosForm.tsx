@@ -27,14 +27,25 @@ export function PasoBasicosForm({
 
   const [creditosInput, setCreditosInput] = useState<string>(() => {
     const c = Number(wizard.datosBasicos.creditos ?? 0)
-    return c > 0 ? c.toFixed(2) : ''
+    let newC = c
+    console.log('antes', newC)
+
+    if (Number.isFinite(c) && c > 999) {
+      newC = 999
+    }
+    console.log('desp', newC)
+    return newC > 0 ? newC.toFixed(2) : ''
   })
   const [creditosFocused, setCreditosFocused] = useState(false)
 
   useEffect(() => {
     if (creditosFocused) return
     const c = Number(wizard.datosBasicos.creditos ?? 0)
-    setCreditosInput(c > 0 ? c.toFixed(2) : '')
+    let newC = c
+    if (Number.isFinite(c) && c > 999) {
+      newC = 999
+    }
+    setCreditosInput(newC > 0 ? newC.toFixed(2) : '')
   }, [wizard.datosBasicos.creditos, creditosFocused])
 
   return (
@@ -44,6 +55,7 @@ export function PasoBasicosForm({
         <Input
           id="nombre"
           placeholder="Ej. Matemáticas Discretas"
+          maxLength={200}
           value={wizard.datosBasicos.nombre}
           onChange={(e) =>
             onChange(
@@ -67,6 +79,7 @@ export function PasoBasicosForm({
         <Input
           id="codigo"
           placeholder="Ej. MAT-101"
+          maxLength={200}
           value={wizard.datosBasicos.codigo || ''}
           onChange={(e) =>
             onChange(
@@ -123,6 +136,7 @@ export function PasoBasicosForm({
           id="creditos"
           type="text"
           inputMode="decimal"
+          maxLength={6}
           pattern="^\\d*(?:[.,]\\d{0,2})?$"
           value={creditosInput}
           onKeyDown={(e) => {
@@ -192,6 +206,42 @@ export function PasoBasicosForm({
       </div>
 
       <div className="grid gap-1">
+        <Label htmlFor="estructura">Estructura de la asignatura</Label>
+        <Select
+          value={wizard.datosBasicos.estructuraId as string}
+          onValueChange={(val) =>
+            onChange(
+              (w): NewSubjectWizardState => ({
+                ...w,
+                datosBasicos: { ...w.datosBasicos, estructuraId: val },
+              }),
+            )
+          }
+        >
+          <SelectTrigger
+            id="estructura"
+            className="w-full min-w-0 [&>span]:block! [&>span]:truncate!"
+          >
+            <SelectValue placeholder="Selecciona plantilla..." />
+          </SelectTrigger>
+          <SelectContent>
+            {estructuras?.map(
+              (
+                e: Database['public']['Tables']['estructuras_asignatura']['Row'],
+              ) => (
+                <SelectItem key={e.id} value={e.id}>
+                  {e.nombre}
+                </SelectItem>
+              ),
+            )}
+          </SelectContent>
+        </Select>
+        <p className="text-muted-foreground text-xs">
+          Define los campos requeridos (ej. Objetivos, Temario, Evaluación).
+        </p>
+      </div>
+
+      <div className="grid gap-1">
         <Label htmlFor="horasAcademicas">
           Horas Académicas
           <span className="text-xs font-normal text-gray-500 dark:text-gray-400">
@@ -202,6 +252,7 @@ export function PasoBasicosForm({
           id="horasAcademicas"
           type="number"
           min={1}
+          max={999}
           step={1}
           inputMode="numeric"
           pattern="[0-9]*"
@@ -246,6 +297,7 @@ export function PasoBasicosForm({
           id="horasIndependientes"
           type="number"
           min={1}
+          max={999}
           step={1}
           inputMode="numeric"
           pattern="[0-9]*"
@@ -277,42 +329,6 @@ export function PasoBasicosForm({
           className="placeholder:text-muted-foreground/70 font-medium not-italic placeholder:font-normal placeholder:italic"
           placeholder="Ej. 24"
         />
-      </div>
-
-      <div className="grid gap-1">
-        <Label htmlFor="estructura">Estructura de la asignatura</Label>
-        <Select
-          value={wizard.datosBasicos.estructuraId as string}
-          onValueChange={(val) =>
-            onChange(
-              (w): NewSubjectWizardState => ({
-                ...w,
-                datosBasicos: { ...w.datosBasicos, estructuraId: val },
-              }),
-            )
-          }
-        >
-          <SelectTrigger
-            id="estructura"
-            className="w-full min-w-0 [&>span]:block! [&>span]:truncate!"
-          >
-            <SelectValue placeholder="Selecciona plantilla..." />
-          </SelectTrigger>
-          <SelectContent>
-            {estructuras?.map(
-              (
-                e: Database['public']['Tables']['estructuras_asignatura']['Row'],
-              ) => (
-                <SelectItem key={e.id} value={e.id}>
-                  {e.nombre}
-                </SelectItem>
-              ),
-            )}
-          </SelectContent>
-        </Select>
-        <p className="text-muted-foreground text-xs">
-          Define los campos requeridos (ej. Objetivos, Temario, Evaluación).
-        </p>
       </div>
     </div>
   )

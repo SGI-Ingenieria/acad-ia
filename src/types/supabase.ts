@@ -93,6 +93,7 @@ export type Database = {
           asignatura_hash: string | null
           codigo: string | null
           contenido_tematico: Json
+          conversation_id: string | null
           creado_en: string
           creado_por: string | null
           creditos: number
@@ -116,6 +117,7 @@ export type Database = {
           asignatura_hash?: string | null
           codigo?: string | null
           contenido_tematico?: Json
+          conversation_id?: string | null
           creado_en?: string
           creado_por?: string | null
           creditos: number
@@ -139,6 +141,7 @@ export type Database = {
           asignatura_hash?: string | null
           codigo?: string | null
           contenido_tematico?: Json
+          conversation_id?: string | null
           creado_en?: string
           creado_por?: string | null
           creditos?: number

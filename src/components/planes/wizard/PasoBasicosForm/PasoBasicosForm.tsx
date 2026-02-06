@@ -50,6 +50,7 @@ export function PasoBasicosForm({
             id="nombrePlan"
             placeholder="Ej. Ingeniería en Sistemas (2026)"
             value={wizard.datosBasicos.nombrePlan}
+            maxLength={200}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
               onChange(
                 (w): NewPlanWizardState => ({
@@ -228,6 +229,7 @@ export function PasoBasicosForm({
             id="numCiclos"
             type="number"
             min={1}
+            max={99}
             step={1}
             inputMode="numeric"
             pattern="[0-9]*"
