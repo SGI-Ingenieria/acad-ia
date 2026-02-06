@@ -246,9 +246,9 @@ export function PasoBasicosForm({
                     // Keep undefined when the input is empty so the field stays optional
                     numCiclos: (() => {
                       const raw = e.target.value
-                      if (raw === '') return undefined
+                      if (raw === '') return null
                       const asNumber = Number(raw)
-                      if (Number.isNaN(asNumber)) return undefined
+                      if (Number.isNaN(asNumber)) return null
                       // Coerce to positive integer (natural numbers without zero)
                       const n = Math.floor(Math.abs(asNumber))
                       return n >= 1 ? n : 1

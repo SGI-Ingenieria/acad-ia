@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { createFileRoute, Outlet, useNavigate } from '@tanstack/react-router'
 import {
   Plus,
   Copy,
@@ -72,7 +72,7 @@ const mapAsignaturas = (asigApi: Array<any> = []): Array<Asignatura> => {
   }))
 }
 
-export const Route = createFileRoute('/planes/$planId/_detalle/asignaturas/')({
+export const Route = createFileRoute('/planes/$planId/_detalle/asignaturas')({
   component: AsignaturasPage,
 })
 
@@ -306,6 +306,7 @@ function AsignaturasPage() {
           </TableBody>
         </Table>
       </div>
+      <Outlet />
     </div>
   )
 }

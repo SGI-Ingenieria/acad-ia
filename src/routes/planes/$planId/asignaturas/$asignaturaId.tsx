@@ -1,6 +1,8 @@
-import { createFileRoute, notFound } from '@tanstack/react-router'
+import { createFileRoute, notFound, useLocation } from '@tanstack/react-router'
+import { useEffect } from 'react'
 
 import AsignaturaDetailPage from '@/components/asignaturas/detalle/AsignaturaDetailPage'
+import { lateralConfetti } from '@/components/ui/lateral-confetti'
 import { NotFoundPage } from '@/components/ui/NotFoundPage'
 import { subjects_get } from '@/data/api/subjects.api'
 import { qk } from '@/data/query/keys'
@@ -35,6 +37,15 @@ export const Route = createFileRoute(
 
 function RouteComponent() {
   // const { planId, asignaturaId } = Route.useParams()
+  const location = useLocation()
+
+  // Confetti al llegar desde creación
+  useEffect(() => {
+    if ((location.state as any)?.showConfetti) {
+      lateralConfetti()
+      window.history.replaceState({}, document.title) // Limpiar el estado para que no se repita
+    }
+  }, [location.state])
 
   return (
     <div>

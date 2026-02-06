@@ -268,8 +268,8 @@ export type AIGeneratePlanInput = {
     estructuraPlanId: UUID
   }
   iaConfig: {
-    descripcionEnfoque: string
-    notasAdicionales?: string
+    descripcionEnfoqueAcademico: string
+    instruccionesAdicionalesIA?: string
     archivosReferencia?: Array<UUID>
     repositoriosIds?: Array<UUID>
     archivosAdjuntos: Array<UploadedFile>

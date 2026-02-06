@@ -11,6 +11,7 @@ import {
   subjects_generate_document,
   subjects_get,
   subjects_get_document,
+  subjects_get_structure_catalog,
   subjects_history,
   subjects_import_from_file,
   subjects_persist_from_ai,
@@ -68,6 +69,13 @@ export function useSubjectDocumento(subjectId: UUID | null | undefined) {
   })
 }
 
+export function useSubjectEstructuras() {
+  return useQuery({
+    queryKey: qk.estructurasAsignatura(),
+    queryFn: () => subjects_get_structure_catalog(),
+  })
+}
+
 /* ------------------ Mutations ------------------ */
 
 export function useCreateSubjectManual() {
@@ -89,7 +97,10 @@ export function useCreateSubjectManual() {
 }
 
 export function useGenerateSubjectAI() {
-  return useMutation({ mutationFn: ai_generate_subject })
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ai_generate_subject,
+  })
 }
 
 export function usePersistSubjectFromAI() {

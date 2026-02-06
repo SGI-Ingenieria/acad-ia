@@ -12,7 +12,7 @@ export function useNuevoPlanWizard() {
       carrera: { id: '', nombre: '' },
       nivel: '',
       tipoCiclo: '',
-      numCiclos: undefined,
+      numCiclos: null,
       estructuraPlanId: null,
     },
     // datosBasicos: {
@@ -56,7 +56,7 @@ export function useNuevoPlanWizard() {
     !!wizard.datosBasicos.carrera.id &&
     !!wizard.datosBasicos.facultad.id &&
     !!wizard.datosBasicos.nivel &&
-    wizard.datosBasicos.numCiclos !== undefined &&
+    wizard.datosBasicos.numCiclos !== null &&
     wizard.datosBasicos.numCiclos > 0 &&
     // Requerir ambas plantillas (plan y mapa) con versión
     !!wizard.datosBasicos.estructuraPlanId

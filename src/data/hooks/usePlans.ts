@@ -99,7 +99,7 @@ export function usePlanDocumento(planId: UUID | null | undefined) {
 
 export function useCatalogosPlanes() {
   return useQuery({
-    queryKey: ['catalogos_planes'],
+    queryKey: qk.estructurasPlan(),
     queryFn: getCatalogos,
     staleTime: 1000 * 60 * 60, // 1 hora de caché (estos datos casi no cambian)
   })

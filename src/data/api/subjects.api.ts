@@ -11,10 +11,12 @@ import type {
   TipoAsignatura,
   UUID,
 } from '../types/domain'
+import type { UploadedFile } from '@/components/planes/wizard/PasoDetallesPanel/FileDropZone'
+import type { Database } from '@/types/supabase'
 
 const EDGE = {
   subjects_create_manual: 'subjects_create_manual',
-  ai_generate_subject: 'ai_generate_subject',
+  ai_generate_subject: 'ai-generate-subject',
   subjects_persist_from_ai: 'subjects_persist_from_ai',
   subjects_clone_from_existing: 'subjects_clone_from_existing',
   subjects_import_from_file: 'subjects_import_from_file',
@@ -101,26 +103,58 @@ export async function subjects_create_manual(
   return invokeEdge<Asignatura>(EDGE.subjects_create_manual, payload)
 }
 
-export async function ai_generate_subject(payload: {
-  planId: UUID
+export type AIGenerateSubjectInput = {
+  plan_estudio_id: Asignatura['plan_estudio_id']
   datosBasicos: {
-    nombre: string
-    clave?: string
-    tipo: TipoAsignatura
-    creditos: number
-    horasSemana?: number
-    estructuraId: UUID
+    nombre: Asignatura['nombre']
+    codigo?: Asignatura['codigo']
+    tipo: Asignatura['tipo'] | null
+    creditos: Asignatura['creditos'] | null
+    horasAcademicas?: Asignatura['horas_academicas'] | null
+    horasIndependientes?: Asignatura['horas_independientes'] | null
+    estructuraId: Asignatura['estructura_id'] | null
   }
-  iaConfig: {
-    descripcionEnfoque: string
-    notasAdicionales?: string
-    archivosExistentesIds?: Array<UUID>
-    repositoriosIds?: Array<UUID>
-    archivosAdhocIds?: Array<UUID>
-    usarMCP?: boolean
+  // clonInterno?: {
+  //   facultadId?: string
+  //   carreraId?: string
+  //   planOrigenId?: string
+  //   asignaturaOrigenId?: string | null
+  // }
+  // clonTradicional?: {
+  //   archivoWordAsignaturaId: string | null
+  //   archivosAdicionalesIds: Array<string>
+  // }
+  iaConfig?: {
+    descripcionEnfoqueAcademico: string
+    instruccionesAdicionalesIA: string
+    archivosReferencia: Array<string>
+    repositoriosReferencia?: Array<string>
+    archivosAdjuntos?: Array<UploadedFile>
   }
-}): Promise<any> {
-  return invokeEdge<any>(EDGE.ai_generate_subject, payload)
+}
+
+export async function ai_generate_subject(
+  input: AIGenerateSubjectInput,
+): Promise<any> {
+  const edgeFunctionBody = new FormData()
+  edgeFunctionBody.append('plan_estudio_id', input.plan_estudio_id)
+  edgeFunctionBody.append('datosBasicos', JSON.stringify(input.datosBasicos))
+  edgeFunctionBody.append(
+    'iaConfig',
+    JSON.stringify({
+      ...input.iaConfig,
+      archivosAdjuntos: undefined, // los manejamos aparte
+    }),
+  )
+  input.iaConfig?.archivosAdjuntos?.forEach((file, index) => {
+    edgeFunctionBody.append(`archivosAdjuntos`, file.file)
+  })
+  return invokeEdge<any>(
+    EDGE.ai_generate_subject,
+    edgeFunctionBody,
+    undefined,
+    supabaseBrowser(),
+  )
 }
 
 export async function subjects_persist_from_ai(payload: {
@@ -225,6 +259,23 @@ export async function subjects_get_document(
   return invokeEdge<DocumentoResult | null>(EDGE.subjects_get_document, {
     subjectId,
   })
+}
+
+export async function subjects_get_structure_catalog(): Promise<
+  Array<Database['public']['Tables']['estructuras_asignatura']['Row']>
+> {
+  const supabase = supabaseBrowser()
+
+  const { data, error } = await supabase
+    .from('estructuras_asignatura')
+    .select('*')
+    .order('nombre', { ascending: true })
+
+  if (error) {
+    throw error
+  }
+
+  return data
 }
 
 export async function asignaturas_update(
