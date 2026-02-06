@@ -79,7 +79,7 @@ export async function plans_list(
       `,
       { count: 'exact' },
     )
-    .order('actualizado_en', { ascending: false })
+    .order('creado_en', { ascending: false })
 
   // 2. Aplicamos filtros dinámicos
 
