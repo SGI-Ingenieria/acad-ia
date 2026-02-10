@@ -15,6 +15,7 @@ import type { UploadedFile } from '@/components/planes/wizard/PasoDetallesPanel/
 import type { Database } from '@/types/supabase'
 
 const EDGE = {
+  generate_subject_suggestions: 'generate-subject-suggestions',
   subjects_create_manual: 'subjects_create_manual',
   ai_generate_subject: 'ai-generate-subject',
   subjects_persist_from_ai: 'subjects_persist_from_ai',
@@ -131,6 +132,15 @@ export type AIGenerateSubjectInput = {
     repositoriosReferencia?: Array<string>
     archivosAdjuntos?: Array<UploadedFile>
   }
+}
+
+export async function generate_subject_suggestions(): Promise<
+  Array<{ [key: string]: any }>
+> {
+  return invokeEdge<Array<{ [key: string]: any }>>(
+    EDGE.generate_subject_suggestions,
+    {},
+  )
 }
 
 export async function ai_generate_subject(

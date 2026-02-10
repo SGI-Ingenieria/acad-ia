@@ -2,7 +2,6 @@ import type { UploadedFile } from '@/components/planes/wizard/PasoDetallesPanel/
 import type { Asignatura } from '@/data'
 
 export type ModoCreacion = 'MANUAL' | 'IA' | 'CLONADO'
-export type SubModoClonado = 'INTERNO' | 'TRADICIONAL'
 export type TipoAsignatura = 'OBLIGATORIA' | 'OPTATIVA' | 'TRONCAL' | 'OTRO'
 
 export type AsignaturaPreview = {
@@ -10,6 +9,24 @@ export type AsignaturaPreview = {
   objetivo: string
   unidades: number
   bibliografiaCount: number
+}
+
+export type DataAsignaturaSugerida = {
+  nombre: Asignatura['nombre']
+  codigo?: Asignatura['codigo']
+  tipo: Asignatura['tipo'] | null
+  creditos: Asignatura['creditos'] | null
+  horasAcademicas?: number | null
+  horasIndependientes?: number | null
+  estructuraId: Asignatura['estructura_id'] | null
+  descripcion?: string
+}
+
+export type AsignaturaSugerida = {
+  id: string
+  selected: boolean
+  source: 'IA' | 'MANUAL' | 'CLON'
+  data: DataAsignaturaSugerida
 }
 
 export type NewSubjectWizardState = {
@@ -30,6 +47,7 @@ export type NewSubjectWizardState = {
     horasIndependientes?: Asignatura['horas_independientes'] | null
     estructuraId: Asignatura['estructura_id'] | null
   }
+  sugerencias: Array<AsignaturaSugerida>
   clonInterno?: {
     facultadId?: string
     carreraId?: string
@@ -48,9 +66,9 @@ export type NewSubjectWizardState = {
     archivosAdjuntos?: Array<UploadedFile>
   }
   iaMultiple?: {
-    ciclo: string
+    ciclo: number | null
     enfoque: string
-    selectedIds: Array<string>
+    selectedIds?: Array<string>
   }
   resumen: {
     previewAsignatura?: AsignaturaPreview

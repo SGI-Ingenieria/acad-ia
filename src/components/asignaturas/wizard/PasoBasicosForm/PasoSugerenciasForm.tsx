@@ -1,88 +1,19 @@
 import { RefreshCw, Sparkles } from 'lucide-react'
+import { useState } from 'react'
 
-import type { NewSubjectWizardState } from '@/features/asignaturas/nueva/types'
+import type {
+  AsignaturaSugerida,
+  NewSubjectWizardState,
+} from '@/features/asignaturas/nueva/types'
 import type { Dispatch, SetStateAction } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { usePlan } from '@/data'
 import { cn } from '@/lib/utils'
 
-// Interfaces
-interface Suggestion {
-  id: string
-  nombre: string
-  tipo: 'Obligatoria' | 'Optativa'
-  creditos: number
-  horasAcademicas: number
-  horasIndependientes: number
-  descripcion: string
-}
-
-// Datos Mock basados en tu imagen
-const MOCK_SUGGESTIONS: Array<Suggestion> = [
-  {
-    id: '1',
-    nombre: 'Propiedad Intelectual en Entornos Digitales',
-    tipo: 'Optativa',
-    creditos: 4,
-    horasAcademicas: 32,
-    horasIndependientes: 16,
-    descripcion:
-      'Derechos de autor, patentes de software y marcas en el ecosistema digital.',
-  },
-  {
-    id: '2',
-    nombre: 'Derecho Constitucional Digital',
-    tipo: 'Obligatoria',
-    creditos: 8,
-    horasAcademicas: 64,
-    horasIndependientes: 32,
-    descripcion:
-      'Marco constitucional aplicado al entorno digital y derechos fundamentales en línea.',
-  },
-  {
-    id: '3',
-    nombre: 'Gobernanza de Internet',
-    tipo: 'Optativa',
-    creditos: 4,
-    horasAcademicas: 32,
-    horasIndependientes: 16,
-    descripcion:
-      'Políticas públicas, regulación internacional y gobernanza del ecosistema digital.',
-  },
-  {
-    id: '4',
-    nombre: 'Protección de Datos Personales',
-    tipo: 'Obligatoria',
-    creditos: 6,
-    horasAcademicas: 48,
-    horasIndependientes: 24,
-    descripcion:
-      'Regulación y cumplimiento de leyes de protección de datos (GDPR, LFPDPPP).',
-  },
-  {
-    id: '5',
-    nombre: 'Inteligencia Artificial y Ética Jurídica',
-    tipo: 'Optativa',
-    creditos: 4,
-    horasAcademicas: 32,
-    horasIndependientes: 16,
-    descripcion:
-      'Implicaciones legales y éticas del uso de IA en la práctica jurídica.',
-  },
-  {
-    id: '6',
-    nombre: 'Ciberseguridad y Derecho Penal',
-    tipo: 'Obligatoria',
-    creditos: 6,
-    horasAcademicas: 48,
-    horasIndependientes: 24,
-    descripcion:
-      'Delitos informáticos, evidencia digital y marco penal en el ciberespacio.',
-  },
-]
 export default function PasoSugerenciasForm({
   wizard,
   onChange,
@@ -90,22 +21,28 @@ export default function PasoSugerenciasForm({
   wizard: NewSubjectWizardState
   onChange: Dispatch<SetStateAction<NewSubjectWizardState>>
 }) {
-  const selectedIds = wizard.iaMultiple?.selectedIds ?? []
+  const selectedIds = wizard.sugerencias
+    .filter((s) => s.selected)
+    .map((s) => s.id)
   const ciclo = wizard.iaMultiple?.ciclo ?? ''
   const enfoque = wizard.iaMultiple?.enfoque ?? ''
+  const [suggestions, setSuggestions] = useState<Array<AsignaturaSugerida>>([])
 
   const setIaMultiple = (
     patch: Partial<NonNullable<NewSubjectWizardState['iaMultiple']>>,
   ) =>
-    onChange((w) => ({
-      ...w,
-      iaMultiple: {
-        ciclo: w.iaMultiple?.ciclo ?? '',
-        enfoque: w.iaMultiple?.enfoque ?? '',
-        selectedIds: w.iaMultiple?.selectedIds ?? [],
-        ...patch,
-      },
-    }))
+    onChange(
+      (w): NewSubjectWizardState => ({
+        ...w,
+        iaMultiple: {
+          ciclo: w.iaMultiple?.ciclo ?? null,
+          enfoque: w.iaMultiple?.enfoque ?? '',
+          ...patch,
+        },
+      }),
+    )
+
+  const { data: plan } = usePlan(wizard.plan_estudio_id)
 
   const toggleAsignatura = (id: string, checked: boolean) => {
     const prev = selectedIds
@@ -133,7 +70,8 @@ export default function PasoSugerenciasForm({
             <Input
               placeholder="Ej. 3"
               value={ciclo}
-              onChange={(e) => setIaMultiple({ ciclo: e.target.value })}
+              type="number"
+              onChange={(e) => setIaMultiple({ ciclo: Number(e.target.value) })}
             />
           </div>
 
@@ -152,7 +90,7 @@ export default function PasoSugerenciasForm({
           {/* Botón Refrescar */}
           <Button type="button" variant="outline" className="h-9 gap-1.5">
             <RefreshCw className="h-3.5 w-3.5" />
-            Nuevas sugerencias
+            Más sugerencias
           </Button>
         </div>
       </div>
@@ -164,7 +102,8 @@ export default function PasoSugerenciasForm({
             Asignaturas sugeridas
           </h3>
           <p className="text-muted-foreground text-xs">
-            Basadas en el plan "Licenciatura en Derecho Digital"
+            Basadas en el plan{' '}
+            {plan ? `${plan.nivel} en ${plan.nombre}` : '...'}
           </p>
         </div>
         <div className="bg-muted text-foreground inline-flex items-center rounded-full px-2.5 py-0.5 text-sm font-semibold">
@@ -174,7 +113,7 @@ export default function PasoSugerenciasForm({
 
       {/* --- LISTA DE ASIGNATURAS (CON EL ESTILO PEDIDO) --- */}
       <div className="max-h-80 space-y-1 overflow-y-auto pr-1">
-        {MOCK_SUGGESTIONS.map((asignatura) => {
+        {suggestions.map((asignatura) => {
           const isSelected = selectedIds.includes(asignatura.id)
 
           return (
@@ -203,29 +142,30 @@ export default function PasoSugerenciasForm({
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-foreground text-sm font-medium">
-                    {asignatura.nombre}
+                    {asignatura.data.nombre}
                   </span>
 
                   {/* Badges de Tipo */}
                   <span
                     className={cn(
                       'inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors',
-                      asignatura.tipo === 'Obligatoria'
+                      asignatura.data.tipo === 'OBLIGATORIA'
                         ? 'border-blue-200 bg-transparent text-blue-700 dark:border-blue-800 dark:text-blue-300'
                         : 'border-yellow-200 bg-transparent text-yellow-700 dark:border-yellow-800 dark:text-yellow-300',
                     )}
                   >
-                    {asignatura.tipo}
+                    {asignatura.data.tipo}
                   </span>
 
                   <span className="text-xs text-slate-500 dark:text-slate-400">
-                    {asignatura.creditos} cred. · {asignatura.horasAcademicas}h
-                    acad. · {asignatura.horasIndependientes}h indep.
+                    {asignatura.data.creditos} cred. ·{' '}
+                    {asignatura.data.horasAcademicas}h acad. ·{' '}
+                    {asignatura.data.horasIndependientes}h indep.
                   </span>
                 </div>
 
                 <p className="text-muted-foreground mt-1 text-xs">
-                  {asignatura.descripcion}
+                  {asignatura.data.descripcion}
                 </p>
               </div>
             </Label>

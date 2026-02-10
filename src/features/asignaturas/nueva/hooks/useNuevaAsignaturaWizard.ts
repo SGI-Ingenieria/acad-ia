@@ -16,6 +16,7 @@ export function useNuevaAsignaturaWizard(planId: string) {
       horasIndependientes: null,
       estructuraId: '',
     },
+    sugerencias: [],
     clonInterno: {},
     clonTradicional: {
       archivoWordAsignaturaId: null,
@@ -29,9 +30,9 @@ export function useNuevaAsignaturaWizard(planId: string) {
       archivosAdjuntos: [],
     },
     iaMultiple: {
-      ciclo: '',
+      ciclo: null,
       enfoque: '',
-      selectedIds: ['1', '3', '6'],
+      selectedIds: [],
     },
     resumen: {},
     isLoading: false,
