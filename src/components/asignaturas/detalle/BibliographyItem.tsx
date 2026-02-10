@@ -1,12 +1,4 @@
-import {
-  Plus,
-  Search,
-  BookOpen,
-  Trash2,
-  Library,
-  Edit3,
-  Save,
-} from 'lucide-react'
+import { Plus, Search, BookOpen, Trash2, Library, Edit3 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import {
@@ -204,15 +196,6 @@ export function BibliographyItem({
               />
             </DialogContent>
           </Dialog>
-
-          <Button
-            onClick={() => onSave(entries)}
-            disabled={isSaving}
-            className="bg-blue-600 hover:bg-blue-700"
-          >
-            <Save className="mr-2 h-4 w-4" />{' '}
-            {isSaving ? 'Guardando...' : 'Guardar'}
-          </Button>
         </div>
       </div>
 
