@@ -249,22 +249,16 @@ export default function AsignaturaDetailPage() {
               <div className="flex flex-wrap gap-4 text-sm text-blue-200">
                 <span className="flex items-center gap-1">
                   <GraduationCap className="h-4 w-4 shrink-0" />
-                  {/* Eliminamos el max-w y dejamos que el flex-wrap haga su trabajo */}
-                  <EditableHeaderField
-                    value={asignaturasApi?.planes_estudio?.datos?.nombre || ''}
-                    onSave={(val) => handleUpdateHeader('plan_nombre', val)}
-                    className="min-w-[10ch] text-blue-100" // min-w para que sea clickeable si está vacío
-                  />
+                  <span className="text-blue-100">
+                    {asignaturasApi?.planes_estudio?.datos?.nombre || ''}
+                  </span>
                 </span>
+
                 <span className="flex items-center gap-1">
-                  <EditableHeaderField
-                    value={
-                      asignaturasApi?.planes_estudio?.carreras?.facultades
-                        ?.nombre || ''
-                    }
-                    onSave={(val) => handleUpdateHeader('facultad_nombre', val)}
-                    className="min-w-[10ch] text-blue-100"
-                  />
+                  <span className="text-blue-100">
+                    {asignaturasApi?.planes_estudio?.carreras?.facultades
+                      ?.nombre || ''}
+                  </span>
                 </span>
               </div>
 
