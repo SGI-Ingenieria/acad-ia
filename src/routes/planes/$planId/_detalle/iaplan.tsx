@@ -107,12 +107,11 @@ function RouteComponent() {
         f.value === state.campo_edit.label || f.key === state.campo_edit.clave,
     )
 
-    if (field && !selectedFields.some((sf) => sf.key === field.key)) {
-      setSelectedFields([field])
-    }
+    if (!field) return
 
+    setSelectedFields([field])
     setInput((prev) =>
-      injectFieldsIntoInput(prev || 'Mejora este campo:', field ? [field] : []),
+      injectFieldsIntoInput(prev || 'Mejora este campo:', [field]),
     )
   }, [availableFields])
 
@@ -131,21 +130,21 @@ function RouteComponent() {
     input: string,
     fields: Array<SelectedField>,
   ) => {
-    const baseText = input.replace(/\[[^\]]+]/g, '').trim()
+    // Quita cualquier bloque previo de campos
+    const cleaned = input.replace(/\n?\[Campos:[^\]]*]/g, '').trim()
 
-    const tags = fields.map((f) => `${f.label}`).join(' ')
+    if (fields.length === 0) return cleaned
 
-    return `${baseText} ${tags}`.trim()
+    const fieldLabels = fields.map((f) => f.label).join(', ')
+
+    return `${cleaned}\n[Campos: ${fieldLabels}]`
   }
+
   const toggleField = (field: SelectedField) => {
     setSelectedFields((prev) => {
-      let nextFields
-
-      if (prev.find((f) => f.key === field.key)) {
-        nextFields = prev.filter((f) => f.key !== field.key)
-      } else {
-        nextFields = [...prev, field]
-      }
+      const nextFields = prev.find((f) => f.key === field.key)
+        ? prev.filter((f) => f.key !== field.key)
+        : [...prev, field]
 
       setInput((prevInput) =>
         injectFieldsIntoInput(prevInput || 'Mejora este campo:', nextFields),
@@ -156,6 +155,7 @@ function RouteComponent() {
 
     setShowSuggestions(false)
   }
+
   const buildPrompt = (userInput: string) => {
     if (selectedFields.length === 0) return userInput
 
@@ -341,19 +341,13 @@ ${fieldsText}
                 <Textarea
                   value={input}
                   onChange={handleInputChange}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault()
-                      handleSend()
-                    }
-                  }}
                   placeholder={
                     selectedFields.length > 0
                       ? 'Escribe instrucciones adicionales...'
                       : 'Escribe tu solicitud o ":" para campos...'
                   }
-                  className="max-h-[120px] min-h-[40px] flex-1 resize-none border-none bg-transparent py-2 text-sm shadow-none focus-visible:ring-0"
                 />
+
                 <Button
                   onClick={() => handleSend()}
                   disabled={
