@@ -5,6 +5,12 @@ import type { NewSubjectWizardState } from '@/features/asignaturas/nueva/types'
 
 import ReferenciasParaIA from '@/components/planes/wizard/PasoDetallesPanel/ReferenciasParaIA'
 import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion'
+import {
   Card,
   CardDescription,
   CardHeader,
@@ -20,6 +26,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+import { usePlan, usePlanLineas, useSubjectEstructuras } from '@/data'
 import {
   FACULTADES,
   MATERIAS_MOCK,
@@ -33,6 +40,10 @@ export function PasoDetallesPanel({
   wizard: NewSubjectWizardState
   onChange: React.Dispatch<React.SetStateAction<NewSubjectWizardState>>
 }) {
+  const { data: estructurasAsignatura } = useSubjectEstructuras()
+  const { data: plan } = usePlan(wizard.plan_estudio_id)
+  const { data: lineasPlan } = usePlanLineas(wizard.plan_estudio_id)
+
   if (wizard.tipoOrigen === 'MANUAL') {
     return (
       <Card>
@@ -147,7 +158,168 @@ export function PasoDetallesPanel({
   }
 
   if (wizard.tipoOrigen === 'IA_MULTIPLE') {
-    return <div>Hola</div>
+    const maxCiclos = Math.max(1, plan?.numero_ciclos ?? 1)
+    const sugerenciasSeleccionadas = wizard.sugerencias.filter(
+      (s) => s.selected,
+    )
+
+    const patchSugerencia = (
+      id: string,
+      patch: Partial<NewSubjectWizardState['sugerencias'][number]>,
+    ) =>
+      onChange((w) => ({
+        ...w,
+        sugerencias: w.sugerencias.map((s) =>
+          s.id === id ? { ...s, ...patch } : s,
+        ),
+      }))
+
+    return (
+      <div className="flex flex-col gap-4">
+        <div className="border-border/60 bg-muted/30 rounded-xl border p-4">
+          <div className="grid gap-1">
+            <Label className="text-muted-foreground text-xs">
+              Estructura de la asignatura
+            </Label>
+            <Select
+              value={wizard.datosBasicos.estructuraId ?? undefined}
+              onValueChange={(val) =>
+                onChange(
+                  (w): NewSubjectWizardState => ({
+                    ...w,
+                    estructuraId: val,
+                    datosBasicos: { ...w.datosBasicos, estructuraId: val },
+                  }),
+                )
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecciona una estructura" />
+              </SelectTrigger>
+              <SelectContent>
+                {(estructurasAsignatura ?? []).map((e) => (
+                  <SelectItem key={e.id} value={e.id}>
+                    {e.nombre}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <div className="border-border/60 bg-muted/30 rounded-xl border p-4">
+          <h3 className="text-foreground mx-3 mb-2 text-lg font-semibold">
+            Materias seleccionadas
+          </h3>
+          {sugerenciasSeleccionadas.length === 0 ? (
+            <div className="text-muted-foreground text-sm">
+              Selecciona al menos una sugerencia para configurar su descripción,
+              línea curricular y ciclo.
+            </div>
+          ) : (
+            <Accordion type="multiple" className="w-full space-y-2">
+              {sugerenciasSeleccionadas.map((asig) => (
+                <AccordionItem
+                  key={asig.id}
+                  value={asig.id}
+                  className="border-border/60 bg-background/40 rounded-lg border border-b-0 px-3"
+                >
+                  <AccordionTrigger className="hover:bg-accent/30 data-[state=open]:bg-accent/20 data-[state=open]:text-accent-foreground -mx-3 px-3">
+                    {asig.nombre}
+                  </AccordionTrigger>
+                  <AccordionContent className="text-muted-foreground">
+                    <div className="mx-1 grid gap-3 sm:grid-cols-2">
+                      <div className="grid gap-1">
+                        <Label className="text-muted-foreground text-xs">
+                          Descripción
+                        </Label>
+                        <Textarea
+                          value={asig.descripcion}
+                          maxLength={7000}
+                          rows={6}
+                          onChange={(e) =>
+                            patchSugerencia(asig.id, {
+                              descripcion: e.target.value,
+                            })
+                          }
+                        />
+                      </div>
+
+                      <div className="grid content-start gap-3">
+                        <div className="grid gap-1">
+                          <Label className="text-muted-foreground text-xs">
+                            Ciclo (opcional)
+                          </Label>
+                          <Input
+                            type="number"
+                            min={1}
+                            max={maxCiclos}
+                            step={1}
+                            inputMode="numeric"
+                            placeholder={`1-${maxCiclos}`}
+                            value={asig.numero_ciclo ?? ''}
+                            onKeyDown={(e) => {
+                              if (
+                                ['.', ',', '-', 'e', 'E', '+'].includes(e.key)
+                              ) {
+                                e.preventDefault()
+                              }
+                            }}
+                            onChange={(e) => {
+                              const raw = e.target.value
+                              if (raw === '') {
+                                patchSugerencia(asig.id, { numero_ciclo: null })
+                                return
+                              }
+
+                              const asNumber = Number(raw)
+                              if (!Number.isFinite(asNumber)) return
+
+                              const n = Math.floor(Math.abs(asNumber))
+                              const capped = Math.min(
+                                Math.max(n >= 1 ? n : 1, 1),
+                                maxCiclos,
+                              )
+
+                              patchSugerencia(asig.id, { numero_ciclo: capped })
+                            }}
+                          />
+                        </div>
+                        <div className="grid gap-1">
+                          <Label className="text-muted-foreground text-xs">
+                            Línea curricular (opcional)
+                          </Label>
+                          <Select
+                            value={asig.linea_plan_id ?? '__none__'}
+                            onValueChange={(val) =>
+                              patchSugerencia(asig.id, {
+                                linea_plan_id: val === '__none__' ? null : val,
+                              })
+                            }
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Sin línea" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="__none__">Ninguna</SelectItem>
+                              {(lineasPlan ?? []).map((l) => (
+                                <SelectItem key={l.id} value={l.id}>
+                                  {l.nombre}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
+          )}
+        </div>
+      </div>
+    )
   }
 
   if (wizard.tipoOrigen === 'CLONADO_INTERNO') {

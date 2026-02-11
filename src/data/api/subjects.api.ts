@@ -159,7 +159,6 @@ export async function generate_subject_suggestions(
       id: crypto.randomUUID(),
       selected: false,
       source: 'IA',
-      estructuraId: null,
       nombre: s.nombre,
       codigo: s.codigo,
       tipo: s.tipo ?? null,
@@ -167,6 +166,8 @@ export async function generate_subject_suggestions(
       horasAcademicas: s.horasAcademicas ?? null,
       horasIndependientes: s.horasIndependientes ?? null,
       descripcion: s.descripcion,
+      linea_plan_id: null,
+      numero_ciclo: null,
     }),
   )
 }

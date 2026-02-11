@@ -6,6 +6,7 @@ export function useNuevaAsignaturaWizard(planId: string) {
   const [wizard, setWizard] = useState<NewSubjectWizardState>({
     step: 1,
     plan_estudio_id: planId,
+    estructuraId: null,
     tipoOrigen: null,
     datosBasicos: {
       nombre: '',
@@ -47,12 +48,11 @@ export function useNuevaAsignaturaWizard(planId: string) {
     wizard.tipoOrigen === 'CLONADO_TRADICIONAL'
 
   const canContinueDesdeBasicos =
-    (!!wizard.datosBasicos.nombre &&
-      wizard.datosBasicos.tipo !== null &&
-      wizard.datosBasicos.creditos !== null &&
-      wizard.datosBasicos.creditos > 0 &&
-      !!wizard.datosBasicos.estructuraId) ||
-    true
+    !!wizard.datosBasicos.nombre &&
+    wizard.datosBasicos.tipo !== null &&
+    wizard.datosBasicos.creditos !== null &&
+    wizard.datosBasicos.creditos > 0 &&
+    !!wizard.datosBasicos.estructuraId
 
   const canContinueDesdeDetalles = (() => {
     if (wizard.tipoOrigen === 'MANUAL') return true
@@ -64,6 +64,9 @@ export function useNuevaAsignaturaWizard(planId: string) {
     }
     if (wizard.tipoOrigen === 'CLONADO_TRADICIONAL') {
       return !!wizard.clonTradicional?.archivoWordAsignaturaId
+    }
+    if (wizard.tipoOrigen === 'IA_MULTIPLE') {
+      return wizard.estructuraId !== null
     }
     return false
   })()

@@ -25,12 +25,14 @@ export type AsignaturaSugerida = {
   id: string
   selected: boolean
   source: 'IA' | 'MANUAL' | 'CLON'
-  estructuraId: Asignatura['estructura_id'] | null
+  linea_plan_id: string | null
+  numero_ciclo: number | null
 } & DataAsignaturaSugerida
 
 export type NewSubjectWizardState = {
   step: 1 | 2 | 3 | 4
   plan_estudio_id: Asignatura['plan_estudio_id']
+  estructuraId: Asignatura['estructura_id'] | null
   tipoOrigen:
     | Asignatura['tipo_origen']
     | 'CLONADO'
