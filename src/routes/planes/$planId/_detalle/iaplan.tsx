@@ -16,8 +16,12 @@ import {
 } from 'lucide-react'
 import { useState, useEffect, useRef, useMemo } from 'react'
 
+import type { UploadedFile } from '@/components/planes/wizard/PasoDetallesPanel/FileDropZone'
+
+import ReferenciasParaIA from '@/components/planes/wizard/PasoDetallesPanel/ReferenciasParaIA'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
+import { Drawer, DrawerContent } from '@/components/ui/drawer'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Textarea } from '@/components/ui/textarea'
 import { usePlan } from '@/data/hooks/usePlans'
@@ -56,20 +60,24 @@ interface SelectedField {
   value: string
 }
 
-const formatLabel = (key: string) => {
-  const result = key.replace(/_/g, ' ')
-  return result.charAt(0).toUpperCase() + result.slice(1)
-}
-
 export const Route = createFileRoute('/planes/$planId/_detalle/iaplan')({
   component: RouteComponent,
 })
 
 function RouteComponent() {
   const { planId } = Route.useParams()
-  // Usamos el ID dinámico del plan o el hardcoded según tu necesidad
+
   const { data } = usePlan('0e0aea4d-b8b4-4e75-8279-6224c3ac769f')
   const routerState = useRouterState()
+  const [openIA, setOpenIA] = useState(false)
+  // archivos
+  const [selectedArchivoIds, setSelectedArchivoIds] = useState<Array<string>>(
+    [],
+  )
+  const [selectedRepositorioIds, setSelectedRepositorioIds] = useState<
+    Array<string>
+  >([])
+  const [uploadedFiles, setUploadedFiles] = useState<Array<UploadedFile>>([])
 
   // ESTADOS PRINCIPALES
   const [messages, setMessages] = useState<Array<any>>([
@@ -145,6 +153,10 @@ function RouteComponent() {
       }),
     )
   }, [data])
+
+  useEffect(() => {
+    console.log(uploadedFiles)
+  }, [uploadedFiles])
 
   // 2. Manejar el estado inicial si viene de "Datos Generales"
   useEffect(() => {
@@ -304,10 +316,16 @@ ${fieldsText}
       <div className="relative flex min-w-0 flex-[3] flex-col overflow-hidden rounded-xl border border-slate-200 bg-slate-50/50 shadow-sm">
         {/* NUEVO: Barra superior de campos seleccionados */}
         <div className="shrink-0 border-b bg-white p-3">
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center justify-between">
             <span className="text-[10px] font-bold text-slate-400 uppercase">
               Mejorar con IA
             </span>
+            <button
+              onClick={() => setOpenIA(true)}
+              className="rounded-md bg-slate-100 px-2 py-1 text-xs transition hover:bg-slate-200"
+            >
+              Referencias
+            </button>
           </div>
         </div>
 
@@ -477,6 +495,41 @@ ${fieldsText}
           ))}
         </div>
       </div>
+
+      <Drawer open={openIA} onOpenChange={setOpenIA}>
+        <DrawerContent className="fixed inset-0 h-screen w-screen max-w-none rounded-none">
+          <div className="flex items-center justify-between border-b p-4">
+            <h2 className="text-sm font-semibold">Referencias para la IA</h2>
+            <button
+              onClick={() => setOpenIA(false)}
+              className="text-muted-foreground hover:text-foreground text-sm"
+            >
+              Cerrar
+            </button>
+          </div>
+
+          <div className="h-[calc(100vh-60px)] overflow-y-auto p-6">
+            <ReferenciasParaIA
+              selectedArchivoIds={selectedArchivoIds}
+              selectedRepositorioIds={selectedRepositorioIds}
+              uploadedFiles={uploadedFiles}
+              onToggleArchivo={(id, checked) => {
+                setSelectedArchivoIds((prev) =>
+                  checked ? [...prev, id] : prev.filter((a) => a !== id),
+                )
+              }}
+              onToggleRepositorio={(id, checked) => {
+                setSelectedRepositorioIds((prev) =>
+                  checked ? [...prev, id] : prev.filter((r) => r !== id),
+                )
+              }}
+              onFilesChange={(files) => {
+                setUploadedFiles(files)
+              }}
+            />
+          </div>
+        </DrawerContent>
+      </Drawer>
     </div>
   )
 }
