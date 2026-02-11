@@ -1,3 +1,4 @@
+/* eslint-disable jsx-a11y/no-static-element-interactions */
 import { createFileRoute, useRouterState } from '@tanstack/react-router'
 import {
   Sparkles,
@@ -10,11 +11,17 @@ import {
   BookOpen,
   Check,
   X,
+  MessageSquarePlus,
+  Trash2,
 } from 'lucide-react'
 import { useState, useEffect, useRef, useMemo } from 'react'
 
+import type { UploadedFile } from '@/components/planes/wizard/PasoDetallesPanel/FileDropZone'
+
+import ReferenciasParaIA from '@/components/planes/wizard/PasoDetallesPanel/ReferenciasParaIA'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
+import { Drawer, DrawerContent } from '@/components/ui/drawer'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Textarea } from '@/components/ui/textarea'
 import { usePlan } from '@/data/hooks/usePlans'
@@ -53,20 +60,24 @@ interface SelectedField {
   value: string
 }
 
-const formatLabel = (key: string) => {
-  const result = key.replace(/_/g, ' ')
-  return result.charAt(0).toUpperCase() + result.slice(1)
-}
-
 export const Route = createFileRoute('/planes/$planId/_detalle/iaplan')({
   component: RouteComponent,
 })
 
 function RouteComponent() {
   const { planId } = Route.useParams()
-  // Usamos el ID dinámico del plan o el hardcoded según tu necesidad
+
   const { data } = usePlan('0e0aea4d-b8b4-4e75-8279-6224c3ac769f')
   const routerState = useRouterState()
+  const [openIA, setOpenIA] = useState(false)
+  // archivos
+  const [selectedArchivoIds, setSelectedArchivoIds] = useState<Array<string>>(
+    [],
+  )
+  const [selectedRepositorioIds, setSelectedRepositorioIds] = useState<
+    Array<string>
+  >([])
+  const [uploadedFiles, setUploadedFiles] = useState<Array<UploadedFile>>([])
 
   // ESTADOS PRINCIPALES
   const [messages, setMessages] = useState<Array<any>>([
@@ -84,6 +95,52 @@ function RouteComponent() {
   const [pendingSuggestion, setPendingSuggestion] = useState<any>(null)
 
   const scrollRef = useRef<HTMLDivElement>(null)
+  const [activeChatId, setActiveChatId] = useState('1')
+  const [chatHistory, setChatHistory] = useState([
+    { id: '1', title: 'Chat inicial' },
+  ])
+  const [allMessages, setAllMessages] = useState<{ [key: string]: Array<any> }>(
+    {
+      '1': [
+        {
+          id: 'm1',
+          role: 'assistant',
+          content: '¡Hola! Soy tu asistente de IA en este chat inicial.',
+        },
+      ],
+    },
+  )
+  const currentMessages = allMessages[activeChatId] || []
+
+  const createNewChat = () => {
+    const newId = Date.now().toString()
+    const newChat = { id: newId, title: `Nuevo chat ${chatHistory.length + 1}` }
+
+    setChatHistory([newChat, ...chatHistory])
+    setAllMessages({
+      ...allMessages,
+      [newId]: [
+        {
+          id: '1',
+          role: 'assistant',
+          content: '¡Nuevo chat creado! ¿En qué puedo ayudarte?',
+        },
+      ],
+    })
+    setActiveChatId(newId)
+  }
+
+  const deleteChat = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation() // Evita que se seleccione el chat al borrarlo
+
+    const newHistory = chatHistory.filter((chat) => chat.id !== id)
+    setChatHistory(newHistory)
+
+    // Si borramos el chat activo, pasamos al primero disponible
+    if (activeChatId === id && newHistory.length > 0) {
+      setActiveChatId(newHistory[0].id)
+    }
+  }
 
   // 1. Transformar datos de la API para el menú de selección
   const availableFields = useMemo(() => {
@@ -96,6 +153,10 @@ function RouteComponent() {
       }),
     )
   }, [data])
+
+  useEffect(() => {
+    console.log(uploadedFiles)
+  }, [uploadedFiles])
 
   // 2. Manejar el estado inicial si viene de "Datos Generales"
   useEffect(() => {
@@ -208,14 +269,63 @@ ${fieldsText}
   }
   return (
     <div className="flex h-[calc(100vh-160px)] max-h-[calc(100vh-160px)] w-full gap-6 overflow-hidden p-4">
+      {/* --- PANEL IZQUIERDO: HISTORIAL (NUEVO) --- */}
+      <div className="flex w-64 flex-col border-r pr-4">
+        <div className="mb-4">
+          <h2 className="mb-4 px-2 text-xs font-bold tracking-wider text-slate-500 uppercase">
+            Chats
+          </h2>
+          <Button
+            onClick={createNewChat}
+            variant="outline"
+            className="mb-4 w-full justify-start gap-2 border-slate-200 hover:bg-teal-50 hover:text-teal-700"
+          >
+            <MessageSquarePlus size={18} /> Nuevo chat
+          </Button>
+        </div>
+
+        <ScrollArea className="flex-1">
+          <div className="space-y-1">
+            {chatHistory.map((chat) => (
+              // eslint-disable-next-line jsx-a11y/click-events-have-key-events
+              <div
+                key={chat.id}
+                onClick={() => setActiveChatId(chat.id)}
+                className={`group relative flex w-full cursor-pointer items-center gap-3 rounded-lg px-3 py-3 text-sm transition-colors ${
+                  activeChatId === chat.id
+                    ? 'bg-slate-100 font-medium text-slate-900'
+                    : 'text-slate-600 hover:bg-slate-50'
+                }`}
+              >
+                <FileText size={16} className="shrink-0 opacity-40" />
+                <span className="truncate pr-6">{chat.title}</span>
+
+                {/* Botón de borrar que aparece al hacer hover */}
+                <button
+                  onClick={(e) => deleteChat(e, chat.id)}
+                  className="absolute right-2 p-1 opacity-0 transition-opacity group-hover:opacity-100 hover:text-red-600"
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            ))}
+          </div>
+        </ScrollArea>
+      </div>
       {/* PANEL DE CHAT PRINCIPAL */}
       <div className="relative flex min-w-0 flex-[3] flex-col overflow-hidden rounded-xl border border-slate-200 bg-slate-50/50 shadow-sm">
         {/* NUEVO: Barra superior de campos seleccionados */}
         <div className="shrink-0 border-b bg-white p-3">
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center justify-between">
             <span className="text-[10px] font-bold text-slate-400 uppercase">
               Mejorar con IA
             </span>
+            <button
+              onClick={() => setOpenIA(true)}
+              className="rounded-md bg-slate-100 px-2 py-1 text-xs transition hover:bg-slate-200"
+            >
+              Referencias
+            </button>
           </div>
         </div>
 
@@ -285,7 +395,6 @@ ${fieldsText}
           )}
         </div>
 
-        {/* INPUT FIJO AL FONDO CON SUGERENCIAS : */}
         {/* INPUT FIJO AL FONDO CON SUGERENCIAS : */}
         <div className="shrink-0 border-t bg-white p-4">
           <div className="relative mx-auto max-w-4xl">
@@ -386,6 +495,41 @@ ${fieldsText}
           ))}
         </div>
       </div>
+
+      <Drawer open={openIA} onOpenChange={setOpenIA}>
+        <DrawerContent className="fixed inset-0 h-screen w-screen max-w-none rounded-none">
+          <div className="flex items-center justify-between border-b p-4">
+            <h2 className="text-sm font-semibold">Referencias para la IA</h2>
+            <button
+              onClick={() => setOpenIA(false)}
+              className="text-muted-foreground hover:text-foreground text-sm"
+            >
+              Cerrar
+            </button>
+          </div>
+
+          <div className="h-[calc(100vh-60px)] overflow-y-auto p-6">
+            <ReferenciasParaIA
+              selectedArchivoIds={selectedArchivoIds}
+              selectedRepositorioIds={selectedRepositorioIds}
+              uploadedFiles={uploadedFiles}
+              onToggleArchivo={(id, checked) => {
+                setSelectedArchivoIds((prev) =>
+                  checked ? [...prev, id] : prev.filter((a) => a !== id),
+                )
+              }}
+              onToggleRepositorio={(id, checked) => {
+                setSelectedRepositorioIds((prev) =>
+                  checked ? [...prev, id] : prev.filter((r) => r !== id),
+                )
+              }}
+              onFilesChange={(files) => {
+                setUploadedFiles(files)
+              }}
+            />
+          </div>
+        </DrawerContent>
+      </Drawer>
     </div>
   )
 }
