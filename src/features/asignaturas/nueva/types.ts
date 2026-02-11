@@ -18,7 +18,7 @@ export type DataAsignaturaSugerida = {
   creditos: Asignatura['creditos'] | null
   horasAcademicas?: number | null
   horasIndependientes?: number | null
-  descripcion?: string
+  descripcion: string
 }
 
 export type AsignaturaSugerida = {
@@ -67,6 +67,7 @@ export type NewSubjectWizardState = {
   iaMultiple?: {
     ciclo: number | null
     enfoque: string
+    cantidadDeSugerencias: number
   }
   resumen: {
     previewAsignatura?: AsignaturaPreview

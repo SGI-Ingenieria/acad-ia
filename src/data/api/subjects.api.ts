@@ -138,31 +138,38 @@ export type AIGenerateSubjectInput = {
   }
 }
 
-export async function generate_subject_suggestions(): Promise<
-  Array<AsignaturaSugerida>
-> {
+export type GenerateSubjectSuggestionsInput = {
+  plan_estudio_id: UUID
+  numero_de_ciclo: number
+  enfoque?: string
+  cantidad_de_sugerencias: number
+  sugerencias_conservadas: Array<{ nombre: string; descripcion: string }>
+}
+
+export async function generate_subject_suggestions(
+  input: GenerateSubjectSuggestionsInput,
+): Promise<Array<AsignaturaSugerida>> {
   const raw = await invokeEdge<Array<DataAsignaturaSugerida>>(
     EDGE.generate_subject_suggestions,
-    {},
+    input,
+    { headers: { 'Content-Type': 'application/json' } },
   )
 
-  const arr = raw.map(
+  return raw.map(
     (s): AsignaturaSugerida => ({
       id: crypto.randomUUID(),
       selected: false,
       source: 'IA',
+      estructuraId: null,
       nombre: s.nombre,
       codigo: s.codigo,
       tipo: s.tipo ?? null,
       creditos: s.creditos ?? null,
       horasAcademicas: s.horasAcademicas ?? null,
       horasIndependientes: s.horasIndependientes ?? null,
-      estructuraId: null,
       descripcion: s.descripcion,
     }),
   )
-
-  return arr
 }
 
 export async function ai_generate_subject(

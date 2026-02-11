@@ -94,7 +94,7 @@ export function WizardControls({
         Anterior
       </Button>
 
-      <div className="flex-1">
+      <div className="mx-2 flex-1">
         {(errorMessage ?? wizard.errorMessage) && (
           <span className="text-destructive text-sm font-medium">
             {errorMessage ?? wizard.errorMessage}
