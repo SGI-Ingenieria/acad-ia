@@ -12,10 +12,13 @@ import {
   Eye,
   History,
   Calendar,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import {
   Dialog,
@@ -57,15 +60,14 @@ const getEventConfig = (tipo: string, campo: string) => {
 
 function RouteComponent() {
   const { planId } = Route.useParams()
-  const { data: rawData, isLoading } = usePlanHistorial(planId)
+  const [page, setPage] = useState(0)
+  const pageSize = 4
+  const { data: response, isLoading } = usePlanHistorial(planId, page)
+  const rawData = response?.data ?? []
+  const totalRecords = response?.count ?? 0
+  const totalPages = Math.ceil(totalRecords / pageSize)
   const [structure, setStructure] = useState<any>(null)
   const { data } = usePlan(planId)
-  console.log('analizando estructura')
-
-  console.log(data?.estructuras_plan?.definicion?.properties)
-  // console.log(structure)
-
-  // ESTADOS PARA EL MODAL
   const [selectedEvent, setSelectedEvent] = useState<any>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
 
@@ -228,6 +230,46 @@ function RouteComponent() {
               </Card>
             </div>
           ))
+        )}
+        {historyEvents.length > 0 && (
+          <div className="mt-10 ml-20 flex items-center justify-between border-t pt-4">
+            <p className="text-xs text-slate-500">
+              Mostrando {rawData.length} de {totalRecords} cambios
+            </p>
+
+            <div className="flex items-center gap-4">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setPage((p) => Math.max(0, p - 1))
+                  window.scrollTo(0, 0) // Opcional: volver arriba
+                }}
+                disabled={page === 0 || isLoading}
+              >
+                <ChevronLeft className="mr-2 h-4 w-4" />
+                Anterior
+              </Button>
+
+              <span className="text-sm font-medium text-slate-700">
+                Página {page + 1} de {totalPages || 1}
+              </span>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setPage((p) => p + 1)
+                  window.scrollTo(0, 0)
+                }}
+                // Ahora se deshabilita si llegamos a la última página real
+                disabled={page + 1 >= totalPages || isLoading}
+              >
+                Siguiente
+                <ChevronRight className="ml-2 h-4 w-4" />
+              </Button>
+            </div>
+          </div>
         )}
       </div>
 

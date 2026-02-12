@@ -176,18 +176,31 @@ export async function plan_asignaturas_list(
   return data ?? []
 }
 
-export async function plans_history(planId: UUID): Promise<Array<CambioPlan>> {
+export async function plans_history(
+  planId: UUID,
+  page: number = 0,
+  pageSize: number = 4,
+): Promise<{ data: Array<CambioPlan>; count: number }> {
+  // Cambiamos el retorno
   const supabase = supabaseBrowser()
-  const { data, error } = await supabase
+  const from = page * pageSize
+  const to = from + pageSize - 1
+
+  const { data, error, count } = await supabase
     .from('cambios_plan')
     .select(
       'id,plan_estudio_id,cambiado_por,cambiado_en,tipo,campo,valor_anterior,valor_nuevo',
+      { count: 'exact' }, // <--- Pedimos el conteo exacto
     )
     .eq('plan_estudio_id', planId)
     .order('cambiado_en', { ascending: false })
+    .range(from, to)
 
   throwIfError(error)
-  return data ?? []
+  return {
+    data: data ?? [],
+    count: count ?? 0,
+  }
 }
 
 /** Wizard: crear plan manual (Edge Function) */

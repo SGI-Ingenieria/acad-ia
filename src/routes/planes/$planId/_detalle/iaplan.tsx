@@ -163,10 +163,6 @@ function RouteComponent() {
     )
   }, [data])
 
-  useEffect(() => {
-    console.log(uploadedFiles)
-  }, [uploadedFiles])
-
   // 2. Manejar el estado inicial si viene de "Datos Generales"
   useEffect(() => {
     const state = routerState.location.state as any

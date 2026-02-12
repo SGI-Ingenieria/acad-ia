@@ -80,11 +80,17 @@ export function usePlanAsignaturas(planId: UUID | null | undefined) {
   })
 }
 
-export function usePlanHistorial(planId: UUID | null | undefined) {
+export function usePlanHistorial(
+  planId: UUID | null | undefined,
+  page: number,
+) {
   return useQuery({
-    queryKey: planId ? qk.planHistorial(planId) : ['planes', 'historial', null],
-    queryFn: () => plans_history(planId as UUID),
+    queryKey: planId
+      ? [...qk.planHistorial(planId), page]
+      : ['planes', 'historial', null, page],
+    queryFn: () => plans_history(planId as UUID, page),
     enabled: Boolean(planId),
+    placeholderData: (previousData) => previousData,
   })
 }
 
