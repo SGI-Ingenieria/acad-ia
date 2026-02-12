@@ -1,10 +1,9 @@
+/* eslint-disable jsx-a11y/click-events-have-key-events */
 /* eslint-disable jsx-a11y/no-static-element-interactions */
 import { createFileRoute, useRouterState } from '@tanstack/react-router'
 import {
-  Sparkles,
   Send,
   Target,
-  UserCheck,
   Lightbulb,
   FileText,
   GraduationCap,
@@ -12,14 +11,14 @@ import {
   Check,
   X,
   MessageSquarePlus,
-  Trash2,
+  Archive,
+  RotateCcw,
 } from 'lucide-react'
 import { useState, useEffect, useRef, useMemo } from 'react'
 
 import type { UploadedFile } from '@/components/planes/wizard/PasoDetallesPanel/FileDropZone'
 
 import ReferenciasParaIA from '@/components/planes/wizard/PasoDetallesPanel/ReferenciasParaIA'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Drawer, DrawerContent } from '@/components/ui/drawer'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -99,6 +98,8 @@ function RouteComponent() {
   const [chatHistory, setChatHistory] = useState([
     { id: '1', title: 'Chat inicial' },
   ])
+  const [showArchived, setShowArchived] = useState(false)
+  const [archivedHistory, setArchivedHistory] = useState<Array<any>>([])
   const [allMessages, setAllMessages] = useState<{ [key: string]: Array<any> }>(
     {
       '1': [
@@ -110,8 +111,6 @@ function RouteComponent() {
       ],
     },
   )
-  const currentMessages = allMessages[activeChatId] || []
-
   const createNewChat = () => {
     const newId = Date.now().toString()
     const newChat = { id: newId, title: `Nuevo chat ${chatHistory.length + 1}` }
@@ -130,15 +129,25 @@ function RouteComponent() {
     setActiveChatId(newId)
   }
 
-  const deleteChat = (e: React.MouseEvent, id: string) => {
-    e.stopPropagation() // Evita que se seleccione el chat al borrarlo
+  const archiveChat = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation()
 
-    const newHistory = chatHistory.filter((chat) => chat.id !== id)
-    setChatHistory(newHistory)
-
-    // Si borramos el chat activo, pasamos al primero disponible
-    if (activeChatId === id && newHistory.length > 0) {
-      setActiveChatId(newHistory[0].id)
+    const chatToArchive = chatHistory.find((chat) => chat.id === id)
+    if (chatToArchive) {
+      setArchivedHistory([chatToArchive, ...archivedHistory])
+      const newHistory = chatHistory.filter((chat) => chat.id !== id)
+      setChatHistory(newHistory)
+      if (activeChatId === id && newHistory.length > 0) {
+        setActiveChatId(newHistory[0].id)
+      }
+    }
+  }
+  const unarchiveChat = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation()
+    const chatToRestore = archivedHistory.find((chat) => chat.id === id)
+    if (chatToRestore) {
+      setChatHistory([chatToRestore, ...chatHistory])
+      setArchivedHistory(archivedHistory.filter((chat) => chat.id !== id))
     }
   }
 
@@ -225,11 +234,11 @@ function RouteComponent() {
       .join('\n')
 
     return `
-${userInput || 'Mejora los siguientes campos:'}
+      ${userInput || 'Mejora los siguientes campos:'}
 
-Campos a analizar:
-${fieldsText}
-`.trim()
+      Campos a analizar:
+      ${fieldsText}
+      `.trim()
   }
 
   const handleSend = async (promptOverride?: string) => {
@@ -249,32 +258,49 @@ ${fieldsText}
     setIsLoading(true)
 
     setTimeout(() => {
-      const mockText =
-        'Sugerencia generada basada en los campos seleccionados...'
+      const suggestions = selectedFields.map((field) => ({
+        key: field.key,
+        label: field.label,
+        newValue: field.value,
+      }))
 
       setMessages((prev) => [
         ...prev,
         {
           id: Date.now().toString(),
           role: 'assistant',
-          content: `He analizado ${selectedFields
-            .map((f) => f.label)
-            .join(', ')}. Aquí tienes una propuesta:\n\n${mockText}`,
+          type: 'improvement-card',
+          content:
+            'He analizado los campos seleccionados. Aquí tienes mis sugerencias de mejora:',
+          suggestions: suggestions,
         },
       ])
-
-      setPendingSuggestion({ text: mockText })
       setIsLoading(false)
     }, 1200)
   }
   return (
     <div className="flex h-[calc(100vh-160px)] max-h-[calc(100vh-160px)] w-full gap-6 overflow-hidden p-4">
-      {/* --- PANEL IZQUIERDO: HISTORIAL (NUEVO) --- */}
+      {/* --- PANEL IZQUIERDO: HISTORIAL --- */}
       <div className="flex w-64 flex-col border-r pr-4">
         <div className="mb-4">
-          <h2 className="mb-4 px-2 text-xs font-bold tracking-wider text-slate-500 uppercase">
-            Chats
-          </h2>
+          <div className="mb-4 flex items-center justify-between px-2">
+            <h2 className="text-xs font-bold tracking-wider text-slate-500 uppercase">
+              Chats
+            </h2>
+            {/* Botón de toggle archivados movido aquí arriba */}
+            <button
+              onClick={() => setShowArchived(!showArchived)}
+              className={`rounded-md p-1.5 transition-colors ${
+                showArchived
+                  ? 'bg-teal-50 text-teal-600'
+                  : 'text-slate-400 hover:bg-slate-100'
+              }`}
+              title={showArchived ? 'Ver chats activos' : 'Ver archivados'}
+            >
+              <Archive size={16} />
+            </button>
+          </div>
+
           <Button
             onClick={createNewChat}
             variant="outline"
@@ -286,29 +312,61 @@ ${fieldsText}
 
         <ScrollArea className="flex-1">
           <div className="space-y-1">
-            {chatHistory.map((chat) => (
-              // eslint-disable-next-line jsx-a11y/click-events-have-key-events
-              <div
-                key={chat.id}
-                onClick={() => setActiveChatId(chat.id)}
-                className={`group relative flex w-full cursor-pointer items-center gap-3 rounded-lg px-3 py-3 text-sm transition-colors ${
-                  activeChatId === chat.id
-                    ? 'bg-slate-100 font-medium text-slate-900'
-                    : 'text-slate-600 hover:bg-slate-50'
-                }`}
-              >
-                <FileText size={16} className="shrink-0 opacity-40" />
-                <span className="truncate pr-6">{chat.title}</span>
-
-                {/* Botón de borrar que aparece al hacer hover */}
-                <button
-                  onClick={(e) => deleteChat(e, chat.id)}
-                  className="absolute right-2 p-1 opacity-0 transition-opacity group-hover:opacity-100 hover:text-red-600"
+            {/* Lógica de renderizado condicional */}
+            {!showArchived ? (
+              // LISTA DE CHATS ACTIVOS
+              chatHistory.map((chat) => (
+                <div
+                  key={chat.id}
+                  onClick={() => setActiveChatId(chat.id)}
+                  className={`group relative flex w-full cursor-pointer items-center gap-3 rounded-lg px-3 py-3 text-sm transition-colors ${
+                    activeChatId === chat.id
+                      ? 'bg-slate-100 font-medium text-slate-900'
+                      : 'text-slate-600 hover:bg-slate-50'
+                  }`}
                 >
-                  <Trash2 size={14} />
-                </button>
+                  <FileText size={16} className="shrink-0 opacity-40" />
+                  <span className="truncate pr-8">{chat.title}</span>
+                  <button
+                    onClick={(e) => archiveChat(e, chat.id)}
+                    className="absolute right-2 p-1 opacity-0 transition-opacity group-hover:opacity-100 hover:text-amber-600"
+                    title="Archivar"
+                  >
+                    <Archive size={14} />
+                  </button>
+                </div>
+              ))
+            ) : (
+              // LISTA DE CHATS ARCHIVADOS
+              <div className="animate-in fade-in slide-in-from-left-2">
+                <p className="mb-2 px-2 text-[10px] font-bold text-slate-400 uppercase">
+                  Archivados
+                </p>
+                {archivedHistory.map((chat) => (
+                  <div
+                    key={chat.id}
+                    className="group relative mb-1 flex w-full items-center gap-3 rounded-lg bg-slate-50/50 px-3 py-2 text-sm text-slate-400"
+                  >
+                    <Archive size={14} className="shrink-0 opacity-30" />
+                    <span className="truncate pr-8">{chat.title}</span>
+                    <button
+                      onClick={(e) => unarchiveChat(e, chat.id)}
+                      className="absolute right-2 p-1 opacity-0 group-hover:opacity-100 hover:text-teal-600"
+                      title="Desarchivar"
+                    >
+                      <RotateCcw size={14} />
+                    </button>
+                  </div>
+                ))}
+                {archivedHistory.length === 0 && (
+                  <div className="px-2 py-4 text-center">
+                    <p className="text-xs text-slate-400 italic">
+                      No hay archivados
+                    </p>
+                  </div>
+                )}
               </div>
-            ))}
+            )}
           </div>
         </ScrollArea>
       </div>
@@ -335,32 +393,26 @@ ${fieldsText}
             <div className="mx-auto max-w-3xl space-y-6 p-6">
               {messages.map((msg) => (
                 <div
-                  key={msg.id}
-                  className={`flex ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'} items-start gap-3`}
+                  className={`flex max-w-[85%] flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}
                 >
-                  <Avatar
-                    className={`h-8 w-8 shrink-0 border ${msg.role === 'assistant' ? 'bg-teal-50' : 'bg-slate-200'}`}
-                  >
-                    <AvatarFallback className="text-[10px]">
-                      {msg.role === 'assistant' ? (
-                        <Sparkles size={14} className="text-teal-600" />
-                      ) : (
-                        <UserCheck size={14} />
-                      )}
-                    </AvatarFallback>
-                  </Avatar>
                   <div
-                    className={`flex max-w-[85%] flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}
+                    className={`rounded-2xl p-3 text-sm whitespace-pre-wrap shadow-sm ${
+                      msg.role === 'user'
+                        ? 'rounded-tr-none bg-teal-600 text-white'
+                        : 'rounded-tl-none border bg-white text-slate-700'
+                    }`}
                   >
-                    <div
-                      className={`rounded-2xl p-3 text-sm whitespace-pre-wrap shadow-sm ${
-                        msg.role === 'user'
-                          ? 'rounded-tr-none bg-teal-600 text-white'
-                          : 'rounded-tl-none border bg-white text-slate-700'
-                      }`}
-                    >
-                      {msg.content}
-                    </div>
+                    {msg.content}
+
+                    {msg.type === 'improvement-card' && (
+                      <ImprovementCard
+                        suggestions={msg.suggestions}
+                        onApply={(key, val) => {
+                          console.log(`Aplicando ${val} al campo ${key}`)
+                          // Aquí llamarías a tu función de actualización de datos real
+                        }}
+                      />
+                    )}
                   </div>
                 </div>
               ))}
@@ -398,7 +450,7 @@ ${fieldsText}
         {/* INPUT FIJO AL FONDO CON SUGERENCIAS : */}
         <div className="shrink-0 border-t bg-white p-4">
           <div className="relative mx-auto max-w-4xl">
-            {/* MENÚ DE SUGERENCIAS FLOTANTE (Se mantiene igual) */}
+            {/* MENÚ DE SUGERENCIAS FLOTANTE */}
             {showSuggestions && (
               <div className="animate-in slide-in-from-bottom-2 absolute bottom-full z-50 mb-2 w-72 overflow-hidden rounded-xl border bg-white shadow-2xl">
                 <div className="border-b bg-slate-50 px-3 py-2 text-[10px] font-bold tracking-wider text-slate-500 uppercase">
@@ -425,7 +477,7 @@ ${fieldsText}
 
             {/* CONTENEDOR DEL INPUT TRANSFORMADO */}
             <div className="flex flex-col gap-2 rounded-xl border bg-slate-50 p-2 transition-all focus-within:bg-white focus-within:ring-1 focus-within:ring-teal-500">
-              {/* 1. Visualización de campos dentro del input (Tags) */}
+              {/* 1. Visualización de campos dentro del input ) */}
               {selectedFields.length > 0 && (
                 <div className="flex flex-wrap gap-2 px-2 pt-1">
                   {selectedFields.map((field) => (
@@ -472,8 +524,7 @@ ${fieldsText}
           </div>
         </div>
       </div>
-
-      {/* PANEL LATERAL (PRESETS) - SE MANTIENE COMO LO TENÍAS */}
+      {/* PANEL LATERAL */}
       <div className="flex flex-[1] flex-col gap-4 overflow-y-auto pr-2">
         <h4 className="flex items-center gap-2 text-left text-sm font-bold text-slate-800">
           <Lightbulb size={18} className="text-orange-500" /> Acciones rápidas
@@ -495,7 +546,6 @@ ${fieldsText}
           ))}
         </div>
       </div>
-
       <Drawer open={openIA} onOpenChange={setOpenIA}>
         <DrawerContent className="fixed inset-0 h-screen w-screen max-w-none rounded-none">
           <div className="flex items-center justify-between border-b p-4">
@@ -530,6 +580,69 @@ ${fieldsText}
           </div>
         </DrawerContent>
       </Drawer>
+    </div>
+  )
+}
+
+const ImprovementCard = ({
+  suggestions,
+  onApply,
+}: {
+  suggestions: Array<any>
+  onApply: (key: string, value: string) => void
+}) => {
+  // Estado para rastrear qué campos han sido aplicados
+  const [appliedFields, setAppliedFields] = useState<Array<string>>([])
+
+  const handleApply = (key: string, value: string) => {
+    onApply(key, value)
+    setAppliedFields((prev) => [...prev, key])
+  }
+
+  return (
+    <div className="mt-2 flex w-full flex-col gap-4">
+      {suggestions.map((sug) => {
+        const isApplied = appliedFields.includes(sug.key)
+
+        return (
+          <div
+            key={sug.key}
+            className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm"
+          >
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-sm font-bold text-slate-900">{sug.label}</h3>
+              <Button
+                size="sm"
+                onClick={() => handleApply(sug.key, sug.newValue)}
+                disabled={isApplied}
+                className={`h-8 rounded-full px-4 text-xs transition-all ${
+                  isApplied
+                    ? 'cursor-not-allowed bg-slate-100 text-slate-400'
+                    : 'bg-[#00a189] text-white hover:bg-[#008f7a]'
+                }`}
+              >
+                {isApplied ? (
+                  <span className="flex items-center gap-1">
+                    <Check size={12} /> Aplicado
+                  </span>
+                ) : (
+                  'Aplicar mejora'
+                )}
+              </Button>
+            </div>
+
+            <div
+              className={`rounded-xl border p-3 text-sm transition-colors duration-300 ${
+                isApplied
+                  ? 'border-[#ccfbf1] bg-[#f0fdfa] text-slate-700'
+                  : 'border-slate-200 bg-slate-50 text-slate-500'
+              }`}
+            >
+              {sug.newValue}
+            </div>
+          </div>
+        )
+      })}
     </div>
   )
 }
