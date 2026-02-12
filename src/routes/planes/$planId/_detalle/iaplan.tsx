@@ -78,14 +78,6 @@ function RouteComponent() {
   >([])
   const [uploadedFiles, setUploadedFiles] = useState<Array<UploadedFile>>([])
 
-  useEffect(() => {
-    console.log('analizando referencias')
-
-    console.log(selectedArchivoIds)
-    console.log(selectedRepositorioIds)
-    console.log(uploadedFiles)
-  }, [selectedArchivoIds, selectedRepositorioIds, uploadedFiles])
-  // ESTADOS PRINCIPALES
   const [messages, setMessages] = useState<Array<any>>([
     {
       id: '1',
@@ -256,9 +248,13 @@ function RouteComponent() {
       content: finalPrompt,
     }
 
-    setMessages((prev) => [...prev, userMsg])
+    // setMessages((prev) => [...prev, userMsg])
     setInput('')
     setIsLoading(true)
+    // setSelectedFields([])
+    setSelectedArchivoIds([])
+    setSelectedRepositorioIds([])
+    setUploadedFiles([])
 
     setTimeout(() => {
       const suggestions = selectedFields.map((field) => ({
@@ -427,6 +423,9 @@ function RouteComponent() {
                       <ImprovementCard
                         suggestions={msg.suggestions}
                         onApply={(key, val) => {
+                          setSelectedFields((prev) =>
+                            prev.filter((f) => f.key !== key),
+                          )
                           console.log(`Aplicando ${val} al campo ${key}`)
                           // Aquí llamarías a tu función de actualización de datos real
                         }}
@@ -569,6 +568,7 @@ function RouteComponent() {
         <DrawerContent className="fixed inset-0 h-screen w-screen max-w-none rounded-none">
           <div className="flex items-center justify-between border-b p-4">
             <h2 className="text-sm font-semibold">Referencias para la IA</h2>
+
             <button
               onClick={() => setOpenIA(false)}
               className="text-muted-foreground hover:text-foreground text-sm"
