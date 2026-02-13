@@ -580,19 +580,22 @@ ${fieldsText}`.trim()
         </div>
       </div>
       <Drawer open={openIA} onOpenChange={setOpenIA}>
-        <DrawerContent className="fixed inset-0 h-screen w-screen max-w-none rounded-none">
-          <div className="flex items-center justify-between border-b p-4">
-            <h2 className="text-sm font-semibold">Referencias para la IA</h2>
-
+        <DrawerContent className="fixed inset-x-0 bottom-0 mx-auto mb-4 flex h-[80vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border bg-white shadow-2xl">
+          {/* Cabecera más compacta */}
+          <div className="flex items-center justify-between border-b bg-slate-50/50 px-4 py-3">
+            <h2 className="text-xs font-bold tracking-wider text-slate-500 uppercase">
+              Referencias para la IA
+            </h2>
             <button
               onClick={() => setOpenIA(false)}
-              className="text-muted-foreground hover:text-foreground text-sm"
+              className="text-slate-400 transition-colors hover:text-slate-600"
             >
-              Cerrar
+              <X size={18} />
             </button>
           </div>
 
-          <div className="h-[calc(100vh-60px)] overflow-y-auto p-6">
+          {/* Contenido con scroll interno */}
+          <div className="flex-1 overflow-y-auto p-4">
             <ReferenciasParaIA
               selectedArchivoIds={selectedArchivoIds}
               selectedRepositorioIds={selectedRepositorioIds}
