@@ -77,6 +77,16 @@ export function usePlanAsignaturas(planId: UUID | null | undefined) {
       : ['planes', 'asignaturas', null],
     queryFn: () => plan_asignaturas_list(planId as UUID),
     enabled: Boolean(planId),
+
+    refetchInterval: (query) => {
+      const data = query.state.data
+      if (!Array.isArray(data)) return false
+      const hayGenerando = data.some(
+        (a: any) => (a as { estado?: unknown }).estado === 'generando',
+      )
+      return hayGenerando ? 500 : false
+    },
+    refetchIntervalInBackground: true,
   })
 }
 
@@ -269,7 +279,7 @@ export function useDeleteLinea() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: lineas_delete,
-    onSuccess: (idEliminado) => {
+    onSuccess: (_idEliminado) => {
       // Invalidamos para que las materias y líneas se refresquen
       qc.invalidateQueries({ queryKey: ['plan_lineas'] })
       qc.invalidateQueries({ queryKey: ['plan_asignaturas'] })

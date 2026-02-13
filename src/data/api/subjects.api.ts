@@ -16,7 +16,7 @@ import type {
   AsignaturaSugerida,
   DataAsignaturaSugerida,
 } from '@/features/asignaturas/nueva/types'
-import type { Database } from '@/types/supabase'
+import type { Database, TablesInsert } from '@/types/supabase'
 
 const EDGE = {
   generate_subject_suggestions: 'generate-subject-suggestions',
@@ -89,23 +89,18 @@ export async function subjects_bibliografia_list(
   return data ?? []
 }
 
-/** Wizard: crear asignatura manual (Edge Function) */
-export type SubjectsCreateManualInput = {
-  planId: UUID
-  datosBasicos: {
-    nombre: string
-    clave?: string
-    tipo: TipoAsignatura
-    creditos: number
-    horasSemana?: number
-    estructuraId: UUID
-  }
-}
-
 export async function subjects_create_manual(
-  payload: SubjectsCreateManualInput,
+  payload: TablesInsert<'asignaturas'>,
 ): Promise<Asignatura> {
-  return invokeEdge<Asignatura>(EDGE.subjects_create_manual, payload)
+  const supabase = supabaseBrowser()
+  const { data, error } = await supabase
+    .from('asignaturas')
+    .insert(payload)
+    .select()
+    .single()
+
+  throwIfError(error)
+  return requireData(data, 'No se pudo crear la asignatura.')
 }
 
 export type AIGenerateSubjectInput = {

@@ -1,4 +1,6 @@
 import { useNavigate } from '@tanstack/react-router'
+import { Loader2 } from 'lucide-react'
+import { useState } from 'react'
 
 import type { AIGeneratePlanInput } from '@/data'
 import type { NivelPlanEstudio, TipoCiclo } from '@/data/types/domain'
@@ -33,6 +35,7 @@ export function WizardControls({
   const navigate = useNavigate()
   const generatePlanAI = useGeneratePlanAI()
   const createPlanManual = useCreatePlanManual()
+  const [isSpinningIA, setIsSpinningIA] = useState(false)
   // const supabaseClient = supabaseBrowser()
   // const persistPlanFromAI = usePersistPlanFromAI()
 
@@ -78,7 +81,9 @@ export function WizardControls({
 
         console.log(`${new Date().toISOString()} - Enviando a generar plan IA`)
 
+        setIsSpinningIA(true)
         const plan = await generatePlanAI.mutateAsync(aiInput as any)
+        setIsSpinningIA(false)
         console.log(`${new Date().toISOString()} - Plan IA generado`, plan)
 
         navigate({
@@ -108,12 +113,14 @@ export function WizardControls({
         return
       }
     } catch (err: any) {
+      setIsSpinningIA(false)
       setWizard((w) => ({
         ...w,
         isLoading: false,
         errorMessage: err?.message ?? 'Error generando el plan',
       }))
     } finally {
+      setIsSpinningIA(false)
       setWizard((w) => ({ ...w, isLoading: false }))
     }
   }
@@ -129,6 +136,17 @@ export function WizardControls({
             {errorMessage}
           </span>
         )}
+      </div>
+
+      <div className="mx-2 flex w-5 items-center justify-center">
+        <Loader2
+          className={
+            wizard.tipoOrigen === 'IA' && isSpinningIA
+              ? 'text-muted-foreground h-6 w-6 animate-spin'
+              : 'h-6 w-6 opacity-0'
+          }
+          aria-hidden={!(wizard.tipoOrigen === 'IA' && isSpinningIA)}
+        />
       </div>
       {isLastStep ? (
         <Button onClick={handleCreate} disabled={disableCreate}>

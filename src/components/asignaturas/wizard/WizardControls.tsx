@@ -1,12 +1,19 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
+import { Loader2 } from 'lucide-react'
+import { useState } from 'react'
 
 import type { AIGenerateSubjectInput, AIGenerateSubjectJsonInput } from '@/data'
 import type { NewSubjectWizardState } from '@/features/asignaturas/nueva/types'
 import type { TablesInsert } from '@/types/supabase'
 
 import { Button } from '@/components/ui/button'
-import { supabaseBrowser, useGenerateSubjectAI, qk } from '@/data'
+import {
+  supabaseBrowser,
+  useGenerateSubjectAI,
+  qk,
+  useCreateSubjectManual,
+} from '@/data'
 
 export function WizardControls({
   wizard,
@@ -32,6 +39,8 @@ export function WizardControls({
   const navigate = useNavigate()
   const qc = useQueryClient()
   const generateSubjectAI = useGenerateSubjectAI()
+  const createSubjectManual = useCreateSubjectManual()
+  const [isSpinningIA, setIsSpinningIA] = useState(false)
   const handleCreate = async () => {
     setWizard((w) => ({
       ...w,
@@ -40,7 +49,7 @@ export function WizardControls({
     }))
 
     try {
-      if (wizard.tipoOrigen === 'IA' || wizard.tipoOrigen === 'IA_SIMPLE') {
+      if (wizard.tipoOrigen === 'IA_SIMPLE') {
         const aiInput: AIGenerateSubjectInput = {
           plan_estudio_id: wizard.plan_estudio_id,
           datosBasicos: {
@@ -68,11 +77,14 @@ export function WizardControls({
           `${new Date().toISOString()} - Enviando a generar asignatura con IA`,
         )
 
+        setIsSpinningIA(true)
         const asignatura = await generateSubjectAI.mutateAsync(aiInput)
-        console.log(
-          `${new Date().toISOString()} - Asignatura IA generada`,
-          asignatura,
-        )
+        // await new Promise((resolve) => setTimeout(resolve, 20000)) // debug
+        setIsSpinningIA(false)
+        // console.log(
+        //   `${new Date().toISOString()} - Asignatura IA generada`,
+        //   asignatura,
+        // )
 
         navigate({
           to: `/planes/${wizard.plan_estudio_id}/asignaturas/${asignatura.id}`,
@@ -156,13 +168,40 @@ export function WizardControls({
 
         return
       }
+
+      if (wizard.tipoOrigen === 'MANUAL') {
+        if (!wizard.plan_estudio_id) {
+          throw new Error('Plan de estudio inválido.')
+        }
+
+        const asignatura = await createSubjectManual.mutateAsync({
+          plan_estudio_id: wizard.plan_estudio_id,
+          estructura_id: wizard.datosBasicos.estructuraId!,
+          nombre: wizard.datosBasicos.nombre,
+          codigo: wizard.datosBasicos.codigo ?? null,
+          tipo: wizard.datosBasicos.tipo ?? undefined,
+          creditos: wizard.datosBasicos.creditos ?? 0,
+          horas_academicas: wizard.datosBasicos.horasAcademicas ?? null,
+          horas_independientes: wizard.datosBasicos.horasIndependientes ?? null,
+          linea_plan_id: null,
+          numero_ciclo: null,
+        })
+
+        navigate({
+          to: `/planes/${wizard.plan_estudio_id}/asignaturas/${asignatura.id}`,
+          state: { showConfetti: true },
+          resetScroll: false,
+        })
+      }
     } catch (err: any) {
+      setIsSpinningIA(false)
       setWizard((w) => ({
         ...w,
         isLoading: false,
         errorMessage: err?.message ?? 'Error creando la asignatura',
       }))
     } finally {
+      setIsSpinningIA(false)
       setWizard((w) => ({ ...w, isLoading: false }))
     }
   }
@@ -179,6 +218,17 @@ export function WizardControls({
             {errorMessage ?? wizard.errorMessage}
           </span>
         )}
+      </div>
+
+      <div className="mx-2 flex w-5 items-center justify-center">
+        <Loader2
+          className={
+            wizard.tipoOrigen === 'IA_SIMPLE' && isSpinningIA
+              ? 'text-muted-foreground h-6 w-6 animate-spin'
+              : 'h-6 w-6 opacity-0'
+          }
+          aria-hidden={!(wizard.tipoOrigen === 'IA_SIMPLE' && isSpinningIA)}
+        />
       </div>
 
       {isLastStep ? (

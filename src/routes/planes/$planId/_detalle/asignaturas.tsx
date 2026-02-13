@@ -1,4 +1,3 @@
-import { useQueryClient } from '@tanstack/react-query'
 import { createFileRoute, Outlet, useNavigate } from '@tanstack/react-router'
 import {
   Plus,
@@ -9,7 +8,7 @@ import {
   BookOpen,
   Loader2,
 } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 
 import type { Asignatura, AsignaturaStatus, TipoAsignatura } from '@/types/plan'
 import type { Tables } from '@/types/supabase'
@@ -32,14 +31,18 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { qk, supabaseBrowser, usePlanAsignaturas, usePlanLineas } from '@/data'
+import { usePlanAsignaturas, usePlanLineas } from '@/data'
 
 // --- Configuración de Estilos ---
 const statusConfig: Record<
   AsignaturaStatus,
   { label: string; className: string }
 > = {
-  generando: { label: 'Generando', className: 'bg-slate-100 text-slate-600' },
+  generando: {
+    label: 'Generando',
+    className:
+      'bg-slate-100 text-slate-600 animate-pulse [animation-duration:2s]',
+  },
   borrador: { label: 'Borrador', className: 'bg-slate-100 text-slate-600' },
   revisada: { label: 'Revisada', className: 'bg-amber-100 text-amber-700' },
   aprobada: { label: 'Aprobada', className: 'bg-emerald-100 text-emerald-700' },
@@ -82,37 +85,11 @@ export const Route = createFileRoute('/planes/$planId/_detalle/asignaturas')({
 function AsignaturasPage() {
   const { planId } = Route.useParams()
   const navigate = useNavigate()
-  const queryClient = useQueryClient()
 
   // 1. Fetch de datos reales
   const { data: asignaturasApi, isLoading: loadingAsig } =
     usePlanAsignaturas(planId)
   const { data: lineasApi, isLoading: loadingLineas } = usePlanLineas(planId)
-
-  useEffect(() => {
-    const supabase = supabaseBrowser()
-    const channel = supabase
-      .channel(`plan:${planId}:asignaturas:updates`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'asignaturas',
-          filter: `plan_estudio_id=eq.${planId}`,
-        },
-        () => {
-          queryClient.invalidateQueries({
-            queryKey: qk.planAsignaturas(planId),
-          })
-        },
-      )
-      .subscribe()
-
-    return () => {
-      supabase.removeChannel(channel)
-    }
-  }, [planId, queryClient])
 
   // 2. Estados de filtrado
   const [searchTerm, setSearchTerm] = useState('')
