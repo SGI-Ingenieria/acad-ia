@@ -23,10 +23,10 @@ import { qk } from '../query/keys'
 
 import type {
   BibliografiaUpsertInput,
-  SubjectsCreateManualInput,
   SubjectsUpdateFieldsPatch,
 } from '../api/subjects.api'
 import type { UUID } from '../types/domain'
+import type { TablesInsert } from '@/types/supabase'
 
 export function useSubject(subjectId: UUID | null | undefined) {
   return useQuery({
@@ -82,7 +82,7 @@ export function useCreateSubjectManual() {
   const qc = useQueryClient()
 
   return useMutation({
-    mutationFn: (payload: SubjectsCreateManualInput) =>
+    mutationFn: (payload: TablesInsert<'asignaturas'>) =>
       subjects_create_manual(payload),
     onSuccess: (subject) => {
       qc.setQueryData(qk.asignatura(subject.id), subject)
