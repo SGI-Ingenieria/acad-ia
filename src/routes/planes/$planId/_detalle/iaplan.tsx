@@ -184,6 +184,8 @@ function RouteComponent() {
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const val = e.target.value
     setInput(val)
+
+    // Si el último carácter es ':', mostramos sugerencias
     if (val.endsWith(':')) {
       setShowSuggestions(true)
     } else {
@@ -206,34 +208,47 @@ function RouteComponent() {
   }
 
   const toggleField = (field: SelectedField) => {
+    // 1. Actualizamos los campos seleccionados (para los badges y la lógica de la IA)
     setSelectedFields((prev) => {
-      const nextFields = prev.find((f) => f.key === field.key)
-        ? prev.filter((f) => f.key !== field.key)
-        : [...prev, field]
+      const isSelected = prev.find((f) => f.key === field.key)
+      return isSelected ? prev : [...prev, field]
+    })
 
-      setInput((prevInput) =>
-        injectFieldsIntoInput(prevInput || 'Mejora este campo:', nextFields),
-      )
+    // 2. Insertamos el nombre del campo en el texto y quitamos el ":"
+    setInput((prevInput) => {
+      // Buscamos la última posición del ":"
+      const lastColonIndex = prevInput.lastIndexOf(':')
 
-      return nextFields
+      if (lastColonIndex !== -1) {
+        // Tomamos lo que está antes del ":" y le concatenamos el nombre del campo
+        const textBefore = prevInput.substring(0, lastColonIndex)
+        const textAfter = prevInput.substring(lastColonIndex + 1)
+
+        // Retornamos el texto con el nombre del campo (puedes añadir espacio si prefieres)
+        return `${textBefore} ${field.label}${textAfter}`
+      }
+
+      return prevInput
     })
 
     setShowSuggestions(false)
   }
 
   const buildPrompt = (userInput: string) => {
+    // Si no hay campos, enviamos solo el texto
     if (selectedFields.length === 0) return userInput
 
     const fieldsText = selectedFields
-      .map((f) => `- ${f.label}: ${f.value || '(sin contenido)'}`)
-      .join('\n')
+      .map(
+        (f) =>
+          `### CAMPO: ${f.label}\nCONTENIDO ACTUAL: ${f.value || '(vacío)'}`,
+      )
+      .join('\n\n')
 
-    return `
-      ${userInput || 'Mejora los siguientes campos:'}
+    return `Instrucción del usuario: ${userInput || 'Mejora los campos seleccionados.'}
 
-      Campos a analizar:
-      ${fieldsText}
-      `.trim()
+A continuación se detallan los campos a procesar:
+${fieldsText}`.trim()
   }
 
   const handleSend = async (promptOverride?: string) => {
