@@ -9,9 +9,11 @@ import {
   Trash2,
   Pencil,
 } from 'lucide-react'
-import { useMemo, useState, useEffect } from 'react'
+import { useMemo, useState, useEffect, Fragment } from 'react'
 
+import type { TipoAsignatura } from '@/data'
 import type { Asignatura, LineaCurricular } from '@/types/plan'
+import type { TablesUpdate } from '@/types/supabase'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -60,21 +62,23 @@ const mapLineasToLineaCurricular = (
 const mapAsignaturasToAsignaturas = (
   asigApi: Array<any> = [],
 ): Array<Asignatura> => {
-  return asigApi.map((asig) => ({
-    id: asig.id,
-    clave: asig.codigo,
-    nombre: asig.nombre,
-    creditos: asig.creditos ?? 0,
-    ciclo: asig.numero_ciclo ?? null,
-    lineaCurricularId: asig.linea_plan_id ?? null,
-    tipo: asig.tipo === 'OBLIGATORIA' ? 'obligatoria' : 'optativa',
-    estado: 'borrador',
-    orden: asig.orden_celda ?? 0,
-    // Mapeo directo de los nuevos campos de la API
-    hd: asig.horas_academicas ?? 0,
-    hi: asig.horas_independientes ?? 0,
-    prerrequisitos: [],
-  }))
+  return asigApi.map((asig) => {
+    return {
+      id: asig.id,
+      clave: asig.codigo,
+      nombre: asig.nombre,
+      creditos: asig.creditos ?? 0,
+      ciclo: asig.numero_ciclo ?? null,
+      lineaCurricularId: asig.linea_plan_id ?? null,
+      tipo: asig.tipo,
+      estado: 'borrador',
+      orden: asig.orden_celda ?? 0,
+      // Mapeo directo de los nuevos campos de la API
+      hd: asig.horas_academicas ?? 0,
+      hi: asig.horas_independientes ?? 0,
+      prerrequisitos: [],
+    }
+  })
 }
 
 const lineColors = [
@@ -190,7 +194,7 @@ function MapaCurricularPage() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [nombreNuevaLinea, setNombreNuevaLinea] = useState('') // Para el input de nombre personalizado
   const { mutate: updateAsignatura } = useUpdateAsignatura()
-  const [seriacionValue, setSeriacionValue] = useState<string>('unassigned')
+  const [seriacionValue, setSeriacionValue] = useState<string>('')
 
   useEffect(() => {
     if (data?.numero_ciclos) {
@@ -323,7 +327,17 @@ function MapaCurricularPage() {
     setAsignaturas((prev) =>
       prev.map((m) => (m.id === editingData.id ? { ...editingData } : m)),
     )
-    const patch = {
+    type AsignaturaPatch = {
+      codigo?: TablesUpdate<'asignaturas'>['codigo']
+      nombre?: TablesUpdate<'asignaturas'>['nombre']
+      tipo?: TablesUpdate<'asignaturas'>['tipo']
+      creditos?: TablesUpdate<'asignaturas'>['creditos']
+      horas_academicas?: TablesUpdate<'asignaturas'>['horas_academicas']
+      horas_independientes?: TablesUpdate<'asignaturas'>['horas_independientes']
+      numero_ciclo?: TablesUpdate<'asignaturas'>['numero_ciclo']
+      linea_plan_id?: TablesUpdate<'asignaturas'>['linea_plan_id']
+    }
+    const patch: Partial<AsignaturaPatch> = {
       nombre: editingData.nombre,
       codigo: editingData.clave,
       creditos: editingData.creditos,
@@ -331,12 +345,11 @@ function MapaCurricularPage() {
       horas_independientes: editingData.hi,
       numero_ciclo: editingData.ciclo,
       linea_plan_id: editingData.lineaCurricularId,
-      tipo: editingData.tipo.toUpperCase(), // Asegurar que coincida con el ENUM (OBLIGATORIA/OPTATIVA)
-      // datos: editingData.datos, // Si editaste algo del JSONB
+      tipo: editingData.tipo.toUpperCase() as TipoAsignatura, // Asegurar que coincida con el ENUM (OBLIGATORIA/OPTATIVA)
     }
 
     updateAsignatura(
-      { asignaturaId: editingData.id, patch },
+      { asignaturaId: editingData.id, patch: patch as any },
       {
         onSuccess: () => {
           setIsEditModalOpen(false)
@@ -575,138 +588,124 @@ function MapaCurricularPage() {
       <div className="overflow-x-auto pb-6">
         <div className="min-w-[1500px]">
           <div
-            className="mb-4 grid gap-3"
+            className="grid gap-3"
             style={{
-              gridTemplateColumns: `220px repeat(${ciclosTotales}, 1fr) 120px`,
+              gridTemplateColumns: `220px repeat(${ciclosTotales}, minmax(auto, 1fr)) 120px`,
             }}
           >
             <div className="self-end px-2 text-xs font-bold text-slate-400">
               LÍNEA CURRICULAR
             </div>
+
             {ciclosArray.map((n) => (
               <div
-                key={n}
+                key={`header-${n}`}
                 className="rounded-lg bg-slate-100 p-2 text-center text-sm font-bold text-slate-600"
               >
                 Ciclo {n}
               </div>
             ))}
+
             <div className="self-end text-center text-xs font-bold text-slate-400">
               SUBTOTAL
             </div>
-          </div>
 
-          {lineas.map((linea, idx) => {
-            const sub = getSubtotalLinea(linea.id)
-            return (
-              <div
-                key={linea.id}
-                className="mb-3 grid gap-3"
-                style={{
-                  gridTemplateColumns: `220px repeat(${ciclosTotales}, 1fr) 120px`,
-                }}
-              >
-                <div
-                  className={`group relative flex items-center justify-between rounded-xl border-l-4 p-4 transition-all ${
-                    lineColors[idx % lineColors.length]
-                  } ${editingLineaId === linea.id ? 'bg-white ring-2 ring-teal-500/20' : ''}`}
-                >
-                  <div className="flex-1 overflow-hidden">
-                    <span
-                      contentEditable={editingLineaId === linea.id}
-                      suppressContentEditableWarning
-                      spellCheck={false}
-                      onKeyDown={(e) => handleKeyDownLinea(e, linea.id)}
-                      onBlur={(e) => handleBlurLinea(e, linea.id)}
-                      onClick={() => {
-                        if (editingLineaId !== linea.id) {
-                          setEditingLineaId(linea.id)
-                          setTempNombreLinea(linea.nombre)
-                        }
-                      }}
-                      className={`block w-full text-xs font-bold break-words outline-none ${
-                        editingLineaId === linea.id
-                          ? 'cursor-text border-b border-teal-500/50 pb-1'
-                          : 'cursor-pointer'
-                      }`}
-                    >
-                      {linea.nombre}
-                    </span>
-                  </div>
+            {lineas.map((linea, idx) => {
+              const sub = getSubtotalLinea(linea.id)
 
-                  <div className="flex items-center gap-2">
-                    {/* Botón de edición que aparece en hover o si está editando */}
-                    <button
-                      onClick={() => setEditingLineaId(linea.id)}
-                      className={`text-slate-400 transition-opacity hover:text-teal-600 ${
-                        editingLineaId === linea.id
-                          ? 'opacity-0'
-                          : 'opacity-0 group-hover:opacity-100'
-                      }`}
-                    >
-                      <Pencil size={12} />
-                    </button>
-
-                    <Trash2
-                      size={14}
-                      className="cursor-pointer text-slate-400 opacity-0 transition-opacity group-hover:opacity-100 hover:text-red-500"
-                      onClick={() => borrarLinea(linea.id)}
-                    />
-                  </div>
-                </div>
-
-                {ciclosArray.map((ciclo) => (
+              return (
+                <Fragment key={linea.id}>
                   <div
-                    key={ciclo}
-                    onDragOver={handleDragOver}
-                    // ANTES: onDrop={(e) => handleDrop(e, null, null)}
-                    // AHORA: Usamos las variables 'ciclo' y 'linea.id' del map
-                    onDrop={(e) => handleDrop(e, ciclo, linea.id)}
-                    className="min-h-[140px] space-y-2 rounded-xl border-2 border-dashed border-slate-100 bg-slate-50/20 p-2"
+                    className={`group relative flex items-center justify-between rounded-xl border-l-4 p-4 transition-all ${
+                      lineColors[idx % lineColors.length]
+                    } ${editingLineaId === linea.id ? 'bg-white ring-2 ring-teal-500/20' : ''}`}
                   >
-                    {asignaturas
-                      .filter(
-                        (m) =>
-                          m.ciclo === ciclo && m.lineaCurricularId === linea.id,
-                      )
-                      .map((m) => (
-                        <AsignaturaCardItem
-                          key={m.id}
-                          asignatura={m}
-                          isDragging={draggedAsignatura === m.id}
-                          onDragStart={handleDragStart}
-                          onClick={() => {
-                            setEditingData(m)
-                            setIsEditModalOpen(true)
-                          }}
-                        />
-                      ))}
+                    <div className="flex-1 overflow-hidden">
+                      <span
+                        contentEditable={editingLineaId === linea.id}
+                        suppressContentEditableWarning
+                        spellCheck={false}
+                        onKeyDown={(e) => handleKeyDownLinea(e, linea.id)}
+                        onBlur={(e) => handleBlurLinea(e, linea.id)}
+                        onClick={() => {
+                          if (editingLineaId !== linea.id) {
+                            setEditingLineaId(linea.id)
+                            setTempNombreLinea(linea.nombre)
+                          }
+                        }}
+                        className={`block w-full text-xs font-bold break-words outline-none ${
+                          editingLineaId === linea.id
+                            ? 'cursor-text border-b border-teal-500/50 pb-1'
+                            : 'cursor-pointer'
+                        }`}
+                      >
+                        {linea.nombre}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setEditingLineaId(linea.id)}
+                        className="..."
+                      >
+                        {' '}
+                        <Pencil size={12} />{' '}
+                      </button>
+                      <Trash2
+                        onClick={() => borrarLinea(linea.id)}
+                        className="..."
+                        size={14}
+                      />
+                    </div>
                   </div>
-                ))}
 
-                <div className="flex flex-col justify-center rounded-xl border border-slate-100 bg-slate-50 p-4 text-[10px] font-medium text-slate-500">
-                  <div>Cr: {sub.cr}</div>
-                  <div>HD: {sub.hd}</div>
-                  <div>HI: {sub.hi}</div>
-                </div>
-              </div>
-            )
-          })}
+                  {ciclosArray.map((ciclo) => (
+                    <div
+                      key={`${linea.id}-${ciclo}`}
+                      onDragOver={handleDragOver}
+                      onDrop={(e) => handleDrop(e, ciclo, linea.id)}
+                      className="min-h-[140px] space-y-2 rounded-xl border-2 border-dashed border-slate-100 bg-slate-50/20 p-2"
+                    >
+                      {asignaturas
+                        .filter(
+                          (m) =>
+                            m.ciclo === ciclo &&
+                            m.lineaCurricularId === linea.id,
+                        )
+                        .map((m) => (
+                          <AsignaturaCardItem
+                            key={m.id}
+                            asignatura={m}
+                            isDragging={draggedAsignatura === m.id}
+                            onDragStart={handleDragStart}
+                            onClick={() => {
+                              setEditingData(m)
+                              setIsEditModalOpen(true)
+                            }}
+                          />
+                        ))}
+                    </div>
+                  ))}
 
-          <div
-            className="mt-6 grid gap-3 border-t pt-4"
-            style={{
-              gridTemplateColumns: `220px repeat(${ciclosTotales}, 1fr) 120px`,
-            }}
-          >
-            <div className="p-2 font-bold text-slate-600">
+                  <div className="flex flex-col justify-center rounded-xl border border-slate-100 bg-slate-50 p-4 text-[10px] font-medium text-slate-500">
+                    <div>Cr: {sub.cr}</div>
+                    <div>HD: {sub.hd}</div>
+                    <div>HI: {sub.hi}</div>
+                  </div>
+                </Fragment>
+              )
+            })}
+
+            <div className="col-span-full my-2 border-t border-slate-200"></div>
+
+            <div className="self-center p-2 font-bold text-slate-600">
               Totales por Ciclo
             </div>
+
             {ciclosArray.map((ciclo) => {
               const t = getTotalesCiclo(ciclo)
               return (
                 <div
-                  key={ciclo}
+                  key={`footer-${ciclo}`}
                   className="rounded-lg bg-slate-50 p-2 text-center text-[10px]"
                 >
                   <div className="font-bold text-slate-700">Cr: {t.cr}</div>
@@ -716,6 +715,7 @@ function MapaCurricularPage() {
                 </div>
               )
             })}
+
             <div className="flex flex-col justify-center rounded-lg bg-teal-50 p-2 text-center text-xs font-bold text-teal-800">
               <div>{stats.cr} Cr</div>
               <div>{stats.hd + stats.hi} Hrs</div>
@@ -725,7 +725,6 @@ function MapaCurricularPage() {
       </div>
 
       {/* Asignaturas Sin Asignar */}
-      {/* SECCIÓN DE MATERIAS SIN ASIGNAR (Mejorada para estar siempre disponible) */}
       <div className="mt-10 rounded-2xl border border-slate-200 bg-slate-50 p-6">
         <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-2 text-slate-600">
@@ -941,8 +940,8 @@ function MapaCurricularPage() {
                 <Select
                   value={seriacionValue}
                   onValueChange={(val) => {
-                    if (val === 'unassigned') {
-                      setSeriacionValue('unassigned')
+                    if (val === 'none') {
+                      setSeriacionValue('')
                       return
                     }
                     if (!editingData.prerrequisitos.includes(val)) {
@@ -951,21 +950,19 @@ function MapaCurricularPage() {
                         prerrequisitos: [...editingData.prerrequisitos, val],
                       })
                     }
-                    setSeriacionValue('unassigned')
+                    setSeriacionValue('')
                   }}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Seleccionar asignatura..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="unassigned">
-                      -- Sin Seriación --
-                    </SelectItem>
+                    <SelectItem value="none">-- Sin Seriación --</SelectItem>
 
                     {asignaturas
                       .filter((m) => m.id !== editingData.id)
                       .map((m) => (
-                        <SelectItem key={m.id} value={m.clave}>
+                        <SelectItem key={m.id} value={m.id}>
                           {m.nombre} ({m.clave})
                         </SelectItem>
                       ))}
@@ -1006,7 +1003,7 @@ function MapaCurricularPage() {
                 </label>
                 <Select
                   value={editingData.tipo}
-                  onValueChange={(val: 'obligatoria' | 'optativa') =>
+                  onValueChange={(val: 'OBLIGATORIA' | 'OPTATIVA') =>
                     setEditingData({ ...editingData, tipo: val })
                   }
                 >
@@ -1014,8 +1011,8 @@ function MapaCurricularPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="obligatoria">Obligatoria</SelectItem>
-                    <SelectItem value="optativa">Optativa</SelectItem>
+                    <SelectItem value="OBLIGATORIA">Obligatoria</SelectItem>
+                    <SelectItem value="OPTATIVA">Optativa</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
