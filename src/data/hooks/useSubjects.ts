@@ -23,6 +23,7 @@ import { qk } from '../query/keys'
 
 import type {
   BibliografiaUpsertInput,
+  ContenidoApi,
   SubjectsUpdateFieldsPatch,
 } from '../api/subjects.api'
 import type { UUID } from '../types/domain'
@@ -176,12 +177,19 @@ export function useUpdateSubjectContenido() {
   const qc = useQueryClient()
 
   return useMutation({
-    mutationFn: (vars: { subjectId: UUID; unidades: Array<any> }) =>
+    mutationFn: (vars: { subjectId: UUID; unidades: Array<ContenidoApi> }) =>
       subjects_update_contenido(vars.subjectId, vars.unidades),
     onSuccess: (updated) => {
       qc.setQueryData(qk.asignatura(updated.id), (prev) =>
         prev ? { ...(prev as any), ...(updated as any) } : updated,
       )
+
+      qc.invalidateQueries({
+        queryKey: qk.planAsignaturas(updated.plan_estudio_id),
+      })
+      qc.invalidateQueries({
+        queryKey: qk.planHistorial(updated.plan_estudio_id),
+      })
       qc.invalidateQueries({ queryKey: qk.asignaturaHistorial(updated.id) })
     },
   })

@@ -366,7 +366,8 @@ export default function AsignaturaDetailPage() {
 
             <TabsContent value="contenido">
               <ContenidoTematico
-                data={asignaturaApi}
+                asignaturaId={asignaturaId}
+                data={asignaturaApi ?? null}
                 isLoading={loadingAsig}
               ></ContenidoTematico>
             </TabsContent>

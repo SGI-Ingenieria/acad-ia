@@ -31,12 +31,31 @@ const EDGE = {
   subjects_import_from_file: 'subjects_import_from_file',
 
   subjects_update_fields: 'subjects_update_fields',
-  subjects_update_contenido: 'subjects_update_contenido',
   subjects_update_bibliografia: 'subjects_update_bibliografia',
 
   subjects_generate_document: 'subjects_generate_document',
   subjects_get_document: 'subjects_get_document',
 } as const
+
+export type ContenidoTemaApi =
+  | string
+  | {
+      nombre: string
+      horasEstimadas?: number
+      descripcion?: string
+      [key: string]: unknown
+    }
+
+/**
+ * Estructura persistida en `asignaturas.contenido_tematico`.
+ * La BDD guarda un arreglo de unidades, cada una con temas (strings u objetos).
+ */
+export type ContenidoApi = {
+  unidad: number
+  titulo: string
+  temas: Array<ContenidoTemaApi>
+  [key: string]: unknown
+}
 
 export type FacultadInSubject = Pick<
   FacultadRow,
@@ -81,7 +100,8 @@ export type EstructuraAsignaturaInSubject = Pick<
  * Tipo real que devuelve `subjects_get` (asignatura + relaciones seleccionadas).
  * Nota: `asignaturas_update` (update directo) NO devuelve estas relaciones.
  */
-export type AsignaturaDetail = Asignatura & {
+export type AsignaturaDetail = Omit<Asignatura, 'contenido_tematico'> & {
+  contenido_tematico: Array<ContenidoApi> | null
   planes_estudio: PlanEstudioInSubject | null
   estructuras_asignatura: EstructuraAsignaturaInSubject | null
 }
@@ -105,7 +125,10 @@ export async function subjects_get(subjectId: UUID): Promise<AsignaturaDetail> {
     .single()
 
   throwIfError(error)
-  return requireData(data, 'Asignatura no encontrada.')
+  return requireData(
+    data,
+    'Asignatura no encontrada.',
+  ) as unknown as AsignaturaDetail
 }
 
 export async function subjects_history(
@@ -323,12 +346,24 @@ export async function subjects_update_fields(
 
 export async function subjects_update_contenido(
   subjectId: UUID,
-  unidades: Array<any>,
+  unidades: Array<ContenidoApi>,
 ): Promise<Asignatura> {
-  return invokeEdge<Asignatura>(EDGE.subjects_update_contenido, {
-    subjectId,
-    unidades,
-  })
+  const supabase = supabaseBrowser()
+
+  type AsignaturaUpdate = Database['public']['Tables']['asignaturas']['Update']
+
+  const { data, error } = await supabase
+    .from('asignaturas')
+    .update({
+      contenido_tematico:
+        unidades as unknown as AsignaturaUpdate['contenido_tematico'],
+    })
+    .eq('id', subjectId)
+    .select()
+    .single()
+
+  throwIfError(error)
+  return requireData(data, 'No se pudo actualizar la asignatura.')
 }
 
 export type BibliografiaUpsertInput = Array<{
