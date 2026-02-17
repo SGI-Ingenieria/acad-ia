@@ -1,16 +1,19 @@
-import { useState } from 'react'
 import {
   FileText,
   Download,
   RefreshCw,
-  Calendar,
   FileCheck,
   AlertTriangle,
   Loader2,
 } from 'lucide-react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
+import { useState } from 'react'
+
+import type {
+  DocumentoAsignatura,
+  Asignatura,
+  AsignaturaStructure,
+} from '@/types/asignatura'
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,16 +25,13 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
-import type {
-  DocumentoAsignatura,
-  Asignatura,
-  AsignaturaStructure,
-} from '@/types/asignatura'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
-import { useSubjectBibliografia } from '@/data/hooks/useSubjects'
-//import { toast } from 'sonner';
-//import { format } from 'date-fns';
-//import { es } from 'date-fns/locale';
+// import { toast } from 'sonner';
+// import { format } from 'date-fns';
+// import { es } from 'date-fns/locale';
 
 interface DocumentoSEPTabProps {
   documento: DocumentoAsignatura | null
@@ -45,8 +45,8 @@ interface DocumentoSEPTabProps {
 export function DocumentoSEPTab({
   documento,
   asignatura,
-  estructura,
   datosGenerales,
+  estructura,
   onRegenerate,
   isRegenerating,
 }: DocumentoSEPTabProps) {
@@ -65,7 +65,7 @@ export function DocumentoSEPTab({
   const handleRegenerate = () => {
     setShowConfirmDialog(false)
     onRegenerate()
-    //toast.success('Regenerando documento...');
+    // toast.success('Regenerando documento...');
   }
 
   return (
@@ -86,7 +86,9 @@ export function DocumentoSEPTab({
               variant="outline"
               onClick={
                 () =>
-                  console.log('descargando') /*toast.info('Descarga iniciada')*/
+                  console.log(
+                    'descargando',
+                  ) /* toast.info('Descarga iniciada')*/
               }
             >
               <Download className="mr-2 h-4 w-4" />
@@ -202,7 +204,7 @@ export function DocumentoSEPTab({
                     <div className="text-muted-foreground mt-8 border-t pt-6 text-center text-xs">
                       <p>
                         Documento generado el{' '}
-                        {/*format(documento.fechaGeneracion, "d 'de' MMMM 'de' yyyy", { locale: es })*/}
+                        {/* format(documento.fechaGeneracion, "d 'de' MMMM 'de' yyyy", { locale: es })*/}
                       </p>
                       <p className="mt-1">Universidad La Salle</p>
                     </div>
@@ -261,7 +263,7 @@ export function DocumentoSEPTab({
                       Generado
                     </span>
                     <span className="text-sm">
-                      {/*format(documento.fechaGeneracion, "d MMM yyyy, HH:mm", { locale: es })*/}
+                      {/* format(documento.fechaGeneracion, "d MMM yyyy, HH:mm", { locale: es })*/}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">

@@ -14,6 +14,7 @@ import { DocumentoSEPTab } from './DocumentoSEPTab'
 import { HistorialTab } from './HistorialTab'
 import { IAAsignaturaTab } from './IAAsignaturaTab'
 
+import type { AsignaturaDetail } from '@/data'
 import type {
   CampoEstructura,
   IAMessage,
@@ -32,7 +33,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import { useSubject } from '@/data/hooks/useSubjects'
+import { useSubject, useUpdateAsignatura } from '@/data/hooks/useSubjects'
 import {
   mockAsignatura,
   mockEstructura,
@@ -117,13 +118,14 @@ export default function AsignaturaDetailPage() {
   const { planId } = useParams({
     from: '/planes/$planId/asignaturas/$asignaturaId',
   })
-  const { data: asignaturasApi, isLoading: loadingAsig } =
+  const { data: asignaturaApi, isLoading: loadingAsig } =
     useSubject(asignaturaId)
   // 1. Asegúrate de tener estos estados en tu componente principal
   const [messages, setMessages] = useState<Array<IAMessage>>([])
-  const [datosGenerales, setDatosGenerales] = useState({})
+  const [asignatura, setAsignatura] = useState({})
   const [campos, setCampos] = useState<Array<CampoEstructura>>([])
   const [activeTab, setActiveTab] = useState('datos')
+  const updateAsignatura = useUpdateAsignatura()
 
   // Dentro de AsignaturaDetailPage
   const [headerData, setHeaderData] = useState({
@@ -142,27 +144,59 @@ export default function AsignaturaDetailPage() {
 
   // Sincronizar cuando llegue la API
   useEffect(() => {
-    if (asignaturasApi) {
+    if (asignaturaApi) {
       setHeaderData({
-        codigo: asignaturasApi.codigo ?? '',
-        nombre: asignaturasApi.nombre,
-        creditos: asignaturasApi.creditos,
-        ciclo: asignaturasApi.numero_ciclo ?? 0,
+        codigo: asignaturaApi.codigo ?? '',
+        nombre: asignaturaApi.nombre,
+        creditos: asignaturaApi.creditos,
+        ciclo: asignaturaApi.numero_ciclo ?? 0,
       })
     }
-  }, [asignaturasApi])
+  }, [asignaturaApi])
 
   const handleUpdateHeader = (key: string, value: string | number) => {
     const newData = { ...headerData, [key]: value }
     setHeaderData(newData)
-    console.log('💾 Guardando en estado y base de datos:', key, value)
+
+    const patch: Record<string, any> =
+      key === 'ciclo'
+        ? { numero_ciclo: value }
+        : {
+            [key]: value,
+          }
+
+    updateAsignatura.mutate({
+      asignaturaId,
+      patch,
+    })
+  }
+
+  const handlePersistDatoGeneral = (clave: string, value: string) => {
+    const baseDatos =
+      (asignatura as any)?.datos ?? (asignaturaApi as any)?.datos ?? {}
+    const mergedDatos = { ...baseDatos, [clave]: value }
+
+    // Mantener estado local coherente para merges posteriores.
+    setAsignatura((prev: any) => ({
+      ...(prev && Object.keys(prev).length
+        ? prev
+        : ((asignaturaApi as any) ?? {})),
+      datos: mergedDatos,
+    }))
+
+    updateAsignatura.mutate({
+      asignaturaId,
+      patch: {
+        datos: mergedDatos,
+      },
+    })
   }
   /* ---------- sincronizar API ---------- */
   useEffect(() => {
-    if (asignaturasApi?.datos) {
-      setDatosGenerales(asignaturasApi)
+    if (asignaturaApi?.datos) {
+      setAsignatura(asignaturaApi)
     }
-  }, [asignaturasApi])
+  }, [asignaturaApi])
 
   // 2. Funciones de manejo para la IA
   const handleSendMessage = (text: string, campoId?: string) => {
@@ -180,7 +214,7 @@ export default function AsignaturaDetailPage() {
   }
 
   const handleAcceptSuggestion = (sugerencia: IASugerencia) => {
-    // Lógica para actualizar el valor del campo en tu estado de datosGenerales
+    // Lógica para actualizar el valor del campo en tu estado de asignatura
     // toast.success(`Sugerencia aplicada a ${sugerencia.campoNombre}`);
   }
 
@@ -250,13 +284,13 @@ export default function AsignaturaDetailPage() {
                 <span className="flex items-center gap-1">
                   <GraduationCap className="h-4 w-4 shrink-0" />
                   <span className="text-blue-100">
-                    {asignaturasApi?.planes_estudio?.datos?.nombre || ''}
+                    {asignaturaApi?.planes_estudio?.datos?.nombre || ''}
                   </span>
                 </span>
 
                 <span className="flex items-center gap-1">
                   <span className="text-blue-100">
-                    {asignaturasApi?.planes_estudio?.carreras?.facultades
+                    {asignaturaApi?.planes_estudio?.carreras?.facultades
                       ?.nombre || ''}
                   </span>
                 </span>
@@ -265,7 +299,7 @@ export default function AsignaturaDetailPage() {
               <p className="text-sm text-blue-300">
                 Pertenece al plan:{' '}
                 <span className="cursor-pointer underline">
-                  {asignaturasApi?.planes_estudio?.nombre}
+                  {asignaturaApi?.planes_estudio?.nombre}
                 </span>
               </p>
             </div>
@@ -295,7 +329,7 @@ export default function AsignaturaDetailPage() {
                 <span>° ciclo</span>
               </Badge>
 
-              <Badge variant="secondary">{asignaturasApi?.tipo}</Badge>
+              <Badge variant="secondary">{asignaturaApi?.tipo}</Badge>
             </div>
           </div>
         </div>
@@ -323,15 +357,17 @@ export default function AsignaturaDetailPage() {
             {/* ================= TAB: DATOS GENERALES ================= */}
             <TabsContent value="datos">
               <DatosGenerales
-                data={datosGenerales}
+                data={asignatura}
                 isLoading={loadingAsig}
                 asignaturaId={asignaturaId}
+                onPersistDato={handlePersistDatoGeneral}
               />
             </TabsContent>
 
             <TabsContent value="contenido">
               <ContenidoTematico
-                data={asignaturasApi}
+                asignaturaId={asignaturaId}
+                data={asignaturaApi ?? null}
                 isLoading={loadingAsig}
               ></ContenidoTematico>
             </TabsContent>
@@ -348,7 +384,7 @@ export default function AsignaturaDetailPage() {
             <TabsContent value="ia">
               <IAAsignaturaTab
                 campos={campos}
-                datosGenerales={datosGenerales}
+                asignatura={asignatura}
                 messages={messages}
                 onSendMessage={handleSendMessage}
                 onAcceptSuggestion={handleAcceptSuggestion}
@@ -364,9 +400,9 @@ export default function AsignaturaDetailPage() {
             <TabsContent value="sep">
               <DocumentoSEPTab
                 documento={mockDocumentoSep}
-                asignatura={mockAsignatura}
                 estructura={mockEstructura}
-                datosGenerales={datosGenerales}
+                asignatura={mockAsignatura}
+                datosGenerales={(asignatura as any)?.datos ?? {}}
                 onRegenerate={handleRegenerateDocument}
                 isRegenerating={isRegenerating}
               />
@@ -385,23 +421,25 @@ export default function AsignaturaDetailPage() {
 /* ================= TAB CONTENT ================= */
 interface DatosGeneralesProps {
   asignaturaId: string
-  data: AsignaturaDatos
+  data: AsignaturaDetail
   isLoading: boolean
+  onPersistDato: (clave: string, value: string) => void
 }
 function DatosGenerales({
   data,
   isLoading,
   asignaturaId,
+  onPersistDato,
 }: DatosGeneralesProps) {
   const formatTitle = (key: string): string =>
     key.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())
 
   // 1. Extraemos la definición de la estructura (los metadatos)
   const structureProps =
-    data?.estructuras_asignatura?.definicion?.properties || {}
+    data.estructuras_asignatura?.definicion?.properties || {}
 
   // 2. Extraemos los valores reales (el contenido redactado)
-  const valoresActuales = data?.datos || {}
+  const valoresActuales = data.datos || {}
 
   return (
     <div className="animate-in fade-in mx-auto max-w-7xl space-y-8 px-4 py-8 duration-500">
@@ -454,6 +492,7 @@ function DatosGenerales({
                     placeholder={placeholder} // Aquí irá "Primer semestre", "MAT-101", etc.
                     description={description} // El texto largo de "Indicar el ciclo..."
                     onEnhanceAI={(contenido) => console.log(contenido)}
+                    onPersist={(clave, value) => onPersistDato(clave, value)}
                   />
                 )
               },
@@ -509,6 +548,7 @@ interface InfoCardProps {
   required?: boolean // Nueva prop para el asterisco
   type?: 'text' | 'requirements' | 'evaluation'
   onEnhanceAI?: (content: any) => void
+  onPersist?: (clave: string, value: string) => void
 }
 
 function InfoCard({
@@ -520,11 +560,15 @@ function InfoCard({
   description,
   required,
   type = 'text',
+  onPersist,
 }: InfoCardProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [data, setData] = useState(initialContent)
   const [tempText, setTempText] = useState(initialContent)
   const navigate = useNavigate()
+  const { planId } = useParams({
+    from: '/planes/$planId/asignaturas/$asignaturaId',
+  })
 
   useEffect(() => {
     setData(initialContent)
@@ -532,9 +576,14 @@ function InfoCard({
   }, [initialContent])
 
   const handleSave = () => {
+    console.log('clave, valor:', clave, String(tempText ?? ''))
+
     setData(tempText)
     setIsEditing(false)
-    // Aquí iría tu lógica de guardado a la DB
+
+    if (type === 'text' && clave && onPersist) {
+      onPersist(clave, String(tempText ?? ''))
+    }
   }
 
   const handleIARequest = (campoClave: string) => {
@@ -542,7 +591,7 @@ function InfoCard({
 
     navigate({
       to: '/planes/$planId/asignaturas/$asignaturaId',
-      params: { asignaturaId: asignaturaId! },
+      params: { planId, asignaturaId: asignaturaId! },
       state: {
         activeTab: 'ia',
         prefillCampo: campoClave,
@@ -586,7 +635,7 @@ function InfoCard({
                       variant="ghost"
                       size="icon"
                       className="h-8 w-8 text-blue-500 hover:bg-blue-100"
-                      onClick={() => handleIARequest(clave)}
+                      onClick={() => clave && handleIARequest(clave)}
                     >
                       <Sparkles className="h-4 w-4" />
                     </Button>

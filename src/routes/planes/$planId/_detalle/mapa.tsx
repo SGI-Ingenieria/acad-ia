@@ -183,7 +183,7 @@ function MapaCurricularPage() {
   const { mutate: createLinea } = useCreateLinea()
   const { mutate: updateLineaApi } = useUpdateLinea()
   const { mutate: deleteLineaApi } = useDeleteLinea()
-  const { data: asignaturasApi, isLoading: loadingAsig } =
+  const { data: asignaturaApi, isLoading: loadingAsig } =
     usePlanAsignaturas(planId)
   const { data: lineasApi, isLoading: loadingLineas } = usePlanLineas(planId)
   const [asignaturas, setAsignaturas] = useState<Array<Asignatura>>([])
@@ -286,9 +286,9 @@ function MapaCurricularPage() {
   }, [lineas])
 
   useEffect(() => {
-    if (asignaturasApi)
-      setAsignaturas(mapAsignaturasToAsignaturas(asignaturasApi))
-  }, [asignaturasApi])
+    if (asignaturaApi)
+      setAsignaturas(mapAsignaturasToAsignaturas(asignaturaApi))
+  }, [asignaturaApi])
 
   useEffect(() => {
     if (lineasApi) setLineas(mapLineasToLineaCurricular(lineasApi))

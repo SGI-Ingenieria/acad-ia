@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react'
 import {
   Plus,
   GripVertical,
@@ -7,17 +6,11 @@ import {
   Edit3,
   Trash2,
   Clock,
-  Save,
 } from 'lucide-react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible'
+import { useEffect, useState } from 'react'
+
+import type { ContenidoApi, ContenidoTemaApi } from '@/data/api/subjects.api'
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -28,8 +21,18 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible'
+import { Input } from '@/components/ui/input'
+import { useUpdateSubjectContenido } from '@/data/hooks/useSubjects'
 import { cn } from '@/lib/utils'
-//import { toast } from 'sonner';
+// import { toast } from 'sonner';
 
 export interface Tema {
   id: string
@@ -42,41 +45,133 @@ export interface UnidadTematica {
   id: string
   nombre: string
   numero: number
-  temas: Tema[]
+  temas: Array<Tema>
 }
 
-const initialData: UnidadTematica[] = [
-  {
-    id: 'u1',
-    numero: 1,
-    nombre: 'Fundamentos de Inteligencia Artificial',
-    temas: [
-      { id: 't1', nombre: 'Tipos de IA y aplicaciones', horasEstimadas: 6 },
-      { id: 't2', nombre: 'Ética en IA', horasEstimadas: 3 },
-    ],
-  },
-]
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
 
-// Estructura que viene de tu JSON/API
-interface ContenidoApi {
-  unidad: number
-  titulo: string
-  temas: string[] | any[] // Acepta strings o objetos
-  [key: string]: any // Esta línea permite que haya más claves desconocidas
+function coerceNumber(value: unknown): number | undefined {
+  if (typeof value === 'number' && Number.isFinite(value)) return value
+  if (typeof value === 'string') {
+    const trimmed = value.trim()
+    if (!trimmed) return undefined
+    const parsed = Number(trimmed)
+    return Number.isFinite(parsed) ? parsed : undefined
+  }
+  return undefined
+}
+
+function coerceString(value: unknown): string | undefined {
+  if (typeof value === 'string') return value
+  return undefined
+}
+
+function mapTemaValue(value: unknown): ContenidoTemaApi | null {
+  if (typeof value === 'string') {
+    const trimmed = value.trim()
+    return trimmed ? trimmed : null
+  }
+  if (isRecord(value)) {
+    const nombre = coerceString(value.nombre)
+    if (!nombre) return null
+    const horasEstimadas = coerceNumber(value.horasEstimadas)
+    const descripcion = coerceString(value.descripcion)
+    return {
+      ...value,
+      nombre,
+      horasEstimadas,
+      descripcion,
+    }
+  }
+  return null
+}
+
+function mapContenidoItem(value: unknown, index: number): ContenidoApi | null {
+  if (!isRecord(value)) return null
+
+  const unidad = coerceNumber(value.unidad) ?? index + 1
+  const titulo = coerceString(value.titulo) ?? 'Sin título'
+
+  let temas: Array<ContenidoTemaApi> = []
+  if (Array.isArray(value.temas)) {
+    temas = value.temas
+      .map(mapTemaValue)
+      .filter((t): t is ContenidoTemaApi => t !== null)
+  } else if (typeof value.temas === 'string' && value.temas.trim()) {
+    temas = value.temas
+      .split(/\r?\n|,/)
+      .map((t) => t.trim())
+      .filter(Boolean)
+  }
+
+  return { unidad, titulo, temas }
+}
+
+function mapContenidoTematicoFromDb(value: unknown): Array<ContenidoApi> {
+  if (value == null) return []
+
+  if (typeof value === 'string') {
+    try {
+      return mapContenidoTematicoFromDb(JSON.parse(value))
+    } catch {
+      return []
+    }
+  }
+
+  if (Array.isArray(value)) {
+    return value
+      .map((item, idx) => mapContenidoItem(item, idx))
+      .filter((x): x is ContenidoApi => x !== null)
+  }
+
+  if (isRecord(value)) {
+    if (Array.isArray(value.contenido_tematico)) {
+      return mapContenidoTematicoFromDb(value.contenido_tematico)
+    }
+    if (Array.isArray(value.unidades)) {
+      return mapContenidoTematicoFromDb(value.unidades)
+    }
+  }
+
+  return []
+}
+
+function serializeUnidadesToApi(
+  unidades: Array<UnidadTematica>,
+): Array<ContenidoApi> {
+  return unidades
+    .slice()
+    .sort((a, b) => a.numero - b.numero)
+    .map((u, idx) => ({
+      unidad: u.numero || idx + 1,
+      titulo: u.nombre || 'Sin título',
+      temas: u.temas.map((t) => ({
+        nombre: t.nombre || 'Tema',
+        horasEstimadas: t.horasEstimadas ?? 0,
+        descripcion: t.descripcion,
+      })),
+    }))
 }
 
 // Props del componente
 interface ContenidoTematicoProps {
-  data: {
-    contenido_tematico: ContenidoApi[]
-  }
+  asignaturaId: string
+  data?: {
+    contenido_tematico?: unknown
+  } | null
   isLoading: boolean
 }
-export function ContenidoTematico({ data, isLoading }: ContenidoTematicoProps) {
-  const [unidades, setUnidades] = useState<UnidadTematica[]>([])
-  const [expandedUnits, setExpandedUnits] = useState<Set<string>>(
-    new Set(['u1']),
-  )
+export function ContenidoTematico({
+  asignaturaId,
+  data,
+  isLoading,
+}: ContenidoTematicoProps) {
+  const updateContenido = useUpdateSubjectContenido()
+
+  const [unidades, setUnidades] = useState<Array<UnidadTematica>>([])
+  const [expandedUnits, setExpandedUnits] = useState<Set<string>>(new Set())
   const [deleteDialog, setDeleteDialog] = useState<{
     type: 'unidad' | 'tema'
     id: string
@@ -87,30 +182,40 @@ export function ContenidoTematico({ data, isLoading }: ContenidoTematicoProps) {
     unitId: string
     temaId: string
   } | null>(null)
-  const [isSaving, setIsSaving] = useState(false)
+
+  const persistUnidades = async (nextUnidades: Array<UnidadTematica>) => {
+    const payload = serializeUnidadesToApi(nextUnidades)
+    await updateContenido.mutateAsync({
+      subjectId: asignaturaId,
+      unidades: payload,
+    })
+  }
 
   useEffect(() => {
-    if (data?.contenido_tematico) {
-      const transformed = data.contenido_tematico.map(
-        (u: any, idx: number) => ({
-          id: `u-${idx}`,
-          numero: u.unidad || idx + 1,
-          nombre: u.titulo || 'Sin título',
-          temas: Array.isArray(u.temas)
-            ? u.temas.map((t: any, tidx: number) => ({
-                id: `t-${idx}-${tidx}`,
-                nombre: typeof t === 'string' ? t : t.nombre || 'Tema',
-                horasEstimadas: t.horasEstimadas || 0,
-              }))
-            : [],
-        }),
-      )
-      setUnidades(transformed)
+    const contenido = mapContenidoTematicoFromDb(
+      data ? data.contenido_tematico : undefined,
+    )
 
-      // Expandir la primera unidad automáticamente
-      if (transformed.length > 0) {
-        setExpandedUnits(new Set([transformed[0].id]))
-      }
+    const transformed = contenido.map((u, idx) => ({
+      id: `u-${idx}`,
+      numero: u.unidad || idx + 1,
+      nombre: u.titulo || 'Sin título',
+      temas: Array.isArray(u.temas)
+        ? u.temas.map((t: any, tidx: number) => ({
+            id: `t-${idx}-${tidx}`,
+            nombre: typeof t === 'string' ? t : t?.nombre || 'Tema',
+            horasEstimadas: t?.horasEstimadas || 0,
+          }))
+        : [],
+    }))
+
+    setUnidades(transformed)
+
+    // Expandir la primera unidad automáticamente
+    if (transformed.length > 0) {
+      setExpandedUnits(new Set([transformed[0].id]))
+    } else {
+      setExpandedUnits(new Set())
     }
   }, [data])
 
@@ -139,7 +244,8 @@ export function ContenidoTematico({ data, isLoading }: ContenidoTematicoProps) {
       numero: unidades.length + 1,
       temas: [],
     }
-    setUnidades([...unidades, newUnidad])
+    const next = [...unidades, newUnidad]
+    setUnidades(next)
     setExpandedUnits(new Set([...expandedUnits, newId]))
     setEditingUnit(newId)
   }
@@ -189,23 +295,22 @@ export function ContenidoTematico({ data, isLoading }: ContenidoTematicoProps) {
 
   const handleDelete = () => {
     if (!deleteDialog) return
+    let next: Array<UnidadTematica> = unidades
     if (deleteDialog.type === 'unidad') {
-      setUnidades(
-        unidades
-          .filter((u) => u.id !== deleteDialog.id)
-          .map((u, i) => ({ ...u, numero: i + 1 })),
-      )
+      next = unidades
+        .filter((u) => u.id !== deleteDialog.id)
+        .map((u, i) => ({ ...u, numero: i + 1 }))
     } else if (deleteDialog.parentId) {
-      setUnidades(
-        unidades.map((u) =>
-          u.id === deleteDialog.parentId
-            ? { ...u, temas: u.temas.filter((t) => t.id !== deleteDialog.id) }
-            : u,
-        ),
+      next = unidades.map((u) =>
+        u.id === deleteDialog.parentId
+          ? { ...u, temas: u.temas.filter((t) => t.id !== deleteDialog.id) }
+          : u,
       )
     }
+    setUnidades(next)
     setDeleteDialog(null)
-    //toast.success("Eliminado correctamente");
+    void persistUnidades(next)
+    // toast.success("Eliminado correctamente");
   }
 
   return (
@@ -222,19 +327,6 @@ export function ContenidoTematico({ data, isLoading }: ContenidoTematicoProps) {
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={addUnidad} className="gap-2">
             <Plus className="h-4 w-4" /> Nueva unidad
-          </Button>
-          <Button
-            onClick={() => {
-              setIsSaving(true)
-              setTimeout(() => {
-                setIsSaving(false) /*toast.success("Guardado")*/
-              }, 1000)
-            }}
-            disabled={isSaving}
-            className="bg-blue-600 hover:bg-blue-700"
-          >
-            <Save className="mr-2 h-4 w-4" />{' '}
-            {isSaving ? 'Guardando...' : 'Guardar'}
           </Button>
         </div>
       </div>
@@ -271,12 +363,17 @@ export function ContenidoTematico({ data, isLoading }: ContenidoTematicoProps) {
                       onChange={(e) =>
                         updateUnidadNombre(unidad.id, e.target.value)
                       }
-                      onBlur={() => setEditingUnit(null)}
-                      onKeyDown={(e) =>
-                        e.key === 'Enter' && setEditingUnit(null)
-                      }
+                      onBlur={() => {
+                        setEditingUnit(null)
+                        void persistUnidades(unidades)
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          setEditingUnit(null)
+                          void persistUnidades(unidades)
+                        }
+                      }}
                       className="h-8 max-w-md bg-white"
-                      autoFocus
                     />
                   ) : (
                     <CardTitle
@@ -318,13 +415,17 @@ export function ContenidoTematico({ data, isLoading }: ContenidoTematicoProps) {
                         tema={tema}
                         index={idx + 1}
                         isEditing={
-                          editingTema?.unitId === unidad.id &&
-                          editingTema?.temaId === tema.id
+                          !!editingTema &&
+                          editingTema.unitId === unidad.id &&
+                          editingTema.temaId === tema.id
                         }
                         onEdit={() =>
                           setEditingTema({ unitId: unidad.id, temaId: tema.id })
                         }
-                        onStopEditing={() => setEditingTema(null)}
+                        onStopEditing={() => {
+                          setEditingTema(null)
+                          void persistUnidades(unidades)
+                        }}
                         onUpdate={(updates) =>
                           updateTema(unidad.id, tema.id, updates)
                         }
@@ -397,7 +498,6 @@ function TemaRow({
             onChange={(e) => onUpdate({ nombre: e.target.value })}
             className="h-8 flex-1 bg-white"
             placeholder="Nombre"
-            autoFocus
           />
           <Input
             type="number"
@@ -417,9 +517,13 @@ function TemaRow({
         </div>
       ) : (
         <>
-          <div className="flex-1 cursor-pointer" onClick={onEdit}>
+          <button
+            type="button"
+            className="flex-1 cursor-pointer text-left"
+            onClick={onEdit}
+          >
             <p className="text-sm font-medium text-slate-700">{tema.nombre}</p>
-          </div>
+          </button>
           <Badge variant="secondary" className="text-[10px] opacity-60">
             {tema.horasEstimadas}h
           </Badge>

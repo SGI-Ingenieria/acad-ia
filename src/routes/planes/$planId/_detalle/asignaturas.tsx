@@ -87,7 +87,7 @@ function AsignaturasPage() {
   const navigate = useNavigate()
 
   // 1. Fetch de datos reales
-  const { data: asignaturasApi, isLoading: loadingAsig } =
+  const { data: asignaturaApi, isLoading: loadingAsig } =
     usePlanAsignaturas(planId)
   const { data: lineasApi, isLoading: loadingLineas } = usePlanLineas(planId)
 
@@ -99,8 +99,8 @@ function AsignaturasPage() {
 
   // 3. Procesamiento de datos
   const asignaturas = useMemo(
-    () => mapAsignaturas(asignaturasApi),
-    [asignaturasApi],
+    () => mapAsignaturas(asignaturaApi),
+    [asignaturaApi],
   )
   const lineas = useMemo(() => lineasApi || [], [lineasApi])
 

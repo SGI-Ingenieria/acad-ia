@@ -63,7 +63,7 @@ interface SelectedField {
 
 interface IAAsignaturaTabProps {
   campos: Array<CampoEstructura>
-  datosGenerales: Record<string, any>
+  asignatura: Record<string, any>
   messages: Array<IAMessage>
   onSendMessage: (message: string, campoId?: string) => void
   onAcceptSuggestion: (sugerencia: IASugerencia) => void
@@ -72,7 +72,7 @@ interface IAAsignaturaTabProps {
 
 export function IAAsignaturaTab({
   campos,
-  datosGenerales,
+  asignatura: datosGenerales,
   messages,
   onSendMessage,
   onAcceptSuggestion,
