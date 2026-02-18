@@ -168,10 +168,8 @@ export async function getConversationByPlan(planId: string) {
     .from('conversaciones_plan')
     .select('*')
     .eq('plan_estudio_id', planId)
-    .eq('estado', 'ACTIVA')
-    .order('creado_en', { ascending: true }) // Añade un orden para que el último sea el más nuevo
-
+    .order('creado_en', { ascending: true })
   if (error) throw error
 
-  return data ?? [] // Devuelve un array vacío en lugar de null para evitar el "undefined"
+  return data ?? []
 }

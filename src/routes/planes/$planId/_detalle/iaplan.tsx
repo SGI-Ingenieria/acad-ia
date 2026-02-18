@@ -124,31 +124,59 @@ function RouteComponent() {
     },
   )
   useEffect(() => {
-    if (isLoadingHistory) return
+    // 1. Si no hay ID o está cargando el historial, no hacemos nada
+    if (!activeChatId || isLoadingHistory) return
 
-    const messagesToProcess = historyMessages?.items || historyMessages
+    const messagesFromApi = historyMessages?.items || historyMessages
 
-    if (activeChatId && Array.isArray(messagesToProcess)) {
-      const flattened = messagesToProcess.map((msg) => {
+    if (Array.isArray(messagesFromApi)) {
+      const flattened = messagesFromApi.map((msg) => {
         let content = msg.content
-        // Tu lógica de parseo existente...
+        let suggestions: Array<any> = []
+
         if (typeof content === 'object' && content !== null) {
+          suggestions = Object.entries(content)
+            .filter(([key]) => key !== 'ai-message')
+            .map(([key, value]) => ({
+              key,
+              label: key.replace(/_/g, ' '),
+              newValue: value as string,
+            }))
+
           content = content['ai-message'] || JSON.stringify(content)
         }
-        return { ...msg, content }
+        // Si el content es un string que parece JSON (caso común en respuestas RAW)
+        else if (typeof content === 'string' && content.startsWith('{')) {
+          try {
+            const parsed = JSON.parse(content)
+            suggestions = Object.entries(parsed)
+              .filter(([key]) => key !== 'ai-message')
+              .map(([key, value]) => ({
+                key,
+                label: key.replace(/_/g, ' '),
+                newValue: value as string,
+              }))
+            content = parsed['ai-message'] || content
+          } catch (e) {
+            /* no es json */
+          }
+        }
+
+        return {
+          ...msg,
+          content,
+          suggestions,
+          type: suggestions.length > 0 ? 'improvement-card' : 'text',
+        }
       })
-      setMessages(flattened.reverse())
-    } else if (!activeChatId) {
-      setMessages([
-        {
-          id: 'welcome',
-          role: 'assistant',
-          content:
-            '¡Hola! Soy tu asistente de IA. ¿Qué campos deseas mejorar? Usa ":" para seleccionar.',
-        },
-      ])
+
+      // Solo actualizamos si no estamos esperando la respuesta de un POST
+      // para evitar saltos visuales
+      if (!isLoading) {
+        setMessages(flattened.reverse())
+      }
     }
-  }, [historyMessages, activeChatId, isLoadingHistory])
+  }, [historyMessages, activeChatId, isLoadingHistory, isLoading])
 
   useEffect(() => {
     // Si no hay un chat seleccionado manualmente y la API nos devuelve chats existentes
@@ -292,12 +320,7 @@ function RouteComponent() {
     // Si no hay campos, enviamos el texto tal cual
     if (fields.length === 0) return userInput
 
-    // Si hay campos, creamos un bloque de contexto superior
-    const fieldsContext = fields
-      .map((f) => `[CAMPO SELECCIONADO: ${f.label}]`)
-      .join(' ')
-
-    return `${fieldsContext}\n\nInstrucción del usuario: ${userInput}`
+    return `Instrucción del usuario: ${userInput}`
   }
 
   const handleSend = async (promptOverride?: string) => {
