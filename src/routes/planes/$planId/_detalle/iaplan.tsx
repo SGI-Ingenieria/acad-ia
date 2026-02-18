@@ -1,5 +1,6 @@
 /* eslint-disable jsx-a11y/click-events-have-key-events */
 /* eslint-disable jsx-a11y/no-static-element-interactions */
+import { useQueryClient } from '@tanstack/react-query'
 import { createFileRoute, useRouterState } from '@tanstack/react-router'
 import {
   Send,
@@ -24,6 +25,12 @@ import { Button } from '@/components/ui/button'
 import { Drawer, DrawerContent } from '@/components/ui/drawer'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Textarea } from '@/components/ui/textarea'
+import {
+  useAIPlanChat,
+  useArchiveConversation,
+  useChatHistory,
+  useConversationByPlan,
+} from '@/data'
 import { usePlan } from '@/data/hooks/usePlans'
 
 const PRESETS = [
@@ -67,9 +74,21 @@ export const Route = createFileRoute('/planes/$planId/_detalle/iaplan')({
 function RouteComponent() {
   const { planId } = Route.useParams()
 
-  const { data } = usePlan('0e0aea4d-b8b4-4e75-8279-6224c3ac769f')
+  const { data } = usePlan(planId)
   const routerState = useRouterState()
   const [openIA, setOpenIA] = useState(false)
+  const [conversacionId, setConversacionId] = useState<string | null>(null)
+  const { mutateAsync: sendChat, isLoading } = useAIPlanChat()
+  const { mutate: archiveChatMutation } = useArchiveConversation()
+
+  const [activeChatId, setActiveChatId] = useState<string | undefined>(
+    undefined,
+  )
+
+  const { data: historyMessages, isLoading: isLoadingHistory } =
+    useChatHistory(activeChatId)
+  const { data: lastConversation, isLoading: isLoadingConv } =
+    useConversationByPlan(planId)
   // archivos
   const [selectedArchivoIds, setSelectedArchivoIds] = useState<Array<string>>(
     [],
@@ -79,25 +98,18 @@ function RouteComponent() {
   >([])
   const [uploadedFiles, setUploadedFiles] = useState<Array<UploadedFile>>([])
 
-  const [messages, setMessages] = useState<Array<any>>([
-    {
-      id: '1',
-      role: 'assistant',
-      content:
-        '¡Hola! Soy tu asistente de IA. ¿Qué campos deseas mejorar? Puedes escribir ":" para seleccionar uno.',
-    },
-  ])
+  const [messages, setMessages] = useState<Array<any>>([])
   const [input, setInput] = useState('')
   const [selectedFields, setSelectedFields] = useState<Array<SelectedField>>([])
   const [showSuggestions, setShowSuggestions] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
+  // const [isLoading, setIsLoading] = useState(false)
   const [pendingSuggestion, setPendingSuggestion] = useState<any>(null)
-
+  const queryClient = useQueryClient()
   const scrollRef = useRef<HTMLDivElement>(null)
-  const [activeChatId, setActiveChatId] = useState('1')
-  const [chatHistory, setChatHistory] = useState([
-    { id: '1', title: 'Chat inicial' },
-  ])
+
+  const chatHistory = useMemo(() => {
+    return lastConversation || []
+  }, [lastConversation])
   const [showArchived, setShowArchived] = useState(false)
   const [archivedHistory, setArchivedHistory] = useState<Array<any>>([])
   const [allMessages, setAllMessages] = useState<{ [key: string]: Array<any> }>(
@@ -111,36 +123,76 @@ function RouteComponent() {
       ],
     },
   )
-  const createNewChat = () => {
-    const newId = Date.now().toString()
-    const newChat = { id: newId, title: `Nuevo chat ${chatHistory.length + 1}` }
+  useEffect(() => {
+    if (isLoadingHistory) return
 
-    setChatHistory([newChat, ...chatHistory])
-    setAllMessages({
-      ...allMessages,
-      [newId]: [
+    const messagesToProcess = historyMessages?.items || historyMessages
+
+    if (activeChatId && Array.isArray(messagesToProcess)) {
+      const flattened = messagesToProcess.map((msg) => {
+        let content = msg.content
+        // Tu lógica de parseo existente...
+        if (typeof content === 'object' && content !== null) {
+          content = content['ai-message'] || JSON.stringify(content)
+        }
+        return { ...msg, content }
+      })
+      setMessages(flattened.reverse())
+    } else if (!activeChatId) {
+      setMessages([
         {
-          id: '1',
+          id: 'welcome',
           role: 'assistant',
-          content: '¡Nuevo chat creado! ¿En qué puedo ayudarte?',
+          content:
+            '¡Hola! Soy tu asistente de IA. ¿Qué campos deseas mejorar? Usa ":" para seleccionar.',
         },
-      ],
-    })
-    setActiveChatId(newId)
+      ])
+    }
+  }, [historyMessages, activeChatId, isLoadingHistory])
+
+  useEffect(() => {
+    // Si no hay un chat seleccionado manualmente y la API nos devuelve chats existentes
+    const isCreationMode = messages.length === 1 && messages[0].id === 'welcome'
+    if (
+      !activeChatId &&
+      lastConversation &&
+      lastConversation.length > 0 &&
+      !isCreationMode
+    ) {
+      setActiveChatId(lastConversation[0].id)
+    }
+  }, [lastConversation, activeChatId])
+
+  const createNewChat = () => {
+    setActiveChatId(undefined) // Al ser undefined, el próximo handleSend creará uno nuevo
+    setMessages([
+      {
+        id: 'welcome',
+        role: 'assistant',
+        content: 'Iniciando una nueva conversación. ¿En qué puedo ayudarte?',
+      },
+    ])
+    setInput('')
+    setSelectedFields([])
   }
 
   const archiveChat = (e: React.MouseEvent, id: string) => {
-    e.stopPropagation()
+    e.stopPropagation() // Evita que se seleccione el chat al intentar archivarlo
 
-    const chatToArchive = chatHistory.find((chat) => chat.id === id)
-    if (chatToArchive) {
-      setArchivedHistory([chatToArchive, ...archivedHistory])
-      const newHistory = chatHistory.filter((chat) => chat.id !== id)
-      setChatHistory(newHistory)
-      if (activeChatId === id && newHistory.length > 0) {
-        setActiveChatId(newHistory[0].id)
-      }
-    }
+    archiveChatMutation(id, {
+      onSuccess: () => {
+        // 1. Invalidamos las listas para que desaparezca de activos y aparezca en archivados
+        queryClient.invalidateQueries({
+          queryKey: ['conversation-by-plan', planId],
+        })
+
+        // 2. Si el chat archivado era el que tenías abierto, limpia la pantalla
+        if (activeChatId === id) {
+          setActiveChatId(undefined)
+          setMessages([])
+        }
+      },
+    })
   }
   const unarchiveChat = (e: React.MouseEvent, id: string) => {
     e.stopPropagation()
@@ -185,13 +237,8 @@ function RouteComponent() {
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const val = e.target.value
     setInput(val)
-
-    // Si el último carácter es ':', mostramos sugerencias
-    if (val.endsWith(':')) {
-      setShowSuggestions(true)
-    } else {
-      setShowSuggestions(false)
-    }
+    // Solo abrir si termina en ":"
+    setShowSuggestions(val.endsWith(':'))
   }
 
   const injectFieldsIntoInput = (
@@ -209,83 +256,136 @@ function RouteComponent() {
   }
 
   const toggleField = (field: SelectedField) => {
-    // 1. Actualizamos los campos seleccionados (para los badges y la lógica de la IA)
+    let isAdding = false
+
     setSelectedFields((prev) => {
       const isSelected = prev.find((f) => f.key === field.key)
-      return isSelected ? prev : [...prev, field]
-    })
-
-    // 2. Insertamos el nombre del campo en el texto y quitamos el ":"
-    setInput((prevInput) => {
-      // Buscamos la última posición del ":"
-      const lastColonIndex = prevInput.lastIndexOf(':')
-
-      if (lastColonIndex !== -1) {
-        // Tomamos lo que está antes del ":" y le concatenamos el nombre del campo
-        const textBefore = prevInput.substring(0, lastColonIndex)
-        const textAfter = prevInput.substring(lastColonIndex + 1)
-
-        // Retornamos el texto con el nombre del campo (puedes añadir espacio si prefieres)
-        return `${textBefore} ${field.label}${textAfter}`
+      if (isSelected) {
+        return prev.filter((f) => f.key !== field.key)
+      } else {
+        isAdding = true
+        return [...prev, field]
       }
-
-      return prevInput
     })
+
+    if (isAdding) {
+      setInput((prev) => {
+        // 1. Eliminamos TODOS los ":" que existan en el texto actual
+        // 2. Quitamos espacios en blanco extra al final
+        const cleanPrev = prev.replace(/:/g, '').trim()
+
+        // 3. Si el input resultante está vacío, solo ponemos la frase
+        if (cleanPrev === '') {
+          return `${field.label} `
+        }
+
+        // 4. Si ya había algo, lo concatenamos con un espacio
+        // Usamos un espacio simple al final para que el usuario pueda seguir escribiendo
+        return `${cleanPrev} ${field.label} `
+      })
+    }
 
     setShowSuggestions(false)
   }
 
-  const buildPrompt = (userInput: string) => {
-    // Si no hay campos, enviamos solo el texto
-    if (selectedFields.length === 0) return userInput
+  const buildPrompt = (userInput: string, fields: Array<SelectedField>) => {
+    // Si no hay campos, enviamos el texto tal cual
+    if (fields.length === 0) return userInput
 
-    const fieldsText = selectedFields
-      .map(
-        (f) =>
-          `### CAMPO: ${f.label}\nCONTENIDO ACTUAL: ${f.value || '(vacío)'}`,
-      )
-      .join('\n\n')
+    // Si hay campos, creamos un bloque de contexto superior
+    const fieldsContext = fields
+      .map((f) => `[CAMPO SELECCIONADO: ${f.label}]`)
+      .join(' ')
 
-    return `Instrucción del usuario: ${userInput || 'Mejora los campos seleccionados.'}
-
-A continuación se detallan los campos a procesar:
-${fieldsText}`.trim()
+    return `${fieldsContext}\n\nInstrucción del usuario: ${userInput}`
   }
 
   const handleSend = async (promptOverride?: string) => {
     const rawText = promptOverride || input
     if (!rawText.trim() && selectedFields.length === 0) return
 
-    const finalPrompt = buildPrompt(rawText)
+    const currentFields = [...selectedFields]
+    const finalPrompt = buildPrompt(rawText, currentFields)
+
     const userMsg = {
       id: Date.now().toString(),
       role: 'user',
-      content: finalPrompt,
+      content: rawText,
     }
+
+    setMessages((prev) => [...prev, userMsg])
     setInput('')
-    setIsLoading(true)
-    setSelectedArchivoIds([])
-    setSelectedRepositorioIds([])
-    setUploadedFiles([])
-    setTimeout(() => {
-      const suggestions = selectedFields.map((field) => ({
-        key: field.key,
-        label: field.label,
-        newValue: field.value,
-      }))
+    // setSelectedFields([])
+
+    try {
+      const payload: any = {
+        planId: planId,
+        content: finalPrompt,
+        conversacionId: activeChatId || undefined,
+      }
+
+      if (currentFields.length > 0) {
+        payload.campos = currentFields.map((f) => f.key)
+      }
+
+      const response = await sendChat(payload)
+
+      if (response.conversacionId && response.conversacionId !== activeChatId) {
+        setActiveChatId(response.conversacionId)
+
+        // Esto obliga a 'useConversationByPlan' a buscar en la DB el nuevo chat creado
+        queryClient.invalidateQueries({
+          queryKey: ['conversation-by-plan', planId],
+        })
+      }
+
+      // --- NUEVA LÓGICA DE PARSEO ---
+      let aiText = 'Sin respuesta del asistente'
+      let suggestions: Array<any> = []
+
+      if (response.raw) {
+        try {
+          // Parseamos el string JSON que viene en 'raw'
+          const rawData = JSON.parse(response.raw)
+
+          // Extraemos el mensaje conversacional
+          aiText = rawData['ai-message'] || 'Cambios aplicados con éxito.'
+
+          // Filtramos todo lo que no sea el mensaje para crear las sugerencias
+          suggestions = Object.entries(rawData)
+            .filter(([key]) => key !== 'ai-message')
+            .map(([key, value]) => ({
+              key,
+              label: key.replace(/_/g, ' '),
+              newValue: value as string,
+            }))
+        } catch (e) {
+          console.error('Error parseando el campo raw:', e)
+          aiText = response.raw // Fallback si no es JSON
+        }
+      }
+
       setMessages((prev) => [
         ...prev,
         {
           id: Date.now().toString(),
           role: 'assistant',
-          type: 'improvement-card',
-          content:
-            'He analizado los campos seleccionados. Aquí tienes mis sugerencias de mejora:',
+          content: aiText,
+          type: suggestions.length > 0 ? 'improvement-card' : 'text',
           suggestions: suggestions,
         },
       ])
-      setIsLoading(false)
-    }, 1200)
+    } catch (error) {
+      console.error('Error en el chat:', error)
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: 'error',
+          role: 'assistant',
+          content: 'Lo siento, hubo un error al procesar tu solicitud.',
+        },
+      ])
+    }
   }
 
   const totalReferencias = useMemo(() => {
@@ -417,7 +517,8 @@ ${fieldsText}`.trim()
             <div className="mx-auto max-w-3xl space-y-6 p-6">
               {messages.map((msg) => (
                 <div
-                  className={`flex max-w-[85%] flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}
+                  key={msg.id}
+                  className={`flex max-w-[85%] flex-col ${msg.role === 'user' ? 'ml-auto items-end' : 'items-start'}`}
                 >
                   <div
                     className={`rounded-2xl p-3 text-sm whitespace-pre-wrap shadow-sm ${
@@ -426,19 +527,23 @@ ${fieldsText}`.trim()
                         : 'rounded-tl-none border bg-white text-slate-700'
                     }`}
                   >
+                    {/* Contenido de texto normal */}
                     {msg.content}
 
-                    {msg.type === 'improvement-card' && (
-                      <ImprovementCard
-                        suggestions={msg.suggestions}
-                        onApply={(key, val) => {
-                          setSelectedFields((prev) =>
-                            prev.filter((f) => f.key !== key),
-                          )
-                          console.log(`Aplicando ${val} al campo ${key}`)
-                          // Aquí llamarías a tu función de actualización de datos real
-                        }}
-                      />
+                    {/* Si el mensaje tiene sugerencias (ImprovementCard) */}
+                    {msg.suggestions && msg.suggestions.length > 0 && (
+                      <div className="mt-4">
+                        <ImprovementCard
+                          suggestions={msg.suggestions}
+                          onApply={(key, val) => {
+                            console.log(`Aplicando ${val} al campo ${key}`)
+                            setSelectedFields((prev) =>
+                              prev.filter((f) => f.key !== key),
+                            )
+                            // Aquí llamarías a tu mutación de actualizar el plan
+                          }}
+                        />
+                      </div>
                     )}
                   </div>
                 </div>
