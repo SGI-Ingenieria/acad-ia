@@ -160,6 +160,7 @@ function DatosGeneralesPage() {
     if (!data?.datos) return
 
     const datosActualizados = prepararDatosActualizados(data, campo, valor)
+    console.log(datosActualizados)
 
     updatePlan.mutate({
       planId,

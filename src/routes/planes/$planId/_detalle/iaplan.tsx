@@ -27,9 +27,9 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Textarea } from '@/components/ui/textarea'
 import {
   useAIPlanChat,
-  useArchiveConversation,
   useChatHistory,
   useConversationByPlan,
+  useUpdateConversationStatus,
 } from '@/data'
 import { usePlan } from '@/data/hooks/usePlans'
 
@@ -73,13 +73,12 @@ export const Route = createFileRoute('/planes/$planId/_detalle/iaplan')({
 
 function RouteComponent() {
   const { planId } = Route.useParams()
-
   const { data } = usePlan(planId)
   const routerState = useRouterState()
   const [openIA, setOpenIA] = useState(false)
   const [conversacionId, setConversacionId] = useState<string | null>(null)
   const { mutateAsync: sendChat, isLoading } = useAIPlanChat()
-  const { mutate: archiveChatMutation } = useArchiveConversation()
+  const { mutate: updateStatusMutation } = useUpdateConversationStatus()
 
   const [activeChatId, setActiveChatId] = useState<string | undefined>(
     undefined,
@@ -102,27 +101,12 @@ function RouteComponent() {
   const [input, setInput] = useState('')
   const [selectedFields, setSelectedFields] = useState<Array<SelectedField>>([])
   const [showSuggestions, setShowSuggestions] = useState(false)
-  // const [isLoading, setIsLoading] = useState(false)
   const [pendingSuggestion, setPendingSuggestion] = useState<any>(null)
   const queryClient = useQueryClient()
   const scrollRef = useRef<HTMLDivElement>(null)
 
-  const chatHistory = useMemo(() => {
-    return lastConversation || []
-  }, [lastConversation])
   const [showArchived, setShowArchived] = useState(false)
-  const [archivedHistory, setArchivedHistory] = useState<Array<any>>([])
-  const [allMessages, setAllMessages] = useState<{ [key: string]: Array<any> }>(
-    {
-      '1': [
-        {
-          id: 'm1',
-          role: 'assistant',
-          content: '¡Hola! Soy tu asistente de IA en este chat inicial.',
-        },
-      ],
-    },
-  )
+
   useEffect(() => {
     // 1. Si no hay ID o está cargando el historial, no hacemos nada
     if (!activeChatId || isLoadingHistory) return
@@ -205,30 +189,39 @@ function RouteComponent() {
   }
 
   const archiveChat = (e: React.MouseEvent, id: string) => {
-    e.stopPropagation() // Evita que se seleccione el chat al intentar archivarlo
+    e.stopPropagation()
 
-    archiveChatMutation(id, {
-      onSuccess: () => {
-        // 1. Invalidamos las listas para que desaparezca de activos y aparezca en archivados
-        queryClient.invalidateQueries({
-          queryKey: ['conversation-by-plan', planId],
-        })
+    updateStatusMutation(
+      { id, estado: 'ARCHIVADA' },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({
+            queryKey: ['conversation-by-plan', planId],
+          })
 
-        // 2. Si el chat archivado era el que tenías abierto, limpia la pantalla
-        if (activeChatId === id) {
-          setActiveChatId(undefined)
-          setMessages([])
-        }
+          if (activeChatId === id) {
+            setActiveChatId(undefined)
+            setMessages([])
+          }
+        },
       },
-    })
+    )
   }
   const unarchiveChat = (e: React.MouseEvent, id: string) => {
     e.stopPropagation()
-    const chatToRestore = archivedHistory.find((chat) => chat.id === id)
-    if (chatToRestore) {
-      setChatHistory([chatToRestore, ...chatHistory])
-      setArchivedHistory(archivedHistory.filter((chat) => chat.id !== id))
-    }
+
+    updateStatusMutation(
+      { id, estado: 'ACTIVA' },
+      {
+        onSuccess: () => {
+          // Al invalidar la query, React Query traerá la lista fresca
+          // y el chat se moverá solo de "archivados" a "activos"
+          queryClient.invalidateQueries({
+            queryKey: ['conversation-by-plan', planId],
+          })
+        },
+      },
+    )
   }
 
   // 1. Transformar datos de la API para el menú de selección
@@ -296,22 +289,20 @@ function RouteComponent() {
       }
     })
 
-    if (isAdding) {
-      setInput((prev) => {
-        // 1. Eliminamos TODOS los ":" que existan en el texto actual
-        // 2. Quitamos espacios en blanco extra al final
-        const cleanPrev = prev.replace(/:/g, '').trim()
+    setInput((prev) => {
+      // 1. Eliminamos TODOS los ":" que existan en el texto actual
+      // 2. Quitamos espacios en blanco extra al final
+      const cleanPrev = prev.replace(/:/g, '').trim()
 
-        // 3. Si el input resultante está vacío, solo ponemos la frase
-        if (cleanPrev === '') {
-          return `${field.label} `
-        }
+      // 3. Si el input resultante está vacío, solo ponemos la frase
+      if (cleanPrev === '') {
+        return `${field.label} `
+      }
 
-        // 4. Si ya había algo, lo concatenamos con un espacio
-        // Usamos un espacio simple al final para que el usuario pueda seguir escribiendo
-        return `${cleanPrev} ${field.label} `
-      })
-    }
+      // 4. Si ya había algo, lo concatenamos con un espacio
+      // Usamos un espacio simple al final para que el usuario pueda seguir escribiendo
+      return `${cleanPrev} ${field.label} `
+    })
 
     setShowSuggestions(false)
   }
@@ -368,7 +359,6 @@ function RouteComponent() {
 
       if (response.raw) {
         try {
-          // Parseamos el string JSON que viene en 'raw'
           const rawData = JSON.parse(response.raw)
 
           // Extraemos el mensaje conversacional
@@ -419,6 +409,16 @@ function RouteComponent() {
     )
   }, [selectedArchivoIds, selectedRepositorioIds, uploadedFiles])
 
+  const { activeChats, archivedChats } = useMemo(() => {
+    const allChats = lastConversation || []
+    return {
+      activeChats: allChats.filter((chat: any) => chat.estado === 'ACTIVA'),
+      archivedChats: allChats.filter(
+        (chat: any) => chat.estado === 'ARCHIVADA',
+      ),
+    }
+  }, [lastConversation])
+
   return (
     <div className="flex h-[calc(100vh-160px)] max-h-[calc(100vh-160px)] w-full gap-6 overflow-hidden p-4">
       {/* --- PANEL IZQUIERDO: HISTORIAL --- */}
@@ -453,10 +453,9 @@ function RouteComponent() {
 
         <ScrollArea className="flex-1">
           <div className="space-y-1">
-            {/* Lógica de renderizado condicional */}
             {!showArchived ? (
-              // LISTA DE CHATS ACTIVOS
-              chatHistory.map((chat) => (
+              // --- LISTA DE CHATS ACTIVOS ---
+              activeChats.map((chat) => (
                 <div
                   key={chat.id}
                   onClick={() => setActiveChatId(chat.id)}
@@ -467,7 +466,10 @@ function RouteComponent() {
                   }`}
                 >
                   <FileText size={16} className="shrink-0 opacity-40" />
-                  <span className="truncate pr-8">{chat.title}</span>
+                  {/* Usamos el primer mensaje o un título por defecto */}
+                  <span className="truncate pr-8">
+                    {chat.title || `Chat ${chat.creado_en.split('T')[0]}`}
+                  </span>
                   <button
                     onClick={(e) => archiveChat(e, chat.id)}
                     className="absolute right-2 p-1 opacity-0 transition-opacity group-hover:opacity-100 hover:text-amber-600"
@@ -478,18 +480,21 @@ function RouteComponent() {
                 </div>
               ))
             ) : (
-              // LISTA DE CHATS ARCHIVADOS
+              // --- LISTA DE CHATS ARCHIVADOS ---
               <div className="animate-in fade-in slide-in-from-left-2">
                 <p className="mb-2 px-2 text-[10px] font-bold text-slate-400 uppercase">
                   Archivados
                 </p>
-                {archivedHistory.map((chat) => (
+                {archivedChats.map((chat) => (
                   <div
                     key={chat.id}
                     className="group relative mb-1 flex w-full items-center gap-3 rounded-lg bg-slate-50/50 px-3 py-2 text-sm text-slate-400"
                   >
                     <Archive size={14} className="shrink-0 opacity-30" />
-                    <span className="truncate pr-8">{chat.title}</span>
+                    <span className="truncate pr-8">
+                      {chat.title ||
+                        `Archivado ${chat.creado_en.split('T')[0]}`}
+                    </span>
                     <button
                       onClick={(e) => unarchiveChat(e, chat.id)}
                       className="absolute right-2 p-1 opacity-0 group-hover:opacity-100 hover:text-teal-600"
@@ -499,7 +504,7 @@ function RouteComponent() {
                     </button>
                   </div>
                 ))}
-                {archivedHistory.length === 0 && (
+                {archivedChats.length === 0 && (
                   <div className="px-2 py-4 text-center">
                     <p className="text-xs text-slate-400 italic">
                       No hay archivados
@@ -558,12 +563,13 @@ function RouteComponent() {
                       <div className="mt-4">
                         <ImprovementCard
                           suggestions={msg.suggestions}
+                          planId={planId} // Del useParams()
+                          currentDatos={data?.datos} // De tu query usePlan(planId)
                           onApply={(key, val) => {
-                            console.log(`Aplicando ${val} al campo ${key}`)
-                            setSelectedFields((prev) =>
-                              prev.filter((f) => f.key !== key),
+                            // Esto es opcional, si quieres hacer algo más en la UI del chat
+                            console.log(
+                              'Evento onApply disparado desde el chat',
                             )
-                            // Aquí llamarías a tu mutación de actualizar el plan
                           }}
                         />
                       </div>

@@ -5,12 +5,15 @@ import {
   ai_plan_improve,
   ai_subject_chat,
   ai_subject_improve,
-  archive_conversation,
   create_conversation,
   get_chat_history,
   getConversationByPlan,
   library_search,
+  update_conversation_status,
 } from '../api/ai.api'
+
+// eslint-disable-next-line node/prefer-node-protocol
+import type { UUID } from 'crypto'
 
 export function useAIPlanImprove() {
   return useMutation({ mutationFn: ai_plan_improve })
@@ -62,13 +65,20 @@ export function useChatHistory(conversacionId?: string) {
   })
 }
 
-export function useArchiveConversation() {
-  const queryClient = useQueryClient()
+export function useUpdateConversationStatus() {
+  const qc = useQueryClient()
+
   return useMutation({
-    mutationFn: (id: string) => archive_conversation(id),
+    mutationFn: ({
+      id,
+      estado,
+    }: {
+      id: string
+      estado: 'ARCHIVADA' | 'ACTIVA'
+    }) => update_conversation_status(id, estado),
     onSuccess: () => {
-      // Opcional: limpiar datos viejos de la caché
-      queryClient.invalidateQueries({ queryKey: ['chat-history'] })
+      // Esto refresca las listas automáticamente
+      qc.invalidateQueries({ queryKey: ['conversation-by-plan'] })
     },
   })
 }
