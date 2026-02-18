@@ -130,12 +130,19 @@ export async function get_chat_history(conversacionId: string) {
   return data // Retorna Array de mensajes
 }
 
-export async function archive_conversation(conversacionId: string) {
+export async function update_conversation_status(
+  conversacionId: string,
+  nuevoEstado: 'ARCHIVADA' | 'ACTIVA',
+) {
   const supabase = supabaseBrowser()
-  const { data, error } = await supabase.functions.invoke(
-    `create-chat-conversation/conversations/${conversacionId}/archive`,
-    { method: 'DELETE' },
-  )
+
+  const { data, error } = await supabase
+    .from('conversaciones_plan') // Asegúrate que el nombre de la tabla sea exacto
+    .update({ estado: nuevoEstado })
+    .eq('id', conversacionId)
+    .select()
+    .single()
+
   if (error) throw error
   return data
 }
@@ -168,8 +175,9 @@ export async function getConversationByPlan(planId: string) {
     .from('conversaciones_plan')
     .select('*')
     .eq('plan_estudio_id', planId)
-    .order('creado_en', { ascending: true })
+    .order('creado_en', { ascending: false })
   if (error) throw error
 
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   return data ?? []
 }
