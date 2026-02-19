@@ -1,7 +1,6 @@
 import { createFileRoute, Outlet, useNavigate } from '@tanstack/react-router'
 import {
   Plus,
-  Copy,
   Search,
   Filter,
   ChevronRight,
@@ -144,9 +143,6 @@ function AsignaturasPage() {
         </div>
 
         <div className="flex gap-2">
-          <Button variant="outline" size="sm">
-            <Copy className="mr-2 h-4 w-4" /> Clonar
-          </Button>
           <Button
             onClick={() => {
               console.log('planId desde asignaturas', planId)
