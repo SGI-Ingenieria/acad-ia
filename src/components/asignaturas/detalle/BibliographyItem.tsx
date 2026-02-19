@@ -32,38 +32,6 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 import { useSubjectBibliografia } from '@/data/hooks/useSubjects'
 import { cn } from '@/lib/utils'
-// import { toast } from 'sonner';
-// import { mockLibraryResources } from '@/data/mockAsignaturaData';
-
-export const mockLibraryResources = [
-  {
-    id: 'lib-1',
-    titulo: 'Deep Learning',
-    autor: 'Goodfellow, I., Bengio, Y., & Courville, A.',
-    editorial: 'MIT Press',
-    anio: 2016,
-    isbn: '9780262035613',
-    disponible: true,
-  },
-  {
-    id: 'lib-2',
-    titulo: 'Artificial Intelligence: A Modern Approach',
-    autor: 'Russell, S., & Norvig, P.',
-    editorial: 'Pearson',
-    anio: 2020,
-    isbn: '9780134610993',
-    disponible: true,
-  },
-  {
-    id: 'lib-3',
-    titulo: 'Hands-On Machine Learning',
-    autor: 'Aurélien Géron',
-    editorial: "O'Reilly Media",
-    anio: 2019,
-    isbn: '9781492032649',
-    disponible: false,
-  },
-]
 
 // --- Interfaces ---
 export interface BibliografiaEntry {
@@ -105,7 +73,7 @@ export function BibliographyItem({
   useEffect(() => {
     if (bibliografia2 && Array.isArray(bibliografia2)) {
       setEntries(bibliografia2)
-    } else if (bibliografia) {
+    } else {
       // Fallback a la prop inicial si la API no devuelve nada
       setEntries(bibliografia)
     }
