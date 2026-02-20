@@ -61,7 +61,7 @@ export function BibliographyItem({
 
   const { data: bibliografia2, isLoading: loadinasignatura } =
     useSubjectBibliografia(id)
-  const [entries, setEntries] = useState<Array<BibliografiaEntry>>(bibliografia)
+  const [entries, setEntries] = useState<Array<BibliografiaEntry>>([])
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isLibraryDialogOpen, setIsLibraryDialogOpen] = useState(false)
   const [deleteId, setDeleteId] = useState<string | null>(null)
@@ -71,6 +71,8 @@ export function BibliographyItem({
   )
 
   useEffect(() => {
+    console.log(entries)
+
     if (bibliografia2 && Array.isArray(bibliografia2)) {
       setEntries(bibliografia2)
     }
@@ -141,6 +143,7 @@ export function BibliographyItem({
             </DialogTrigger>
             <DialogContent className="max-w-2xl">
               <LibrarySearchDialog
+                resources={bibliografia2 || []}
                 onSelect={handleAddFromLibrary}
                 existingIds={entries.map((e) => e.fuenteBibliotecaId || '')}
               />
@@ -381,14 +384,16 @@ function AddManualDialog({ tipo, onTypeChange, onAdd }: any) {
   )
 }
 
-function LibrarySearchDialog({ onSelect, existingIds }: any) {
+function LibrarySearchDialog({ resources, onSelect, existingIds }: any) {
   const [search, setSearch] = useState('')
   const [tipo, setTipo] = useState<'BASICA' | 'COMPLEMENTARIA'>('BASICA')
-  const filtered = mockLibraryResources.filter(
-    (r) =>
+  const filtered = (resources || []).filter(
+    (r: any) =>
       !existingIds.includes(r.id) &&
-      r.titulo.toLowerCase().includes(search.toLowerCase()),
+      r.titulo?.toLowerCase().includes(search.toLowerCase()),
   )
+  console.log(filtered)
+  console.log(resources)
 
   return (
     <div className="space-y-4 py-2">
