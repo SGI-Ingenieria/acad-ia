@@ -62,6 +62,56 @@ export interface AsignaturaResponse {
   datos: AsignaturaDatos
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function parseContenidoTematicoToPlainText(value: unknown): string {
+  if (!Array.isArray(value)) return ''
+
+  const blocks: Array<string> = []
+
+  for (const item of value) {
+    if (!isRecord(item)) continue
+
+    const unidad =
+      typeof item.unidad === 'number' && Number.isFinite(item.unidad)
+        ? item.unidad
+        : undefined
+    const titulo = typeof item.titulo === 'string' ? item.titulo : ''
+
+    const header = `${unidad ?? ''}${unidad ? '.' : ''} ${titulo}`.trim()
+    if (!header) continue
+
+    const lines: Array<string> = [header]
+
+    const temas = Array.isArray(item.temas) ? item.temas : []
+    temas.forEach((tema, idx) => {
+      const temaNombre =
+        typeof tema === 'string'
+          ? tema
+          : isRecord(tema) && typeof tema.nombre === 'string'
+            ? tema.nombre
+            : ''
+      if (!temaNombre) return
+
+      if (unidad != null) {
+        lines.push(`${unidad}.${idx + 1} ${temaNombre}`.trim())
+      } else {
+        lines.push(`${idx + 1}. ${temaNombre}`)
+      }
+    })
+
+    blocks.push(lines.join('\n'))
+  }
+
+  return blocks.join('\n\n').trimEnd()
+}
+
+const columnParsers: Partial<Record<string, (value: unknown) => string>> = {
+  contenido_tematico: parseContenidoTematicoToPlainText,
+}
+
 function EditableHeaderField({
   value,
   onSave,
@@ -122,8 +172,8 @@ export default function AsignaturaDetailPage() {
     useSubject(asignaturaId)
   // 1. Asegúrate de tener estos estados en tu componente principal
   const [messages, setMessages] = useState<Array<IAMessage>>([])
-  const [asignatura, setAsignatura] = useState({})
-  const [campos, setCampos] = useState<Array<CampoEstructura>>([])
+  const [asignatura, setAsignatura] = useState<AsignaturaDetail | null>(null)
+  const [campos] = useState<Array<CampoEstructura>>([])
   const [activeTab, setActiveTab] = useState('datos')
   const updateAsignatura = useUpdateAsignatura()
 
@@ -172,15 +222,12 @@ export default function AsignaturaDetailPage() {
   }
 
   const handlePersistDatoGeneral = (clave: string, value: string) => {
-    const baseDatos =
-      (asignatura as any)?.datos ?? (asignaturaApi as any)?.datos ?? {}
+    const baseDatos = asignatura?.datos ?? (asignaturaApi as any)?.datos ?? {}
     const mergedDatos = { ...baseDatos, [clave]: value }
 
     // Mantener estado local coherente para merges posteriores.
-    setAsignatura((prev: any) => ({
-      ...(prev && Object.keys(prev).length
-        ? prev
-        : ((asignaturaApi as any) ?? {})),
+    setAsignatura((prev) => ({
+      ...((prev ?? asignaturaApi ?? {}) as any),
       datos: mergedDatos,
     }))
 
@@ -193,9 +240,7 @@ export default function AsignaturaDetailPage() {
   }
   /* ---------- sincronizar API ---------- */
   useEffect(() => {
-    if (asignaturaApi?.datos) {
-      setAsignatura(asignaturaApi)
-    }
+    if (asignaturaApi) setAsignatura(asignaturaApi)
   }, [asignaturaApi])
 
   // 2. Funciones de manejo para la IA
@@ -213,7 +258,7 @@ export default function AsignaturaDetailPage() {
     // toast.info("Enviando consulta a la IA...");
   }
 
-  const handleAcceptSuggestion = (sugerencia: IASugerencia) => {
+  const handleAcceptSuggestion = (_sugerencia: IASugerencia) => {
     // Lógica para actualizar el valor del campo en tu estado de asignatura
     // toast.success(`Sugerencia aplicada a ${sugerencia.campoNombre}`);
   }
@@ -252,7 +297,7 @@ export default function AsignaturaDetailPage() {
   return (
     <div className="w-full">
       {/* ================= HEADER ACTUALIZADO ================= */}
-      <section className="bg-gradient-to-b from-[#0b1d3a] to-[#0e2a5c] text-white">
+      <section className="bg-linear-to-b from-[#0b1d3a] to-[#0e2a5c] text-white">
         <div className="mx-auto max-w-7xl px-6 py-10">
           <Link
             to="/planes/$planId/asignaturas"
@@ -284,7 +329,12 @@ export default function AsignaturaDetailPage() {
                 <span className="flex items-center gap-1">
                   <GraduationCap className="h-4 w-4 shrink-0" />
                   <span className="text-blue-100">
-                    {asignaturaApi?.planes_estudio?.datos?.nombre || ''}
+                    {(() => {
+                      const datosPlan = asignaturaApi?.planes_estudio?.datos
+                      return isRecord(datosPlan)
+                        ? String((datosPlan as any).nombre ?? '')
+                        : ''
+                    })()}
                   </span>
                 </span>
 
@@ -357,7 +407,7 @@ export default function AsignaturaDetailPage() {
             {/* ================= TAB: DATOS GENERALES ================= */}
             <TabsContent value="datos">
               <DatosGenerales
-                data={asignatura}
+                data={asignatura ?? asignaturaApi ?? null}
                 isLoading={loadingAsig}
                 asignaturaId={asignaturaId}
                 onPersistDato={handlePersistDatoGeneral}
@@ -384,12 +434,12 @@ export default function AsignaturaDetailPage() {
             <TabsContent value="ia">
               <IAAsignaturaTab
                 campos={campos}
-                asignatura={asignatura}
+                asignatura={(asignatura ?? asignaturaApi ?? {}) as any}
                 messages={messages}
                 onSendMessage={handleSendMessage}
                 onAcceptSuggestion={handleAcceptSuggestion}
                 onRejectSuggestion={
-                  (id) =>
+                  (_id) =>
                     console.log(
                       'Rechazada',
                     ) /* toast.error("Sugerencia rechazada")*/
@@ -421,7 +471,7 @@ export default function AsignaturaDetailPage() {
 /* ================= TAB CONTENT ================= */
 interface DatosGeneralesProps {
   asignaturaId: string
-  data: AsignaturaDetail
+  data: AsignaturaDetail | null
   isLoading: boolean
   onPersistDato: (clave: string, value: string) => void
 }
@@ -431,15 +481,22 @@ function DatosGenerales({
   asignaturaId,
   onPersistDato,
 }: DatosGeneralesProps) {
-  const formatTitle = (key: string): string =>
-    key.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())
-
   // 1. Extraemos la definición de la estructura (los metadatos)
-  const structureProps =
-    data.estructuras_asignatura?.definicion?.properties || {}
+  const definicionRaw = data?.estructuras_asignatura?.definicion
+  const definicion = isRecord(definicionRaw)
+    ? (definicionRaw as Record<string, unknown>)
+    : null
+
+  const propertiesRaw = definicion ? (definicion as any).properties : undefined
+  const structureProps = isRecord(propertiesRaw)
+    ? (propertiesRaw as Record<string, any>)
+    : {}
 
   // 2. Extraemos los valores reales (el contenido redactado)
-  const valoresActuales = data.datos || {}
+  const datosRaw = data?.datos
+  const valoresActuales = isRecord(datosRaw)
+    ? (datosRaw as Record<string, any>)
+    : {}
 
   return (
     <div className="animate-in fade-in mx-auto max-w-7xl space-y-8 px-4 py-8 duration-500">
@@ -468,6 +525,11 @@ function DatosGenerales({
                 const cardTitle = config.title || key
                 const description = config.description || ''
 
+                const xColumn =
+                  typeof config?.['x-column'] === 'string'
+                    ? config['x-column']
+                    : undefined
+
                 // Obtenemos el placeholder del arreglo 'examples' de la estructura
                 const placeholder =
                   config.examples && config.examples.length > 0
@@ -476,11 +538,15 @@ function DatosGenerales({
 
                 const valActual = valoresActuales[key]
 
-                const isContentEmpty =
-                  !valActual?.description ||
-                  valActual.description === config.description
+                let currentContent = valActual ?? ''
 
-                const currentContent = valActual ?? ''
+                if (xColumn) {
+                  const rawValue = (data as any)?.[xColumn]
+                  const parser = columnParsers[xColumn]
+                  currentContent = parser
+                    ? parser(rawValue)
+                    : String(rawValue ?? '')
+                }
 
                 return (
                   <InfoCard
@@ -489,6 +555,7 @@ function DatosGenerales({
                     clave={key}
                     title={cardTitle}
                     initialContent={currentContent} // Si es igual a la descripción de la SEP, pasamos vacío
+                    xColumn={xColumn}
                     placeholder={placeholder} // Aquí irá "Primer semestre", "MAT-101", etc.
                     description={description} // El texto largo de "Indicar el ciclo..."
                     onEnhanceAI={(contenido) => console.log(contenido)}
@@ -545,6 +612,7 @@ interface InfoCardProps {
   initialContent: any
   placeholder?: string
   description?: string
+  xColumn?: string
   required?: boolean // Nueva prop para el asterisco
   type?: 'text' | 'requirements' | 'evaluation'
   onEnhanceAI?: (content: any) => void
@@ -558,6 +626,7 @@ function InfoCard({
   initialContent,
   placeholder,
   description,
+  xColumn,
   required,
   type = 'text',
   onPersist,
@@ -649,7 +718,20 @@ function InfoCard({
                       variant="ghost"
                       size="icon"
                       className="h-8 w-8 text-slate-400"
-                      onClick={() => setIsEditing(true)}
+                      onClick={() => {
+                        // Si esta InfoCard proviene de una columna externa (ej: contenido_tematico),
+                        // redirigimos a la pestaña de Contenido en vez de editar inline.
+                        if (xColumn === 'contenido_tematico') {
+                          navigate({
+                            to: '/planes/$planId/asignaturas/$asignaturaId',
+                            params: { planId, asignaturaId: asignaturaId! },
+                            state: { activeTab: 'contenido' } as any,
+                          })
+                          return
+                        }
+
+                        setIsEditing(true)
+                      }}
                     >
                       <Pencil className="h-3 w-3" />
                     </Button>
@@ -669,7 +751,7 @@ function InfoCard({
               value={tempText}
               placeholder={placeholder}
               onChange={(e) => setTempText(e.target.value)}
-              className="min-h-[120px] text-sm leading-relaxed"
+              className="min-h-30 text-sm leading-relaxed"
             />
             <div className="flex justify-end gap-2">
               <Button
