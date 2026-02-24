@@ -111,12 +111,6 @@ export async function create_conversation(planId: string) {
   )
 
   if (error) throw error
-
-  // LOG de depuración: Mira qué estructura trae 'data'
-  console.log('Respuesta creación conv:', data)
-
-  // Si data es { id: "..." }, devolvemos data.
-  // Si data viene envuelto, asegúrate de retornar el objeto con el id.
   return data
 }
 
@@ -180,4 +174,21 @@ export async function getConversationByPlan(planId: string) {
 
   // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   return data ?? []
+}
+
+export async function update_conversation_title(
+  conversacionId: string,
+  nuevoTitulo: string,
+) {
+  const supabase = supabaseBrowser()
+
+  const { data, error } = await supabase
+    .from('conversaciones_plan')
+    .update({ nombre: nuevoTitulo }) // Asegúrate que la columna se llame 'title' o 'nombre'
+    .eq('id', conversacionId)
+    .select()
+    .single()
+
+  if (error) throw error
+  return data
 }
