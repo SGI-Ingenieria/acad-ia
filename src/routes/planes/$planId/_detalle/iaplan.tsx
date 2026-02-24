@@ -30,6 +30,7 @@ import {
   useChatHistory,
   useConversationByPlan,
   useUpdateConversationStatus,
+  useUpdateConversationTitle,
 } from '@/data'
 import { usePlan } from '@/data/hooks/usePlans'
 
@@ -104,8 +105,21 @@ function RouteComponent() {
   const [pendingSuggestion, setPendingSuggestion] = useState<any>(null)
   const queryClient = useQueryClient()
   const scrollRef = useRef<HTMLDivElement>(null)
-
   const [showArchived, setShowArchived] = useState(false)
+  const [editingChatId, setEditingChatId] = useState<string | null>(null)
+  const editableRef = useRef<HTMLSpanElement>(null)
+  const { mutate: updateTitleMutation } = useUpdateConversationTitle()
+
+  const availableFields = useMemo(() => {
+    if (!data?.estructuras_plan?.definicion?.properties) return []
+    return Object.entries(data.estructuras_plan.definicion.properties).map(
+      ([key, value]) => ({
+        key,
+        label: value.title,
+        value: String(value.description || ''),
+      }),
+    )
+  }, [data])
 
   useEffect(() => {
     // 1. Si no hay ID o está cargando el historial, no hacemos nada
@@ -153,9 +167,6 @@ function RouteComponent() {
           type: suggestions.length > 0 ? 'improvement-card' : 'text',
         }
       })
-
-      // Solo actualizamos si no estamos esperando la respuesta de un POST
-      // para evitar saltos visuales
       if (!isLoading) {
         setMessages(flattened.reverse())
       }
@@ -174,6 +185,20 @@ function RouteComponent() {
       setActiveChatId(lastConversation[0].id)
     }
   }, [lastConversation, activeChatId])
+
+  useEffect(() => {
+    const state = routerState.location.state as any
+    if (!state?.campo_edit || availableFields.length === 0) return
+    const field = availableFields.find(
+      (f) =>
+        f.value === state.campo_edit.label || f.key === state.campo_edit.clave,
+    )
+    if (!field) return
+    setSelectedFields([field])
+    setInput((prev) =>
+      injectFieldsIntoInput(prev || 'Mejora este campo:', [field]),
+    )
+  }, [availableFields])
 
   const createNewChat = () => {
     setActiveChatId(undefined) // Al ser undefined, el próximo handleSend creará uno nuevo
@@ -224,37 +249,6 @@ function RouteComponent() {
     )
   }
 
-  // 1. Transformar datos de la API para el menú de selección
-  const availableFields = useMemo(() => {
-    if (!data?.estructuras_plan?.definicion?.properties) return []
-    return Object.entries(data.estructuras_plan.definicion.properties).map(
-      ([key, value]) => ({
-        key,
-        label: value.title,
-        value: String(value.description || ''),
-      }),
-    )
-  }, [data])
-
-  // 2. Manejar el estado inicial si viene de "Datos Generales"
-  useEffect(() => {
-    const state = routerState.location.state as any
-    if (!state?.campo_edit || availableFields.length === 0) return
-
-    const field = availableFields.find(
-      (f) =>
-        f.value === state.campo_edit.label || f.key === state.campo_edit.clave,
-    )
-
-    if (!field) return
-
-    setSelectedFields([field])
-    setInput((prev) =>
-      injectFieldsIntoInput(prev || 'Mejora este campo:', [field]),
-    )
-  }, [availableFields])
-
-  // 3. Lógica para el disparador ":"
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const val = e.target.value
     setInput(val)
@@ -290,17 +284,11 @@ function RouteComponent() {
     })
 
     setInput((prev) => {
-      // 1. Eliminamos TODOS los ":" que existan en el texto actual
-      // 2. Quitamos espacios en blanco extra al final
       const cleanPrev = prev.replace(/:/g, '').trim()
 
-      // 3. Si el input resultante está vacío, solo ponemos la frase
       if (cleanPrev === '') {
         return `${field.label} `
       }
-
-      // 4. Si ya había algo, lo concatenamos con un espacio
-      // Usamos un espacio simple al final para que el usuario pueda seguir escribiendo
       return `${cleanPrev} ${field.label} `
     })
 
@@ -329,8 +317,6 @@ function RouteComponent() {
 
     setMessages((prev) => [...prev, userMsg])
     setInput('')
-    // setSelectedFields([])
-
     try {
       const payload: any = {
         planId: planId,
@@ -454,7 +440,6 @@ function RouteComponent() {
         <ScrollArea className="flex-1">
           <div className="space-y-1">
             {!showArchived ? (
-              // --- LISTA DE CHATS ACTIVOS ---
               activeChats.map((chat) => (
                 <div
                   key={chat.id}
@@ -466,21 +451,77 @@ function RouteComponent() {
                   }`}
                 >
                   <FileText size={16} className="shrink-0 opacity-40" />
-                  {/* Usamos el primer mensaje o un título por defecto */}
-                  <span className="truncate pr-8">
-                    {chat.title || `Chat ${chat.creado_en.split('T')[0]}`}
-                  </span>
-                  <button
-                    onClick={(e) => archiveChat(e, chat.id)}
-                    className="absolute right-2 p-1 opacity-0 transition-opacity group-hover:opacity-100 hover:text-amber-600"
-                    title="Archivar"
+
+                  <span
+                    ref={editingChatId === chat.id ? editableRef : null}
+                    contentEditable={editingChatId === chat.id}
+                    suppressContentEditableWarning={true}
+                    className={`truncate pr-14 transition-all outline-none ${
+                      editingChatId === chat.id
+                        ? 'min-w-[50px] cursor-text rounded bg-white px-1 ring-1 ring-teal-500'
+                        : 'cursor-pointer'
+                    }`}
+                    onDoubleClick={(e) => {
+                      e.stopPropagation()
+                      setEditingChatId(chat.id)
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        const newTitle = e.currentTarget.textContent || ''
+                        updateTitleMutation(
+                          { id: chat.id, titulo: newTitle },
+                          {
+                            onSuccess: () => setEditingChatId(null),
+                          },
+                        )
+                      }
+                      if (e.key === 'Escape') {
+                        setEditingChatId(null)
+
+                        e.currentTarget.textContent = chat.nombre || ''
+                      }
+                    }}
+                    onBlur={(e) => {
+                      if (editingChatId === chat.id) {
+                        const newTitle = e.currentTarget.textContent || ''
+                        if (newTitle !== chat.nombre) {
+                          updateTitleMutation({ id: chat.id, nombre: newTitle })
+                        }
+                        setEditingChatId(null)
+                      }
+                    }}
+                    onClick={(e) => {
+                      if (editingChatId === chat.id) e.stopPropagation()
+                    }}
                   >
-                    <Archive size={14} />
-                  </button>
+                    {chat.nombre || `Chat ${chat.creado_en.split('T')[0]}`}
+                  </span>
+
+                  {/* ACCIONES */}
+                  <div className="absolute right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setEditingChatId(chat.id)
+                        // Pequeño timeout para asegurar que el DOM se actualice antes de enfocar
+                        setTimeout(() => editableRef.current?.focus(), 50)
+                      }}
+                      className="p-1 text-slate-400 hover:text-teal-600"
+                    >
+                      <Send size={12} className="rotate-45" />
+                    </button>
+                    <button
+                      onClick={(e) => archiveChat(e, chat.id)}
+                      className="p-1 text-slate-400 hover:text-amber-600"
+                    >
+                      <Archive size={14} />
+                    </button>
+                  </div>
                 </div>
               ))
             ) : (
-              // --- LISTA DE CHATS ARCHIVADOS ---
+              /* ... Resto del código de archivados (sin cambios) ... */
               <div className="animate-in fade-in slide-in-from-left-2">
                 <p className="mb-2 px-2 text-[10px] font-bold text-slate-400 uppercase">
                   Archivados
@@ -492,25 +533,17 @@ function RouteComponent() {
                   >
                     <Archive size={14} className="shrink-0 opacity-30" />
                     <span className="truncate pr-8">
-                      {chat.title ||
+                      {chat.nombre ||
                         `Archivado ${chat.creado_en.split('T')[0]}`}
                     </span>
                     <button
                       onClick={(e) => unarchiveChat(e, chat.id)}
                       className="absolute right-2 p-1 opacity-0 group-hover:opacity-100 hover:text-teal-600"
-                      title="Desarchivar"
                     >
                       <RotateCcw size={14} />
                     </button>
                   </div>
                 ))}
-                {archivedChats.length === 0 && (
-                  <div className="px-2 py-4 text-center">
-                    <p className="text-xs text-slate-400 italic">
-                      No hay archivados
-                    </p>
-                  </div>
-                )}
               </div>
             )}
           </div>

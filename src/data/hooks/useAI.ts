@@ -10,6 +10,7 @@ import {
   getConversationByPlan,
   library_search,
   update_conversation_status,
+  update_conversation_title,
 } from '../api/ai.api'
 
 // eslint-disable-next-line node/prefer-node-protocol
@@ -35,8 +36,6 @@ export function useAIPlanChat() {
 
         // CAMBIO AQUÍ: Accedemos a la estructura correcta según tu consola
         currentId = response.conversation_plan.id
-
-        console.log('Nuevo ID extraído:', currentId)
       }
 
       // 2. Ahora enviamos el mensaje con el ID garantizado
@@ -56,11 +55,8 @@ export function useChatHistory(conversacionId?: string) {
   return useQuery({
     queryKey: ['chat-history', conversacionId],
     queryFn: async () => {
-      console.log('--- EJECUTANDO QUERY FN ---')
-      console.log('ID RECIBIDO:', conversacionId)
       return get_chat_history(conversacionId!)
     },
-    // Simplificamos el enabled para probar
     enabled: Boolean(conversacionId),
   })
 }
@@ -101,4 +97,17 @@ export function useAISubjectChat() {
 
 export function useLibrarySearch() {
   return useMutation({ mutationFn: library_search })
+}
+
+export function useUpdateConversationTitle() {
+  const qc = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ id, nombre }: { id: string; nombre: string }) =>
+      update_conversation_title(id, nombre),
+    onSuccess: (_, variables) => {
+      // Invalidamos para que la lista de chats se refresque
+      qc.invalidateQueries({ queryKey: ['conversation-by-plan'] })
+    },
+  })
 }
