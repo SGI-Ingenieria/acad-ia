@@ -205,13 +205,15 @@ export function ContenidoTematico() {
     }))
 
     setUnidades(transformed)
-
-    // Expandir la primera unidad automáticamente
-    if (transformed.length > 0) {
-      setExpandedUnits(new Set([transformed[0].id]))
-    } else {
-      setExpandedUnits(new Set())
-    }
+    // Mantener las unidades ya expandidas si existen; si no, expandir la primera.
+    setExpandedUnits((prev) => {
+      const validIds = new Set(transformed.map((u) => u.id))
+      const filtered = new Set(
+        Array.from(prev).filter((id) => validIds.has(id)),
+      )
+      if (filtered.size > 0) return filtered
+      return transformed.length > 0 ? new Set([transformed[0].id]) : new Set()
+    })
   }, [data])
 
   if (isLoading)

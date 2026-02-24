@@ -1,18 +1,8 @@
-import {
-  createFileRoute,
-  useNavigate,
-  useParams,
-  useRouterState,
-} from '@tanstack/react-router'
+import { createFileRoute, useNavigate, useParams } from '@tanstack/react-router'
 import { Pencil, Sparkles } from 'lucide-react'
-import { useCallback, useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 
 import type { AsignaturaDetail } from '@/data'
-import type {
-  CampoEstructura,
-  IAMessage,
-  IASugerencia,
-} from '@/types/asignatura'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -47,45 +37,54 @@ export interface AsignaturaResponse {
   datos: AsignaturaDatos
 }
 
-function EditableHeaderField({
-  value,
-  onSave,
-  className,
-}: {
-  value: string | number
-  onSave: (val: string) => void
-  className?: string
-}) {
-  const textValue = String(value)
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
 
-  // Manejador para cuando el usuario termina de editar (pierde el foco)
-  const handleBlur = (e: React.FocusEvent<HTMLSpanElement>) => {
-    const newValue = e.currentTarget.innerText
-    if (newValue !== textValue) {
-      onSave(newValue)
-    }
+function parseContenidoTematicoToPlainText(value: unknown): string {
+  if (!Array.isArray(value)) return ''
+
+  const blocks: Array<string> = []
+
+  for (const item of value) {
+    if (!isRecord(item)) continue
+
+    const unidad =
+      typeof item.unidad === 'number' && Number.isFinite(item.unidad)
+        ? item.unidad
+        : undefined
+    const titulo = typeof item.titulo === 'string' ? item.titulo : ''
+
+    const header = `${unidad ?? ''}${unidad ? '.' : ''} ${titulo}`.trim()
+    if (!header) continue
+
+    const lines: Array<string> = [header]
+
+    const temas = Array.isArray(item.temas) ? item.temas : []
+    temas.forEach((tema, idx) => {
+      const temaNombre =
+        typeof tema === 'string'
+          ? tema
+          : isRecord(tema) && typeof tema.nombre === 'string'
+            ? tema.nombre
+            : ''
+      if (!temaNombre) return
+
+      if (unidad != null) {
+        lines.push(`${unidad}.${idx + 1} ${temaNombre}`.trim())
+      } else {
+        lines.push(`${idx + 1}. ${temaNombre}`)
+      }
+    })
+
+    blocks.push(lines.join('\n'))
   }
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLSpanElement>) => {
-    if (e.key === 'Enter') {
-      e.preventDefault()
-      e.currentTarget.blur() // Forzamos el guardado al presionar Enter
-    }
-  }
+  return blocks.join('\n\n').trimEnd()
+}
 
-  return (
-    // eslint-disable-next-line jsx-a11y/no-static-element-interactions
-    <span
-      contentEditable
-      suppressContentEditableWarning={true} // Evita el warning de React por tener hijos y contentEditable
-      spellCheck={false}
-      onBlur={handleBlur}
-      onKeyDown={handleKeyDown}
-      className={`inline-block cursor-text rounded-sm px-1 transition-all hover:bg-white/10 focus:bg-white/20 focus:ring-2 focus:ring-blue-400/50 focus:outline-none ${className ?? ''} `}
-    >
-      {textValue}
-    </span>
-  )
+const columnParsers: Partial<Record<string, (value: unknown) => string>> = {
+  contenido_tematico: parseContenidoTematicoToPlainText,
 }
 
 export const Route = createFileRoute(
@@ -95,77 +94,21 @@ export const Route = createFileRoute(
 })
 
 export default function AsignaturaDetailPage() {
-  const routerState = useRouterState()
-  const state = routerState.location.state as any
   const { asignaturaId } = useParams({
     from: '/planes/$planId/asignaturas/$asignaturaId',
   })
-  const { planId } = useParams({
-    from: '/planes/$planId/asignaturas/$asignaturaId',
-  })
-  const { data: asignaturaApi, isLoading: loadingAsig } =
-    useSubject(asignaturaId)
-  // 1. Asegúrate de tener estos estados en tu componente principal
-  const [messages, setMessages] = useState<Array<IAMessage>>([])
-  const [asignatura, setAsignatura] = useState({})
-  const [campos, setCampos] = useState<Array<CampoEstructura>>([])
-  const [activeTab, setActiveTab] = useState('datos')
+  const { data: asignaturaApi } = useSubject(asignaturaId)
+
+  const [asignatura, setAsignatura] = useState<AsignaturaDetail | null>(null)
   const updateAsignatura = useUpdateAsignatura()
 
-  // Dentro de AsignaturaDetailPage
-  const [headerData, setHeaderData] = useState({
-    codigo: '',
-    nombre: '',
-    creditos: 0,
-    ciclo: 0,
-  })
-
-  useEffect(() => {
-    // Si en el state de la ruta viene una pestaña específica, cámbiate a ella
-    if (state?.activeTab) {
-      setActiveTab(state.activeTab)
-    }
-  }, [state])
-
-  // Sincronizar cuando llegue la API
-  useEffect(() => {
-    if (asignaturaApi) {
-      setHeaderData({
-        codigo: asignaturaApi.codigo ?? '',
-        nombre: asignaturaApi.nombre,
-        creditos: asignaturaApi.creditos,
-        ciclo: asignaturaApi.numero_ciclo ?? 0,
-      })
-    }
-  }, [asignaturaApi])
-
-  const handleUpdateHeader = (key: string, value: string | number) => {
-    const newData = { ...headerData, [key]: value }
-    setHeaderData(newData)
-
-    const patch: Record<string, any> =
-      key === 'ciclo'
-        ? { numero_ciclo: value }
-        : {
-            [key]: value,
-          }
-
-    updateAsignatura.mutate({
-      asignaturaId,
-      patch,
-    })
-  }
-
   const handlePersistDatoGeneral = (clave: string, value: string) => {
-    const baseDatos =
-      (asignatura as any)?.datos ?? (asignaturaApi as any)?.datos ?? {}
+    const baseDatos = asignatura?.datos ?? (asignaturaApi as any)?.datos ?? {}
     const mergedDatos = { ...baseDatos, [clave]: value }
 
     // Mantener estado local coherente para merges posteriores.
-    setAsignatura((prev: any) => ({
-      ...(prev && Object.keys(prev).length
-        ? prev
-        : ((asignaturaApi as any) ?? {})),
+    setAsignatura((prev) => ({
+      ...((prev ?? asignaturaApi ?? {}) as any),
       datos: mergedDatos,
     }))
 
@@ -178,81 +121,12 @@ export default function AsignaturaDetailPage() {
   }
   /* ---------- sincronizar API ---------- */
   useEffect(() => {
-    if (asignaturaApi?.datos) {
-      setAsignatura(asignaturaApi)
-    }
+    if (asignaturaApi) setAsignatura(asignaturaApi)
   }, [asignaturaApi])
-
-  // 2. Funciones de manejo para la IA
-  const handleSendMessage = (text: string, campoId?: string) => {
-    const newMessage: IAMessage = {
-      id: Date.now().toString(),
-      role: 'user',
-      content: text,
-      timestamp: new Date(),
-      campoAfectado: campoId,
-    }
-    setMessages([...messages, newMessage])
-
-    // Aquí llamarías a tu API de OpenAI/Claude
-    // toast.info("Enviando consulta a la IA...");
-  }
-
-  const handleAcceptSuggestion = (sugerencia: IASugerencia) => {
-    // Lógica para actualizar el valor del campo en tu estado de asignatura
-    // toast.success(`Sugerencia aplicada a ${sugerencia.campoNombre}`);
-  }
-
-  // Dentro de tu componente principal (donde están los Tabs)
-  const [bibliografia, setBibliografia] = useState<Array<BibliografiaEntry>>([
-    {
-      id: '1',
-      tipo: 'BASICA',
-      cita: 'Russell, S., & Norvig, P. (2020). Artificial Intelligence: A Modern Approach. Pearson.',
-    },
-  ])
-  const [isSaving, setIsSaving] = useState(false)
-
-  const handleSaveBibliografia = (data: Array<BibliografiaEntry>) => {
-    setIsSaving(true)
-    // Aquí iría tu llamada a la API
-    setBibliografia(data)
-
-    // Simulamos un guardado
-    setTimeout(() => {
-      setIsSaving(false)
-      // toast.success("Cambios guardados");
-    }, 1000)
-  }
-
-  const [isRegenerating, setIsRegenerating] = useState(false)
-
-  const handleRegenerateDocument = useCallback(() => {
-    setIsRegenerating(true)
-    setTimeout(() => {
-      setIsRegenerating(false)
-    }, 2000)
-  }, [])
 
   return <DatosGenerales onPersistDato={handlePersistDatoGeneral} />
 }
 
-interface EstructuraDefinicion {
-  properties?: Record<
-    string,
-    {
-      title?: string
-      description?: string
-      examples?: Array<string>
-    }
-  >
-}
-interface DatosGeneralesProps {
-  asignaturaId: string
-  data: AsignaturaDetail
-  isLoading: boolean
-  onPersistDato: (clave: string, value: string) => void
-}
 function DatosGenerales({
   onPersistDato,
 }: {
@@ -264,10 +138,22 @@ function DatosGenerales({
 
   const { data: data, isLoading: isLoading } = useSubject(asignaturaId)
 
-  const structureProps =
-    (data?.estructuras_asignatura?.definicion as EstructuraDefinicion)
-      .properties || {}
-  const valoresActuales = data?.datos || {}
+  // 1. Extraemos la definición de la estructura (los metadatos)
+  const definicionRaw = data?.estructuras_asignatura?.definicion
+  const definicion = isRecord(definicionRaw)
+    ? (definicionRaw as Record<string, unknown>)
+    : null
+
+  const propertiesRaw = definicion ? (definicion as any).properties : undefined
+  const structureProps = isRecord(propertiesRaw)
+    ? (propertiesRaw as Record<string, any>)
+    : {}
+
+  // 2. Extraemos los valores reales (el contenido redactado)
+  const datosRaw = data?.datos
+  const valoresActuales = isRecord(datosRaw)
+    ? (datosRaw as Record<string, any>)
+    : {}
   if (isLoading) return <p>Cargando información...</p>
 
   return (
@@ -293,13 +179,28 @@ function DatosGenerales({
               const cardTitle = config.title || key
               const description = config.description || ''
 
+              const xColumn =
+                typeof config?.['x-column'] === 'string'
+                  ? config['x-column']
+                  : undefined
+
+              // Obtenemos el placeholder del arreglo 'examples' de la estructura
               const placeholder =
                 config.examples && config.examples.length > 0
                   ? config.examples[0]
                   : ''
 
-              const valActual = (valoresActuales as Record<string, any>)[key]
-              const currentContent = valActual ?? ''
+              const valActual = valoresActuales[key]
+
+              let currentContent = valActual ?? ''
+
+              if (xColumn) {
+                const rawValue = (data as any)?.[xColumn]
+                const parser = columnParsers[xColumn]
+                currentContent = parser
+                  ? parser(rawValue)
+                  : String(rawValue ?? '')
+              }
 
               return (
                 <InfoCard
@@ -308,6 +209,7 @@ function DatosGenerales({
                   clave={key}
                   title={cardTitle}
                   initialContent={currentContent}
+                  xColumn={xColumn}
                   placeholder={placeholder}
                   description={description}
                   onPersist={(clave, value) => onPersistDato(clave, value)}
@@ -363,6 +265,7 @@ interface InfoCardProps {
   initialContent: any
   placeholder?: string
   description?: string
+  xColumn?: string
   required?: boolean // Nueva prop para el asterisco
   type?: 'text' | 'requirements' | 'evaluation'
   onEnhanceAI?: (content: any) => void
@@ -376,6 +279,7 @@ function InfoCard({
   initialContent,
   placeholder,
   description,
+  xColumn,
   required,
   type = 'text',
   onPersist,
@@ -407,6 +311,8 @@ function InfoCard({
   const handleIARequest = (campoClave: string) => {
     console.log(placeholder)
 
+    // Añadimos un timestamp a la state para forzar que la navegación
+    // genere una nueva ubicación incluso si la ruta y los params son iguales.
     navigate({
       to: '/planes/$planId/asignaturas/$asignaturaId/iaasignatura',
       params: { planId, asignaturaId: asignaturaId! },
@@ -414,6 +320,7 @@ function InfoCard({
         activeTab: 'ia',
         prefillCampo: campoClave,
         prefillContenido: data,
+        _ts: Date.now(),
       } as any,
     })
   }
@@ -467,7 +374,21 @@ function InfoCard({
                       variant="ghost"
                       size="icon"
                       className="h-8 w-8 text-slate-400"
-                      onClick={() => setIsEditing(true)}
+                      onClick={() => {
+                        // Si esta InfoCard proviene de una columna externa (ej: contenido_tematico),
+                        // redirigimos a la pestaña de Contenido en vez de editar inline.
+                        if (xColumn === 'contenido_tematico') {
+                          // Agregamos un timestamp para forzar la actualización
+                          // de la location.state aunque la ruta sea la misma.
+                          navigate({
+                            to: '/planes/$planId/asignaturas/$asignaturaId/contenido',
+                            params: { planId, asignaturaId: asignaturaId! },
+                          })
+                          return
+                        }
+
+                        setIsEditing(true)
+                      }}
                     >
                       <Pencil className="h-3 w-3" />
                     </Button>
@@ -487,7 +408,7 @@ function InfoCard({
               value={tempText}
               placeholder={placeholder}
               onChange={(e) => setTempText(e.target.value)}
-              className="min-h-[120px] text-sm leading-relaxed"
+              className="min-h-30 text-sm leading-relaxed"
             />
             <div className="flex justify-end gap-2">
               <Button
