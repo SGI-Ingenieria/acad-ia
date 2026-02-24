@@ -3,6 +3,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   ai_generate_subject,
   asignaturas_update,
+  bibliografia_delete,
+  bibliografia_insert,
+  bibliografia_update,
   lineas_insert,
   lineas_update,
   subjects_bibliografia_list,
@@ -272,6 +275,44 @@ export function useUpdateLinea() {
     onSuccess: (updated) => {
       qc.invalidateQueries({
         queryKey: ['plan_lineas', updated.plan_estudio_id],
+      })
+    },
+  })
+}
+
+export function useCreateBibliografia() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: bibliografia_insert,
+    onSuccess: (data) => {
+      // USAR LA MISMA LLAVE QUE EL HOOK DE LECTURA
+      queryClient.invalidateQueries({
+        queryKey: qk.asignaturaBibliografia(data.asignatura_id),
+      })
+    },
+  })
+}
+
+export function useUpdateBibliografia(asignaturaId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, updates }: { id: string; updates: any }) =>
+      bibliografia_update(id, updates),
+    onSuccess: () => {
+      qc.invalidateQueries({
+        queryKey: qk.asignaturaBibliografia(asignaturaId),
+      })
+    },
+  })
+}
+
+export function useDeleteBibliografia(asignaturaId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => bibliografia_delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: qk.asignaturaBibliografia(asignaturaId),
       })
     },
   })
