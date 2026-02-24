@@ -8,9 +8,10 @@ import {
   Trash2,
   Clock,
 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import type { ContenidoApi, ContenidoTemaApi } from '@/data/api/subjects.api'
+import type { FocusEvent, KeyboardEvent } from 'react'
 
 import {
   AlertDialog,
@@ -167,16 +168,29 @@ export function ContenidoTematico() {
   const { data: data, isLoading: isLoading } = useSubject(asignaturaId)
   const [unidades, setUnidades] = useState<Array<UnidadTematica>>([])
   const [expandedUnits, setExpandedUnits] = useState<Set<string>>(new Set())
+  const unitContainerRefs = useRef<Map<string, HTMLDivElement>>(new Map())
+  const unitTitleInputRef = useRef<HTMLInputElement | null>(null)
+  const temaNombreInputElRef = useRef<HTMLInputElement | null>(null)
+  const [pendingScrollUnitId, setPendingScrollUnitId] = useState<string | null>(
+    null,
+  )
+  const cancelNextBlurRef = useRef(false)
   const [deleteDialog, setDeleteDialog] = useState<{
     type: 'unidad' | 'tema'
     id: string
     parentId?: string
   } | null>(null)
   const [editingUnit, setEditingUnit] = useState<string | null>(null)
+  const [unitDraftNombre, setUnitDraftNombre] = useState('')
+  const [unitOriginalNombre, setUnitOriginalNombre] = useState('')
   const [editingTema, setEditingTema] = useState<{
     unitId: string
     temaId: string
   } | null>(null)
+  const [temaDraftNombre, setTemaDraftNombre] = useState('')
+  const [temaOriginalNombre, setTemaOriginalNombre] = useState('')
+  const [temaDraftHoras, setTemaDraftHoras] = useState('')
+  const [temaOriginalHoras, setTemaOriginalHoras] = useState(0)
 
   const persistUnidades = async (nextUnidades: Array<UnidadTematica>) => {
     const payload = serializeUnidadesToApi(nextUnidades)
@@ -186,18 +200,116 @@ export function ContenidoTematico() {
     })
   }
 
+  const beginEditUnit = (unitId: string) => {
+    const unit = unidades.find((u) => u.id === unitId)
+    const nombre = unit?.nombre ?? ''
+    setEditingUnit(unitId)
+    setUnitDraftNombre(nombre)
+    setUnitOriginalNombre(nombre)
+    setExpandedUnits((prev) => {
+      const next = new Set(prev)
+      next.add(unitId)
+      return next
+    })
+  }
+
+  const commitEditUnit = () => {
+    if (!editingUnit) return
+    const next = unidades.map((u) =>
+      u.id === editingUnit ? { ...u, nombre: unitDraftNombre } : u,
+    )
+    setUnidades(next)
+    setEditingUnit(null)
+    void persistUnidades(next)
+  }
+
+  const cancelEditUnit = () => {
+    setEditingUnit(null)
+    setUnitDraftNombre(unitOriginalNombre)
+  }
+
+  const beginEditTema = (unitId: string, temaId: string) => {
+    const unit = unidades.find((u) => u.id === unitId)
+    const tema = unit?.temas.find((t) => t.id === temaId)
+    const nombre = tema?.nombre ?? ''
+    const horas = tema?.horasEstimadas ?? 0
+
+    setEditingTema({ unitId, temaId })
+    setTemaDraftNombre(nombre)
+    setTemaOriginalNombre(nombre)
+    setTemaDraftHoras(String(horas))
+    setTemaOriginalHoras(horas)
+    setExpandedUnits((prev) => {
+      const next = new Set(prev)
+      next.add(unitId)
+      return next
+    })
+  }
+
+  const commitEditTema = () => {
+    if (!editingTema) return
+    const parsedHoras = Number.parseInt(temaDraftHoras, 10)
+    const horasEstimadas = Number.isFinite(parsedHoras) ? parsedHoras : 0
+
+    const next = unidades.map((u) => {
+      if (u.id !== editingTema.unitId) return u
+      return {
+        ...u,
+        temas: u.temas.map((t) =>
+          t.id === editingTema.temaId
+            ? { ...t, nombre: temaDraftNombre, horasEstimadas }
+            : t,
+        ),
+      }
+    })
+
+    setUnidades(next)
+    setEditingTema(null)
+    void persistUnidades(next)
+  }
+
+  const cancelEditTema = () => {
+    setEditingTema(null)
+    setTemaDraftNombre(temaOriginalNombre)
+    setTemaDraftHoras(String(temaOriginalHoras))
+  }
+
+  const handleTemaEditorBlurCapture = (e: FocusEvent<HTMLDivElement>) => {
+    if (cancelNextBlurRef.current) {
+      cancelNextBlurRef.current = false
+      return
+    }
+    const nextFocus = e.relatedTarget as Node | null
+    if (nextFocus && e.currentTarget.contains(nextFocus)) return
+    commitEditTema()
+  }
+
+  const handleTemaEditorKeyDownCapture = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      if (e.target instanceof HTMLElement) e.target.blur()
+      return
+    }
+    if (e.key === 'Escape') {
+      e.preventDefault()
+      cancelNextBlurRef.current = true
+      cancelEditTema()
+      if (e.target instanceof HTMLElement) e.target.blur()
+    }
+  }
+
   useEffect(() => {
     const contenido = mapContenidoTematicoFromDb(
       data ? data.contenido_tematico : undefined,
     )
 
     const transformed = contenido.map((u, idx) => ({
-      id: `u-${idx}`,
+      id: `u-${u.unidad || idx + 1}`,
       numero: u.unidad || idx + 1,
       nombre: u.titulo || 'Sin título',
       temas: Array.isArray(u.temas)
         ? u.temas.map((t: any, tidx: number) => ({
-            id: `t-${idx}-${tidx}`,
+            id: `t-${u.unidad || idx + 1}-${tidx + 1}`,
             nombre: typeof t === 'string' ? t : t?.nombre || 'Tema',
             horasEstimadas: t?.horasEstimadas || 0,
           }))
@@ -215,6 +327,25 @@ export function ContenidoTematico() {
       return transformed.length > 0 ? new Set([transformed[0].id]) : new Set()
     })
   }, [data])
+
+  useEffect(() => {
+    if (!editingUnit) return
+    // Foco controlado (evitamos autoFocus por lint/a11y)
+    setTimeout(() => unitTitleInputRef.current?.focus(), 0)
+  }, [editingUnit])
+
+  useEffect(() => {
+    if (!editingTema) return
+    setTimeout(() => temaNombreInputElRef.current?.focus(), 0)
+  }, [editingTema])
+
+  useEffect(() => {
+    if (!pendingScrollUnitId) return
+    const el = unitContainerRefs.current.get(pendingScrollUnitId)
+    if (!el) return
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    setPendingScrollUnitId(null)
+  }, [pendingScrollUnitId, unidades.length])
 
   if (isLoading)
     return <div className="p-10 text-center">Cargando contenido...</div>
@@ -234,60 +365,57 @@ export function ContenidoTematico() {
   }
 
   const addUnidad = () => {
-    const newId = `u-${Date.now()}`
+    const newNumero = unidades.length + 1
+    const newId = `u-${newNumero}`
     const newUnidad: UnidadTematica = {
       id: newId,
       nombre: 'Nueva Unidad',
-      numero: unidades.length + 1,
+      numero: newNumero,
       temas: [],
     }
     const next = [...unidades, newUnidad]
     setUnidades(next)
-    setExpandedUnits(new Set([...expandedUnits, newId]))
-    setEditingUnit(newId)
-  }
+    setExpandedUnits((prev) => {
+      const n = new Set(prev)
+      n.add(newId)
+      return n
+    })
+    setPendingScrollUnitId(newId)
 
-  const updateUnidadNombre = (id: string, nombre: string) => {
-    setUnidades(unidades.map((u) => (u.id === id ? { ...u, nombre } : u)))
+    // Abrir edición del título inmediatamente
+    setEditingUnit(newId)
+    setUnitDraftNombre(newUnidad.nombre)
+    setUnitOriginalNombre(newUnidad.nombre)
   }
 
   // --- Lógica de Temas ---
   const addTema = (unidadId: string) => {
-    setUnidades(
-      unidades.map((u) => {
-        if (u.id === unidadId) {
-          const newTemaId = `t-${Date.now()}`
-          const newTema: Tema = {
-            id: newTemaId,
-            nombre: 'Nuevo tema',
-            horasEstimadas: 2,
-          }
-          setEditingTema({ unitId: unidadId, temaId: newTemaId })
-          return { ...u, temas: [...u.temas, newTema] }
-        }
-        return u
-      }),
-    )
-  }
+    const unit = unidades.find((u) => u.id === unidadId)
+    const unitNumero = unit?.numero ?? 0
+    const newTemaIndex = (unit?.temas.length ?? 0) + 1
+    const newTemaId = `t-${unitNumero}-${newTemaIndex}`
+    const newTema: Tema = {
+      id: newTemaId,
+      nombre: 'Nuevo tema',
+      horasEstimadas: 2,
+    }
 
-  const updateTema = (
-    unidadId: string,
-    temaId: string,
-    updates: Partial<Tema>,
-  ) => {
-    setUnidades(
-      unidades.map((u) => {
-        if (u.id === unidadId) {
-          return {
-            ...u,
-            temas: u.temas.map((t) =>
-              t.id === temaId ? { ...t, ...updates } : t,
-            ),
-          }
-        }
-        return u
-      }),
+    const next = unidades.map((u) =>
+      u.id === unidadId ? { ...u, temas: [...u.temas, newTema] } : u,
     )
+    setUnidades(next)
+
+    // Expandir unidad y poner el subtema en edición con foco en el nombre
+    setExpandedUnits((prev) => {
+      const n = new Set(prev)
+      n.add(unidadId)
+      return n
+    })
+    setEditingTema({ unitId: unidadId, temaId: newTemaId })
+    setTemaDraftNombre(newTema.nombre)
+    setTemaOriginalNombre(newTema.nombre)
+    setTemaDraftHoras(String(newTema.horasEstimadas ?? 0))
+    setTemaOriginalHoras(newTema.horasEstimadas ?? 0)
   }
 
   const handleDelete = () => {
@@ -321,134 +449,159 @@ export function ContenidoTematico() {
             {unidades.length} unidades • {totalHoras} horas estimadas totales
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={addUnidad} className="gap-2">
-            <Plus className="h-4 w-4" /> Nueva unidad
-          </Button>
-        </div>
       </div>
 
       <div className="space-y-4">
         {unidades.map((unidad) => (
-          <Card
+          <div
             key={unidad.id}
-            className="overflow-hidden border-slate-200 shadow-sm"
+            ref={(el) => {
+              if (el) unitContainerRefs.current.set(unidad.id, el)
+              else unitContainerRefs.current.delete(unidad.id)
+            }}
           >
-            <Collapsible
-              open={expandedUnits.has(unidad.id)}
-              onOpenChange={() => toggleUnit(unidad.id)}
-            >
-              <CardHeader className="border-b border-slate-100 bg-slate-50/50 py-3">
-                <div className="flex items-center gap-3">
-                  <GripVertical className="h-4 w-4 cursor-grab text-slate-300" />
-                  <CollapsibleTrigger asChild>
-                    <Button variant="ghost" size="sm" className="h-auto p-0">
-                      {expandedUnits.has(unidad.id) ? (
-                        <ChevronDown className="h-4 w-4" />
-                      ) : (
-                        <ChevronRight className="h-4 w-4" />
-                      )}
-                    </Button>
-                  </CollapsibleTrigger>
-                  <Badge className="bg-blue-600 font-mono">
-                    Unidad {unidad.numero}
-                  </Badge>
+            <Card className="overflow-hidden border-slate-200 shadow-sm">
+              <Collapsible
+                open={expandedUnits.has(unidad.id)}
+                onOpenChange={() => toggleUnit(unidad.id)}
+              >
+                <CardHeader className="border-b border-slate-100 bg-slate-50/50 py-3">
+                  <div className="flex items-center gap-3">
+                    <GripVertical className="h-4 w-4 cursor-grab text-slate-300" />
+                    <CollapsibleTrigger asChild>
+                      <Button variant="ghost" size="sm" className="h-auto p-0">
+                        {expandedUnits.has(unidad.id) ? (
+                          <ChevronDown className="h-4 w-4" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </CollapsibleTrigger>
+                    <Badge className="bg-blue-600 font-mono">
+                      Unidad {unidad.numero}
+                    </Badge>
 
-                  {editingUnit === unidad.id ? (
-                    <Input
-                      value={unidad.nombre}
-                      onChange={(e) =>
-                        updateUnidadNombre(unidad.id, e.target.value)
-                      }
-                      onBlur={() => {
-                        setEditingUnit(null)
-                        void persistUnidades(unidades)
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          setEditingUnit(null)
-                          void persistUnidades(unidades)
-                        }
-                      }}
-                      className="h-8 max-w-md bg-white"
-                    />
-                  ) : (
-                    <CardTitle
-                      className="cursor-pointer text-base font-semibold transition-colors hover:text-blue-600"
-                      onClick={() => setEditingUnit(unidad.id)}
-                    >
-                      {unidad.nombre}
-                    </CardTitle>
-                  )}
-
-                  <div className="ml-auto flex items-center gap-3">
-                    <span className="flex items-center gap-1 text-xs font-medium text-slate-400">
-                      <Clock className="h-3 w-3" />{' '}
-                      {unidad.temas.reduce(
-                        (sum, t) => sum + (t.horasEstimadas || 0),
-                        0,
-                      )}
-                      h
-                    </span>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-slate-400 hover:text-red-500"
-                      onClick={() =>
-                        setDeleteDialog({ type: 'unidad', id: unidad.id })
-                      }
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </CardHeader>
-              <CollapsibleContent>
-                <CardContent className="bg-white pt-4">
-                  <div className="ml-10 space-y-1 border-l-2 border-slate-50 pl-4">
-                    {unidad.temas.map((tema, idx) => (
-                      <TemaRow
-                        key={tema.id}
-                        tema={tema}
-                        index={idx + 1}
-                        isEditing={
-                          !!editingTema &&
-                          editingTema.unitId === unidad.id &&
-                          editingTema.temaId === tema.id
-                        }
-                        onEdit={() =>
-                          setEditingTema({ unitId: unidad.id, temaId: tema.id })
-                        }
-                        onStopEditing={() => {
-                          setEditingTema(null)
-                          void persistUnidades(unidades)
+                    {editingUnit === unidad.id ? (
+                      <Input
+                        ref={unitTitleInputRef}
+                        value={unitDraftNombre}
+                        onChange={(e) => setUnitDraftNombre(e.target.value)}
+                        onBlur={() => {
+                          if (cancelNextBlurRef.current) {
+                            cancelNextBlurRef.current = false
+                            return
+                          }
+                          commitEditUnit()
                         }}
-                        onUpdate={(updates) =>
-                          updateTema(unidad.id, tema.id, updates)
-                        }
-                        onDelete={() =>
-                          setDeleteDialog({
-                            type: 'tema',
-                            id: tema.id,
-                            parentId: unidad.id,
-                          })
-                        }
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault()
+                            e.currentTarget.blur()
+                            return
+                          }
+                          if (e.key === 'Escape') {
+                            e.preventDefault()
+                            cancelNextBlurRef.current = true
+                            cancelEditUnit()
+                            e.currentTarget.blur()
+                          }
+                        }}
+                        className="h-8 max-w-md bg-white"
                       />
-                    ))}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="mt-2 w-full justify-start text-blue-600 hover:bg-blue-50 hover:text-blue-700"
-                      onClick={() => addTema(unidad.id)}
-                    >
-                      <Plus className="mr-2 h-3 w-3" /> Añadir subtema
-                    </Button>
+                    ) : (
+                      <CardTitle
+                        className="cursor-pointer text-base font-semibold transition-colors hover:text-blue-600"
+                        onClick={() => beginEditUnit(unidad.id)}
+                      >
+                        {unidad.nombre}
+                      </CardTitle>
+                    )}
+
+                    <div className="ml-auto flex items-center gap-3">
+                      <span className="flex items-center gap-1 text-xs font-medium text-slate-400">
+                        <Clock className="h-3 w-3" />{' '}
+                        {unidad.temas.reduce(
+                          (sum, t) => sum + (t.horasEstimadas || 0),
+                          0,
+                        )}
+                        h
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-slate-400 hover:text-red-500"
+                        onClick={() =>
+                          setDeleteDialog({ type: 'unidad', id: unidad.id })
+                        }
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
-                </CardContent>
-              </CollapsibleContent>
-            </Collapsible>
-          </Card>
+                </CardHeader>
+                <CollapsibleContent>
+                  <CardContent className="bg-white pt-4">
+                    <div className="ml-10 space-y-1 border-l-2 border-slate-50 pl-4">
+                      {unidad.temas.map((tema, idx) => (
+                        <TemaRow
+                          key={tema.id}
+                          tema={tema}
+                          index={idx + 1}
+                          isEditing={
+                            !!editingTema &&
+                            editingTema.unitId === unidad.id &&
+                            editingTema.temaId === tema.id
+                          }
+                          draftNombre={temaDraftNombre}
+                          draftHoras={temaDraftHoras}
+                          onBeginEdit={() => beginEditTema(unidad.id, tema.id)}
+                          onDraftNombreChange={setTemaDraftNombre}
+                          onDraftHorasChange={setTemaDraftHoras}
+                          onEditorBlurCapture={handleTemaEditorBlurCapture}
+                          onEditorKeyDownCapture={
+                            handleTemaEditorKeyDownCapture
+                          }
+                          onNombreInputRef={(el) => {
+                            temaNombreInputElRef.current = el
+                          }}
+                          onDelete={() =>
+                            setDeleteDialog({
+                              type: 'tema',
+                              id: tema.id,
+                              parentId: unidad.id,
+                            })
+                          }
+                        />
+                      ))}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="mt-2 w-full justify-start text-blue-600 hover:bg-blue-50 hover:text-blue-700"
+                        onClick={() => addTema(unidad.id)}
+                      >
+                        <Plus className="mr-2 h-3 w-3" /> Añadir subtema
+                      </Button>
+                    </div>
+                  </CardContent>
+                </CollapsibleContent>
+              </Collapsible>
+            </Card>
+          </div>
         ))}
+      </div>
+
+      <div className="flex justify-center pt-2">
+        <Button
+          variant="outline"
+          className="gap-2"
+          onClick={(e) => {
+            // Evita que Enter vuelva a disparar el click sobre el botón.
+            e.currentTarget.blur()
+            addUnidad()
+          }}
+        >
+          <Plus className="h-4 w-4" /> Nueva unidad
+        </Button>
       </div>
 
       <DeleteConfirmDialog
@@ -465,9 +618,14 @@ interface TemaRowProps {
   tema: Tema
   index: number
   isEditing: boolean
-  onEdit: () => void
-  onStopEditing: () => void
-  onUpdate: (updates: Partial<Tema>) => void
+  draftNombre: string
+  draftHoras: string
+  onBeginEdit: () => void
+  onDraftNombreChange: (value: string) => void
+  onDraftHorasChange: (value: string) => void
+  onEditorBlurCapture: (e: FocusEvent<HTMLDivElement>) => void
+  onEditorKeyDownCapture: (e: KeyboardEvent<HTMLDivElement>) => void
+  onNombreInputRef: (el: HTMLInputElement | null) => void
   onDelete: () => void
 }
 
@@ -475,9 +633,14 @@ function TemaRow({
   tema,
   index,
   isEditing,
-  onEdit,
-  onStopEditing,
-  onUpdate,
+  draftNombre,
+  draftHoras,
+  onBeginEdit,
+  onDraftNombreChange,
+  onDraftHorasChange,
+  onEditorBlurCapture,
+  onEditorKeyDownCapture,
+  onNombreInputRef,
   onDelete,
 }: TemaRowProps) {
   return (
@@ -489,47 +652,49 @@ function TemaRow({
     >
       <span className="w-4 font-mono text-xs text-slate-400">{index}.</span>
       {isEditing ? (
-        <div className="animate-in slide-in-from-left-2 flex flex-1 items-center gap-2">
+        <div
+          className="animate-in slide-in-from-left-2 flex flex-1 items-center gap-2"
+          onBlurCapture={onEditorBlurCapture}
+          onKeyDownCapture={onEditorKeyDownCapture}
+        >
           <Input
-            value={tema.nombre}
-            onChange={(e) => onUpdate({ nombre: e.target.value })}
+            ref={onNombreInputRef}
+            value={draftNombre}
+            onChange={(e) => onDraftNombreChange(e.target.value)}
             className="h-8 flex-1 bg-white"
             placeholder="Nombre"
           />
           <Input
             type="number"
-            value={tema.horasEstimadas}
-            onChange={(e) =>
-              onUpdate({ horasEstimadas: parseInt(e.target.value) || 0 })
-            }
+            value={draftHoras}
+            onChange={(e) => onDraftHorasChange(e.target.value)}
             className="h-8 w-16 bg-white"
           />
-          <Button
-            size="sm"
-            className="h-8 bg-emerald-600"
-            onClick={onStopEditing}
-          >
-            Listo
-          </Button>
         </div>
       ) : (
         <>
           <button
             type="button"
-            className="flex-1 cursor-pointer text-left"
-            onClick={onEdit}
+            className="flex flex-1 items-center gap-3 text-left"
+            onClick={(e) => {
+              e.stopPropagation()
+              onBeginEdit()
+            }}
           >
             <p className="text-sm font-medium text-slate-700">{tema.nombre}</p>
+            <Badge variant="secondary" className="text-[10px] opacity-60">
+              {tema.horasEstimadas}h
+            </Badge>
           </button>
-          <Badge variant="secondary" className="text-[10px] opacity-60">
-            {tema.horasEstimadas}h
-          </Badge>
           <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
             <Button
               variant="ghost"
               size="icon"
               className="h-7 w-7 text-slate-400 hover:text-blue-600"
-              onClick={onEdit}
+              onClick={(e) => {
+                e.stopPropagation()
+                onBeginEdit()
+              }}
             >
               <Edit3 className="h-3 w-3" />
             </Button>
@@ -537,7 +702,10 @@ function TemaRow({
               variant="ghost"
               size="icon"
               className="h-7 w-7 text-slate-400 hover:text-red-500"
-              onClick={onDelete}
+              onClick={(e) => {
+                e.stopPropagation()
+                onDelete()
+              }}
             >
               <Trash2 className="h-3 w-3" />
             </Button>
