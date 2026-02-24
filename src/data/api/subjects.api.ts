@@ -490,3 +490,51 @@ export async function lineas_delete(lineaId: string) {
   if (error) throw error
   return lineaId
 }
+
+export async function bibliografia_insert(entry: {
+  asignatura_id: string
+  tipo: 'BASICA' | 'COMPLEMENTARIA'
+  cita: string
+  tipo_fuente: 'MANUAL' | 'BIBLIOTECA'
+  biblioteca_item_id?: string | null
+}) {
+  const supabase = supabaseBrowser()
+  const { data, error } = await supabase
+    .from('bibliografia_asignatura')
+    .insert([entry])
+    .select()
+    .single()
+
+  if (error) throw error
+  return data
+}
+
+export async function bibliografia_update(
+  id: string,
+  updates: {
+    cita?: string
+    tipo?: 'BASICA' | 'COMPLEMENTARIA'
+  },
+) {
+  const supabase = supabaseBrowser()
+  const { data, error } = await supabase
+    .from('bibliografia_asignatura')
+    .update(updates) // Ahora 'updates' es compatible con lo que espera Supabase
+    .eq('id', id)
+    .select()
+    .single()
+
+  if (error) throw error
+  return data
+}
+
+export async function bibliografia_delete(id: string) {
+  const supabase = supabaseBrowser()
+  const { error } = await supabase
+    .from('bibliografia_asignatura')
+    .delete()
+    .eq('id', id)
+
+  if (error) throw error
+  return id
+}

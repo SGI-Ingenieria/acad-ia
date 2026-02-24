@@ -1,6 +1,9 @@
+/* eslint-disable jsx-a11y/click-events-have-key-events */
+/* eslint-disable jsx-a11y/label-has-associated-control */
+/* eslint-disable jsx-a11y/no-static-element-interactions */
 import { useParams } from '@tanstack/react-router'
 import { Plus, Search, BookOpen, Trash2, Library, Edit3 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 
 import {
   AlertDialog,
@@ -31,7 +34,12 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { useSubjectBibliografia } from '@/data/hooks/useSubjects'
+import {
+  useCreateBibliografia,
+  useDeleteBibliografia,
+  useSubjectBibliografia,
+  useUpdateBibliografia,
+} from '@/data/hooks/useSubjects'
 import { cn } from '@/lib/utils'
 
 // --- Interfaces ---
@@ -50,9 +58,16 @@ export function BibliographyItem() {
     from: '/planes/$planId/asignaturas/$asignaturaId',
   })
 
-  const { data: bibliografia2, isLoading: loadinasignatura } =
+  // --- 1. Única fuente de verdad: La Query ---
+  const { data: bibliografia = [], isLoading } =
     useSubjectBibliografia(asignaturaId)
-  const [entries, setEntries] = useState<Array<BibliografiaEntry>>([])
+
+  // --- 2. Mutaciones ---
+  const { mutate: crearBibliografia } = useCreateBibliografia()
+  const { mutate: actualizarBibliografia } = useUpdateBibliografia(asignaturaId)
+  const { mutate: eliminarBibliografia } = useDeleteBibliografia(asignaturaId)
+
+  // --- 3. Estados de UI (Solo para diálogos y edición) ---
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isLibraryDialogOpen, setIsLibraryDialogOpen] = useState(false)
   const [deleteId, setDeleteId] = useState<string | null>(null)
@@ -61,29 +76,27 @@ export function BibliographyItem() {
     'BASICA',
   )
 
-  useEffect(() => {
-    console.log(entries)
-
-    if (bibliografia2 && Array.isArray(bibliografia2)) {
-      setEntries(bibliografia2)
-    }
-  }, [bibliografia2])
-
-  const basicaEntries = entries.filter((e) => e.tipo === 'BASICA')
-  const complementariaEntries = entries.filter(
+  console.log('Datos actuales en el front:', bibliografia)
+  // --- 4. Derivación de datos (Se calculan en cada render) ---
+  const basicaEntries = bibliografia.filter((e) => e.tipo === 'BASICA')
+  const complementariaEntries = bibliografia.filter(
     (e) => e.tipo === 'COMPLEMENTARIA',
   )
-  console.log(bibliografia2)
+
+  // --- Handlers Conectados a la Base de Datos ---
 
   const handleAddManual = (cita: string) => {
-    const newEntry: BibliografiaEntry = {
-      id: `manual-${Date.now()}`,
-      tipo: newEntryType,
-      cita,
-    }
-    setEntries([...entries, newEntry])
-    setIsAddDialogOpen(false)
-    // toast.success('Referencia manual añadida');
+    crearBibliografia(
+      {
+        asignatura_id: asignaturaId,
+        tipo: newEntryType,
+        cita,
+        tipo_fuente: 'MANUAL',
+      },
+      {
+        onSuccess: () => setIsAddDialogOpen(false),
+      },
+    )
   }
 
   const handleAddFromLibrary = (
@@ -91,21 +104,42 @@ export function BibliographyItem() {
     tipo: 'BASICA' | 'COMPLEMENTARIA',
   ) => {
     const cita = `${resource.autor} (${resource.anio}). ${resource.titulo}. ${resource.editorial}.`
-    const newEntry: BibliografiaEntry = {
-      id: `lib-ref-${Date.now()}`,
-      tipo,
-      cita,
-      fuenteBibliotecaId: resource.id,
-      fuenteBiblioteca: resource,
-    }
-    setEntries([...entries, newEntry])
-    setIsLibraryDialogOpen(false)
-    // toast.success('Añadido desde biblioteca');
+    crearBibliografia(
+      {
+        asignatura_id: asignaturaId,
+        tipo,
+        cita,
+        tipo_fuente: 'BIBLIOTECA',
+        biblioteca_item_id: resource.id,
+      },
+      {
+        onSuccess: () => setIsLibraryDialogOpen(false),
+      },
+    )
   }
 
-  const handleUpdateCita = (id: string, cita: string) => {
-    setEntries(entries.map((e) => (e.id === id ? { ...e, cita } : e)))
+  const handleUpdateCita = (id: string, nuevaCita: string) => {
+    actualizarBibliografia(
+      {
+        id,
+        updates: { cita: nuevaCita },
+      },
+      {
+        onSuccess: () => setEditingId(null),
+      },
+    )
   }
+
+  const onConfirmDelete = () => {
+    if (deleteId) {
+      eliminarBibliografia(deleteId, {
+        onSuccess: () => setDeleteId(null),
+      })
+    }
+  }
+
+  if (isLoading)
+    return <div className="p-10 text-center">Cargando bibliografía...</div>
 
   return (
     <div className="animate-in fade-in mx-auto max-w-5xl space-y-8 py-10 duration-500">
@@ -134,9 +168,13 @@ export function BibliographyItem() {
             </DialogTrigger>
             <DialogContent className="max-w-2xl">
               <LibrarySearchDialog
-                resources={bibliografia2 || []}
+                // CORRECCIÓN: Usamos 'bibliografia' en lugar de 'bibliografia2'
+                resources={[]} // Aquí deberías pasar el catálogo general, no la bibliografía de la asignatura
                 onSelect={handleAddFromLibrary}
-                existingIds={entries.map((e) => e.fuenteBibliotecaId || '')}
+                // CORRECCIÓN: Usamos 'bibliografia' en lugar de 'entries'
+                existingIds={bibliografia.map(
+                  (e) => e.biblioteca_item_id || '',
+                )}
               />
             </DialogContent>
           </Dialog>
@@ -216,13 +254,7 @@ export function BibliographyItem() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                setEntries(entries.filter((e) => e.id !== deleteId))
-                setDeleteId(null)
-              }}
-              className="bg-red-600"
-            >
+            <AlertDialogAction onClick={onConfirmDelete} className="bg-red-600">
               Eliminar
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -412,7 +444,7 @@ function LibrarySearchDialog({ resources, onSelect, existingIds }: any) {
         </Select>
       </div>
       <div className="max-h-[300px] space-y-2 overflow-y-auto pr-2">
-        {filtered.map((res) => (
+        {filtered.map((res: any) => (
           <div
             key={res.id}
             onClick={() => onSelect(res, tipo)}
