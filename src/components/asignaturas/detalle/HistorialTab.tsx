@@ -1,3 +1,4 @@
+import { useParams } from '@tanstack/react-router'
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
 import {
@@ -53,7 +54,10 @@ const tipoConfig: Record<string, { label: string; icon: any; color: string }> =
     },
   }
 
-export function HistorialTab({ asignaturaId }) {
+export function HistorialTab() {
+  const { asignaturaId } = useParams({
+    from: '/planes/$planId/asignaturas/$asignaturaId/historial',
+  })
   // 1. Obtenemos los datos directamente dentro del componente
   const { data: rawData, isLoading } = useSubjectHistorial(asignaturaId)
 

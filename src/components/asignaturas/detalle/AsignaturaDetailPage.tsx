@@ -1,18 +1,11 @@
 import {
   createFileRoute,
-  Link,
   useNavigate,
   useParams,
   useRouterState,
 } from '@tanstack/react-router'
-import { ArrowLeft, GraduationCap, Pencil, Sparkles } from 'lucide-react'
+import { Pencil, Sparkles } from 'lucide-react'
 import { useCallback, useState, useEffect } from 'react'
-
-import { BibliographyItem } from './BibliographyItem'
-import { ContenidoTematico } from './ContenidoTematico'
-import { DocumentoSEPTab } from './DocumentoSEPTab'
-import { HistorialTab } from './HistorialTab'
-import { IAAsignaturaTab } from './IAAsignaturaTab'
 
 import type { AsignaturaDetail } from '@/data'
 import type {
@@ -21,11 +14,8 @@ import type {
   IASugerencia,
 } from '@/types/asignatura'
 
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Separator } from '@/components/ui/separator'
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import {
   Tooltip,
@@ -34,11 +24,6 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { useSubject, useUpdateAsignatura } from '@/data/hooks/useSubjects'
-import {
-  mockAsignatura,
-  mockEstructura,
-  mockDocumentoSep,
-} from '@/data/mockAsignaturaData'
 
 export interface BibliografiaEntry {
   id: string
@@ -294,181 +279,19 @@ export default function AsignaturaDetailPage() {
     }, 2000)
   }, [])
 
-  return (
-    <div className="w-full">
-      {/* ================= HEADER ACTUALIZADO ================= */}
-      <section className="bg-linear-to-b from-[#0b1d3a] to-[#0e2a5c] text-white">
-        <div className="mx-auto max-w-7xl px-6 py-10">
-          <Link
-            to="/planes/$planId/asignaturas"
-            params={{ planId }}
-            className="mb-4 flex items-center gap-2 text-sm text-blue-200 hover:text-white"
-          >
-            <ArrowLeft className="h-4 w-4" /> Volver al plan
-          </Link>
-
-          <div className="flex items-start justify-between gap-6">
-            <div className="space-y-3">
-              {/* CÓDIGO EDITABLE */}
-              <Badge className="border border-blue-700 bg-blue-900/50">
-                <EditableHeaderField
-                  value={headerData.codigo}
-                  onSave={(val) => handleUpdateHeader('codigo', val)}
-                />
-              </Badge>
-
-              {/* NOMBRE EDITABLE */}
-              <h1 className="text-3xl font-bold">
-                <EditableHeaderField
-                  value={headerData.nombre}
-                  onSave={(val) => handleUpdateHeader('nombre', val)}
-                />
-              </h1>
-
-              <div className="flex flex-wrap gap-4 text-sm text-blue-200">
-                <span className="flex items-center gap-1">
-                  <GraduationCap className="h-4 w-4 shrink-0" />
-                  <span className="text-blue-100">
-                    {(() => {
-                      const datosPlan = asignaturaApi?.planes_estudio?.datos
-                      return isRecord(datosPlan)
-                        ? String((datosPlan as any).nombre ?? '')
-                        : ''
-                    })()}
-                  </span>
-                </span>
-
-                <span className="flex items-center gap-1">
-                  <span className="text-blue-100">
-                    {asignaturaApi?.planes_estudio?.carreras?.facultades
-                      ?.nombre || ''}
-                  </span>
-                </span>
-              </div>
-
-              <p className="text-sm text-blue-300">
-                Pertenece al plan:{' '}
-                <span className="cursor-pointer underline">
-                  {asignaturaApi?.planes_estudio?.nombre}
-                </span>
-              </p>
-            </div>
-
-            <div className="flex flex-col items-end gap-2 text-right">
-              {/* CRÉDITOS EDITABLES */}
-              <Badge variant="secondary" className="gap-1">
-                <span className="inline-flex max-w-fit">
-                  <EditableHeaderField
-                    value={headerData.creditos}
-                    onSave={(val) =>
-                      handleUpdateHeader('creditos', parseInt(val) || 0)
-                    }
-                  />
-                </span>
-                <span>créditos</span>
-              </Badge>
-
-              {/* SEMESTRE EDITABLE */}
-              <Badge variant="secondary" className="gap-1">
-                <EditableHeaderField
-                  value={headerData.ciclo}
-                  onSave={(val) =>
-                    handleUpdateHeader('ciclo', parseInt(val) || 0)
-                  }
-                />
-                <span>° ciclo</span>
-              </Badge>
-
-              <Badge variant="secondary">{asignaturaApi?.tipo}</Badge>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ================= TABS ================= */}
-      <section className="border-b bg-white">
-        <div className="mx-auto max-w-7xl px-6">
-          <Tabs
-            value={activeTab}
-            onValueChange={setActiveTab}
-            className="w-full"
-          >
-            <TabsList className="h-auto gap-6 bg-transparent p-0">
-              <TabsTrigger value="datos">Datos generales</TabsTrigger>
-              <TabsTrigger value="contenido">Contenido temático</TabsTrigger>
-              <TabsTrigger value="bibliografia">Bibliografía</TabsTrigger>
-              <TabsTrigger value="ia">IA de la asignatura</TabsTrigger>
-              <TabsTrigger value="sep">Documento SEP</TabsTrigger>
-              <TabsTrigger value="historial">Historial</TabsTrigger>
-            </TabsList>
-
-            <Separator className="mt-2" />
-
-            {/* ================= TAB: DATOS GENERALES ================= */}
-            <TabsContent value="datos">
-              <DatosGenerales
-                data={asignatura ?? asignaturaApi ?? null}
-                isLoading={loadingAsig}
-                asignaturaId={asignaturaId}
-                onPersistDato={handlePersistDatoGeneral}
-              />
-            </TabsContent>
-
-            <TabsContent value="contenido">
-              <ContenidoTematico
-                asignaturaId={asignaturaId}
-                data={asignaturaApi ?? null}
-                isLoading={loadingAsig}
-              ></ContenidoTematico>
-            </TabsContent>
-
-            <TabsContent value="bibliografia">
-              <BibliographyItem
-                bibliografia={bibliografia}
-                id={asignaturaId}
-                onSave={handleSaveBibliografia}
-                isSaving={isSaving}
-              />
-            </TabsContent>
-
-            <TabsContent value="ia">
-              <IAAsignaturaTab
-                campos={campos}
-                asignatura={(asignatura ?? asignaturaApi ?? {}) as any}
-                messages={messages}
-                onSendMessage={handleSendMessage}
-                onAcceptSuggestion={handleAcceptSuggestion}
-                onRejectSuggestion={
-                  (_id) =>
-                    console.log(
-                      'Rechazada',
-                    ) /* toast.error("Sugerencia rechazada")*/
-                }
-              />
-            </TabsContent>
-
-            <TabsContent value="sep">
-              <DocumentoSEPTab
-                documento={mockDocumentoSep}
-                estructura={mockEstructura}
-                asignatura={mockAsignatura}
-                datosGenerales={(asignatura as any)?.datos ?? {}}
-                onRegenerate={handleRegenerateDocument}
-                isRegenerating={isRegenerating}
-              />
-            </TabsContent>
-
-            <TabsContent value="historial">
-              <HistorialTab asignaturaId={asignaturaId} />
-            </TabsContent>
-          </Tabs>
-        </div>
-      </section>
-    </div>
-  )
+  return <DatosGenerales onPersistDato={handlePersistDatoGeneral} />
 }
 
-/* ================= TAB CONTENT ================= */
+interface EstructuraDefinicion {
+  properties?: Record<
+    string,
+    {
+      title?: string
+      description?: string
+      examples?: Array<string>
+    }
+  >
+}
 interface DatosGeneralesProps {
   asignaturaId: string
   data: AsignaturaDetail | null
@@ -476,27 +299,21 @@ interface DatosGeneralesProps {
   onPersistDato: (clave: string, value: string) => void
 }
 function DatosGenerales({
-  data,
-  isLoading,
-  asignaturaId,
   onPersistDato,
-}: DatosGeneralesProps) {
-  // 1. Extraemos la definición de la estructura (los metadatos)
-  const definicionRaw = data?.estructuras_asignatura?.definicion
-  const definicion = isRecord(definicionRaw)
-    ? (definicionRaw as Record<string, unknown>)
-    : null
+}: {
+  onPersistDato: (clave: string, value: string) => void
+}) {
+  const { asignaturaId } = useParams({
+    from: '/planes/$planId/asignaturas/$asignaturaId',
+  })
 
-  const propertiesRaw = definicion ? (definicion as any).properties : undefined
-  const structureProps = isRecord(propertiesRaw)
-    ? (propertiesRaw as Record<string, any>)
-    : {}
+  const { data: data, isLoading: isLoading } = useSubject(asignaturaId)
 
-  // 2. Extraemos los valores reales (el contenido redactado)
-  const datosRaw = data?.datos
-  const valoresActuales = isRecord(datosRaw)
-    ? (datosRaw as Record<string, any>)
-    : {}
+  const structureProps =
+    (data?.estructuras_asignatura?.definicion as EstructuraDefinicion)
+      .properties || {}
+  const valoresActuales = data?.datos || {}
+  if (isLoading) return <p>Cargando información...</p>
 
   return (
     <div className="animate-in fade-in mx-auto max-w-7xl space-y-8 px-4 py-8 duration-500">
@@ -516,54 +333,33 @@ function DatosGenerales({
       <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
         {/* Columna Principal (Más ancha) */}
         <div className="space-y-6 md:col-span-2">
-          {isLoading && <p>Cargando información...</p>}
+          {Object.entries(structureProps).map(
+            ([key, config]: [string, any]) => {
+              const cardTitle = config.title || key
+              const description = config.description || ''
 
-          {!isLoading &&
-            Object.entries(structureProps).map(
-              ([key, config]: [string, any]) => {
-                // 1. METADATOS (Vienen de structureProps -> config)
-                const cardTitle = config.title || key
-                const description = config.description || ''
+              const placeholder =
+                config.examples && config.examples.length > 0
+                  ? config.examples[0]
+                  : ''
 
-                const xColumn =
-                  typeof config?.['x-column'] === 'string'
-                    ? config['x-column']
-                    : undefined
+              const valActual = (valoresActuales as Record<string, any>)[key]
+              const currentContent = valActual ?? ''
 
-                // Obtenemos el placeholder del arreglo 'examples' de la estructura
-                const placeholder =
-                  config.examples && config.examples.length > 0
-                    ? config.examples[0]
-                    : ''
-
-                const valActual = valoresActuales[key]
-
-                let currentContent = valActual ?? ''
-
-                if (xColumn) {
-                  const rawValue = (data as any)?.[xColumn]
-                  const parser = columnParsers[xColumn]
-                  currentContent = parser
-                    ? parser(rawValue)
-                    : String(rawValue ?? '')
-                }
-
-                return (
-                  <InfoCard
-                    asignaturaId={asignaturaId}
-                    key={key}
-                    clave={key}
-                    title={cardTitle}
-                    initialContent={currentContent} // Si es igual a la descripción de la SEP, pasamos vacío
-                    xColumn={xColumn}
-                    placeholder={placeholder} // Aquí irá "Primer semestre", "MAT-101", etc.
-                    description={description} // El texto largo de "Indicar el ciclo..."
-                    onEnhanceAI={(contenido) => console.log(contenido)}
-                    onPersist={(clave, value) => onPersistDato(clave, value)}
-                  />
-                )
-              },
-            )}
+              return (
+                <InfoCard
+                  asignaturaId={asignaturaId}
+                  key={key}
+                  clave={key}
+                  title={cardTitle}
+                  initialContent={currentContent}
+                  placeholder={placeholder}
+                  description={description}
+                  onPersist={(clave, value) => onPersistDato(clave, value)}
+                />
+              )
+            },
+          )}
         </div>
 
         {/* Columna Lateral (Información Secundaria) */}
@@ -661,7 +457,7 @@ function InfoCard({
     // Añadimos un timestamp a la state para forzar que la navegación
     // genere una nueva ubicación incluso si la ruta y los params son iguales.
     navigate({
-      to: '/planes/$planId/asignaturas/$asignaturaId',
+      to: '/planes/$planId/asignaturas/$asignaturaId/iaasignatura',
       params: { planId, asignaturaId: asignaturaId! },
       state: {
         activeTab: 'ia',
