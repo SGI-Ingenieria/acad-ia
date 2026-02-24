@@ -1,3 +1,4 @@
+import { useParams } from '@tanstack/react-router'
 import {
   Plus,
   GripVertical,
@@ -30,7 +31,7 @@ import {
   CollapsibleTrigger,
 } from '@/components/ui/collapsible'
 import { Input } from '@/components/ui/input'
-import { useUpdateSubjectContenido } from '@/data/hooks/useSubjects'
+import { useSubject, useUpdateSubjectContenido } from '@/data/hooks/useSubjects'
 import { cn } from '@/lib/utils'
 // import { toast } from 'sonner';
 
@@ -156,20 +157,14 @@ function serializeUnidadesToApi(
 }
 
 // Props del componente
-interface ContenidoTematicoProps {
-  asignaturaId: string
-  data?: {
-    contenido_tematico?: unknown
-  } | null
-  isLoading: boolean
-}
-export function ContenidoTematico({
-  asignaturaId,
-  data,
-  isLoading,
-}: ContenidoTematicoProps) {
-  const updateContenido = useUpdateSubjectContenido()
 
+export function ContenidoTematico() {
+  const updateContenido = useUpdateSubjectContenido()
+  const { asignaturaId } = useParams({
+    from: '/planes/$planId/asignaturas/$asignaturaId',
+  })
+
+  const { data: data, isLoading: isLoading } = useSubject(asignaturaId)
   const [unidades, setUnidades] = useState<Array<UnidadTematica>>([])
   const [expandedUnits, setExpandedUnits] = useState<Set<string>>(new Set())
   const [deleteDialog, setDeleteDialog] = useState<{

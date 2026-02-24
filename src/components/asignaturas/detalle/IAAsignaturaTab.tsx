@@ -1,4 +1,4 @@
-import { useRouterState } from '@tanstack/react-router'
+import { useParams, useRouterState } from '@tanstack/react-router'
 import {
   Sparkles,
   Send,
@@ -13,17 +13,14 @@ import {
 } from 'lucide-react'
 import { useState, useEffect, useRef, useMemo } from 'react'
 
-import type {
-  IAMessage,
-  IASugerencia,
-  CampoEstructura,
-} from '@/types/asignatura'
+import type { IAMessage, IASugerencia } from '@/types/asignatura'
 
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Textarea } from '@/components/ui/textarea'
+import { useSubject } from '@/data'
 import { cn } from '@/lib/utils'
 
 // Tipos importados de tu archivo de asignatura
@@ -62,7 +59,6 @@ interface SelectedField {
 }
 
 interface IAAsignaturaTabProps {
-  campos: Array<CampoEstructura>
   asignatura: Record<string, any>
   messages: Array<IAMessage>
   onSendMessage: (message: string, campoId?: string) => void
@@ -71,15 +67,18 @@ interface IAAsignaturaTabProps {
 }
 
 export function IAAsignaturaTab({
-  campos,
-  asignatura: datosGenerales,
   messages,
   onSendMessage,
   onAcceptSuggestion,
   onRejectSuggestion,
 }: IAAsignaturaTabProps) {
   const routerState = useRouterState()
+  const { asignaturaId } = useParams({
+    from: '/planes/$planId/asignaturas/$asignaturaId',
+  })
 
+  const { data: datosGenerales, isLoading: loadingAsig } =
+    useSubject(asignaturaId)
   // ESTADOS PRINCIPALES (Igual que en Planes)
   const [input, setInput] = useState('')
   const [selectedFields, setSelectedFields] = useState<Array<SelectedField>>([])
@@ -89,25 +88,25 @@ export function IAAsignaturaTab({
 
   // 1. Transformar datos de la asignatura para el menú
   const availableFields = useMemo(() => {
-    // Extraemos las claves directamente del objeto datosGenerales
-    // ["nombre", "descripcion", "perfil_de_egreso", "fines_de_aprendizaje_o_formacion"]
-    if (!datosGenerales.datos) return []
-    return Object.keys(datosGenerales.datos).map((key) => {
-      // Buscamos si existe un nombre amigable en la estructura de campos
-      const estructuraCampo = campos.find((c) => c.id === key)
+    if (!datosGenerales?.datos) return []
 
-      // Si existe en 'campos', usamos su nombre; si no, formateamos la clave (ej: perfil_de_egreso -> Perfil De Egreso)
+    const estructuraProps =
+      datosGenerales?.estructuras_asignatura?.definicion?.properties || {}
+
+    return Object.keys(datosGenerales.datos).map((key) => {
+      const estructuraCampo = estructuraProps[key]
+
       const labelAmigable =
-        estructuraCampo?.nombre ||
+        estructuraCampo?.title ||
         key.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())
 
       return {
-        key: key,
+        key,
         label: labelAmigable,
-        value: String(datosGenerales[key] || ''),
+        value: String(datosGenerales.datos[key] || ''),
       }
     })
-  }, [campos, datosGenerales])
+  }, [datosGenerales])
 
   // 2. Manejar el estado inicial si viene de "Datos de Asignatura" (Prefill)
 
@@ -218,7 +217,7 @@ export function IAAsignaturaTab({
         <div className="relative min-h-0 flex-1">
           <ScrollArea ref={scrollRef} className="h-full w-full">
             <div className="mx-auto max-w-3xl space-y-6 p-6">
-              {messages.map((msg) => (
+              {messages?.map((msg) => (
                 <div
                   key={msg.id}
                   className={`flex ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'} items-start gap-3`}

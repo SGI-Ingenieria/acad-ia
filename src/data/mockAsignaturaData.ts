@@ -5,7 +5,6 @@ import type {
   BibliografiaEntry,
   CambioAsignatura,
   DocumentoAsignatura,
-  LibraryResource,
 } from '@/types/asignatura'
 
 export const mockAsignatura: Asignatura = {
@@ -310,5 +309,3 @@ export const mockDocumentoSep: DocumentoAsignatura = {
   fechaGeneracion: new Date('2024-12-06T11:30:00'),
   estado: 'listo',
 }
-
-export const mockLibraryResources: Array<LibraryResource> = []

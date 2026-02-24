@@ -1,3 +1,4 @@
+import { useParams } from '@tanstack/react-router'
 import { Plus, Search, BookOpen, Trash2, Library, Edit3 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
@@ -44,23 +45,13 @@ export interface BibliografiaEntry {
   fuenteBiblioteca?: any
 }
 
-interface BibliografiaTabProps {
-  id: string
-  bibliografia: Array<BibliografiaEntry>
-  onSave: (bibliografia: Array<BibliografiaEntry>) => void
-  isSaving: boolean
-}
-
-export function BibliographyItem({
-  bibliografia,
-  id,
-  onSave,
-  isSaving,
-}: BibliografiaTabProps) {
-  console.log(id)
+export function BibliographyItem() {
+  const { asignaturaId } = useParams({
+    from: '/planes/$planId/asignaturas/$asignaturaId',
+  })
 
   const { data: bibliografia2, isLoading: loadinasignatura } =
-    useSubjectBibliografia(id)
+    useSubjectBibliografia(asignaturaId)
   const [entries, setEntries] = useState<Array<BibliografiaEntry>>([])
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isLibraryDialogOpen, setIsLibraryDialogOpen] = useState(false)
@@ -76,7 +67,7 @@ export function BibliographyItem({
     if (bibliografia2 && Array.isArray(bibliografia2)) {
       setEntries(bibliografia2)
     }
-  }, [bibliografia2, bibliografia])
+  }, [bibliografia2])
 
   const basicaEntries = entries.filter((e) => e.tipo === 'BASICA')
   const complementariaEntries = entries.filter(
