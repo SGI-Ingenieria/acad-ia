@@ -192,3 +192,48 @@ export async function update_conversation_title(
   if (error) throw error
   return data
 }
+
+export async function update_recommendation_applied_status(
+  conversacionId: string,
+  campoAfectado: string,
+) {
+  const supabase = supabaseBrowser()
+
+  // 1. Obtener el estado actual del JSON
+  const { data: conv, error: fetchError } = await supabase
+    .from('conversaciones_plan')
+    .select('conversacion_json')
+    .eq('id', conversacionId)
+    .single()
+
+  if (fetchError) throw fetchError
+  if (!conv?.conversacion_json)
+    throw new Error('No se encontró la conversación')
+
+  // 2. Transformar el JSON para marcar como aplicada la recomendación específica
+  // Usamos una transformación inmutable para evitar efectos secundarios
+  const nuevoJson = (conv.conversacion_json as Array<any>).map((msg) => {
+    if (msg.user === 'assistant' && Array.isArray(msg.recommendations)) {
+      return {
+        ...msg,
+        recommendations: msg.recommendations.map((rec: any) =>
+          rec.campo_afectado === campoAfectado
+            ? { ...rec, aplicada: true }
+            : rec,
+        ),
+      }
+    }
+    return msg
+  })
+
+  // 3. Actualizar la base de datos con el nuevo JSON
+  const { data, error: updateError } = await supabase
+    .from('conversaciones_plan')
+    .update({ conversacion_json: nuevoJson })
+    .eq('id', conversacionId)
+    .select()
+    .single()
+
+  if (updateError) throw updateError
+  return data
+}

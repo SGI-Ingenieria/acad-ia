@@ -2,21 +2,25 @@ import { Check, Loader2 } from 'lucide-react'
 import { useState } from 'react'
 
 import { Button } from '@/components/ui/button'
-import { useUpdatePlanFields } from '@/data' // Tu hook existente
+import { useUpdatePlanFields, useUpdateRecommendationApplied } from '@/data' // Tu hook existente
 
 export const ImprovementCard = ({
   suggestions,
   onApply,
   planId, // Necesitamos el ID
   currentDatos, // Necesitamos los datos actuales para no sobrescribir todo el JSON
+  activeChatId,
 }: {
   suggestions: Array<any>
   onApply?: (key: string, value: string) => void
   planId: string
   currentDatos: any
+  activeChatId: any
 }) => {
   const [appliedFields, setAppliedFields] = useState<Array<string>>([])
+  const [localApplied, setLocalApplied] = useState<Array<string>>([])
   const updatePlan = useUpdatePlanFields()
+  const updateAppliedStatus = useUpdateRecommendationApplied()
 
   const handleApply = (key: string, newValue: string) => {
     if (!currentDatos) return
@@ -52,6 +56,14 @@ export const ImprovementCard = ({
           setAppliedFields((prev) => [...prev, key])
           if (onApply) onApply(key, newValue)
           console.log(`Campo ${key} guardado exitosamente`)
+          if (activeChatId) {
+            updateAppliedStatus.mutate({
+              conversacionId: activeChatId,
+              campoAfectado: key,
+            })
+          }
+
+          if (onApply) onApply(key, newValue)
         },
       },
     )
@@ -60,7 +72,7 @@ export const ImprovementCard = ({
   return (
     <div className="mt-2 flex w-full flex-col gap-4">
       {suggestions.map((sug) => {
-        const isApplied = appliedFields.includes(sug.key)
+        const isApplied = sug.applied === true || localApplied.includes(sug.key)
         const isUpdating =
           updatePlan.isPending &&
           updatePlan.variables.patch.datos?.[sug.key] !== undefined

@@ -10,6 +10,7 @@ import {
   getConversationByPlan,
   library_search,
   update_conversation_status,
+  update_recommendation_applied_status,
   update_conversation_title,
 } from '../api/ai.api'
 
@@ -84,6 +85,31 @@ export function useConversationByPlan(planId: string | null) {
     queryKey: ['conversation-by-plan', planId],
     queryFn: () => getConversationByPlan(planId!),
     enabled: !!planId, // solo ejecuta si existe planId
+  })
+}
+
+export function useUpdateRecommendationApplied() {
+  const qc = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({
+      conversacionId,
+      campoAfectado,
+    }: {
+      conversacionId: string
+      campoAfectado: string
+    }) => update_recommendation_applied_status(conversacionId, campoAfectado),
+
+    onSuccess: (_, variables) => {
+      // Invalidamos la query para que useConversationByPlan refresque el JSON
+      qc.invalidateQueries({ queryKey: ['conversation-by-plan'] })
+      console.log(
+        `Recomendación ${variables.campoAfectado} marcada como aplicada.`,
+      )
+    },
+    onError: (error) => {
+      console.error('Error al actualizar el estado de la recomendación:', error)
+    },
   })
 }
 

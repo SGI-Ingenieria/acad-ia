@@ -27,7 +27,6 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Textarea } from '@/components/ui/textarea'
 import {
   useAIPlanChat,
-  useChatHistory,
   useConversationByPlan,
   useUpdateConversationStatus,
   useUpdateConversationTitle,
@@ -85,8 +84,9 @@ function RouteComponent() {
     undefined,
   )
 
-  const { data: historyMessages, isLoading: isLoadingHistory } =
-    useChatHistory(activeChatId)
+  /*  const { data: historyMessages, isLoading: isLoadingHistory } =
+    useChatHistory(activeChatId) */
+
   const { data: lastConversation, isLoading: isLoadingConv } =
     useConversationByPlan(planId)
   // archivos
@@ -120,58 +120,34 @@ function RouteComponent() {
       }),
     )
   }, [data])
+  const activeChatData = useMemo(() => {
+    return lastConversation?.find((chat: any) => chat.id === activeChatId)
+  }, [lastConversation, activeChatId])
 
-  useEffect(() => {
-    // 1. Si no hay ID o está cargando el historial, no hacemos nada
-    if (!activeChatId || isLoadingHistory) return
+  const conversacionJson = activeChatData?.conversacion_json || []
+  const chatMessages = useMemo(() => {
+    const json = activeChatData?.conversacion_json
+    if (!Array.isArray(json)) return []
 
-    const messagesFromApi = historyMessages?.items || historyMessages
+    return json.map((msg: any, index: number) => {
+      const isAssistant = msg.user === 'assistant'
 
-    if (Array.isArray(messagesFromApi)) {
-      const flattened = messagesFromApi.map((msg) => {
-        let content = msg.content
-        let suggestions: Array<any> = []
-
-        if (typeof content === 'object' && content !== null) {
-          suggestions = Object.entries(content)
-            .filter(([key]) => key !== 'ai-message')
-            .map(([key, value]) => ({
-              key,
-              label: key.replace(/_/g, ' '),
-              newValue: value as string,
-            }))
-
-          content = content['ai-message'] || JSON.stringify(content)
-        }
-        // Si el content es un string que parece JSON (caso común en respuestas RAW)
-        else if (typeof content === 'string' && content.startsWith('{')) {
-          try {
-            const parsed = JSON.parse(content)
-            suggestions = Object.entries(parsed)
-              .filter(([key]) => key !== 'ai-message')
-              .map(([key, value]) => ({
-                key,
-                label: key.replace(/_/g, ' '),
-                newValue: value as string,
+      return {
+        id: `${activeChatId}-${index}-${msg.timestamp}`, // ID estable
+        role: isAssistant ? 'assistant' : 'user',
+        content: isAssistant ? msg.message : msg.prompt,
+        suggestions:
+          isAssistant && msg.recommendations
+            ? msg.recommendations.map((rec: any) => ({
+                key: rec.campo_afectado,
+                label: rec.campo_afectado.replace(/_/g, ' '),
+                newValue: rec.texto_mejora,
+                applied: rec.aplicada,
               }))
-            content = parsed['ai-message'] || content
-          } catch (e) {
-            /* no es json */
-          }
-        }
-
-        return {
-          ...msg,
-          content,
-          suggestions,
-          type: suggestions.length > 0 ? 'improvement-card' : 'text',
-        }
-      })
-      if (!isLoading) {
-        setMessages(flattened.reverse())
+            : [],
       }
-    }
-  }, [historyMessages, activeChatId, isLoadingHistory, isLoading])
+    })
+  }, [activeChatData, activeChatId])
 
   useEffect(() => {
     // Si no hay un chat seleccionado manualmente y la API nos devuelve chats existentes
@@ -309,13 +285,6 @@ function RouteComponent() {
     const currentFields = [...selectedFields]
     const finalPrompt = buildPrompt(rawText, currentFields)
 
-    const userMsg = {
-      id: Date.now().toString(),
-      role: 'user',
-      content: rawText,
-    }
-
-    setMessages((prev) => [...prev, userMsg])
     setInput('')
     try {
       const payload: any = {
@@ -332,58 +301,14 @@ function RouteComponent() {
 
       if (response.conversacionId && response.conversacionId !== activeChatId) {
         setActiveChatId(response.conversacionId)
-
-        // Esto obliga a 'useConversationByPlan' a buscar en la DB el nuevo chat creado
-        queryClient.invalidateQueries({
-          queryKey: ['conversation-by-plan', planId],
-        })
       }
 
-      // --- NUEVA LÓGICA DE PARSEO ---
-      let aiText = 'Sin respuesta del asistente'
-      let suggestions: Array<any> = []
-
-      if (response.raw) {
-        try {
-          const rawData = JSON.parse(response.raw)
-
-          // Extraemos el mensaje conversacional
-          aiText = rawData['ai-message'] || 'Cambios aplicados con éxito.'
-
-          // Filtramos todo lo que no sea el mensaje para crear las sugerencias
-          suggestions = Object.entries(rawData)
-            .filter(([key]) => key !== 'ai-message')
-            .map(([key, value]) => ({
-              key,
-              label: key.replace(/_/g, ' '),
-              newValue: value as string,
-            }))
-        } catch (e) {
-          console.error('Error parseando el campo raw:', e)
-          aiText = response.raw // Fallback si no es JSON
-        }
-      }
-
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: Date.now().toString(),
-          role: 'assistant',
-          content: aiText,
-          type: suggestions.length > 0 ? 'improvement-card' : 'text',
-          suggestions: suggestions,
-        },
-      ])
+      await queryClient.invalidateQueries({
+        queryKey: ['conversation-by-plan', planId],
+      })
     } catch (error) {
       console.error('Error en el chat:', error)
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: 'error',
-          role: 'assistant',
-          content: 'Lo siento, hubo un error al procesar tu solicitud.',
-        },
-      ])
+      // Aquí sí podrías usar un toast o un mensaje de error temporal
     }
   }
 
@@ -576,7 +501,7 @@ function RouteComponent() {
         <div className="relative min-h-0 flex-1">
           <ScrollArea ref={scrollRef} className="h-full w-full">
             <div className="mx-auto max-w-3xl space-y-6 p-6">
-              {messages.map((msg) => (
+              {chatMessages.map((msg) => (
                 <div
                   key={msg.id}
                   className={`flex max-w-[85%] flex-col ${msg.role === 'user' ? 'ml-auto items-end' : 'items-start'}`}
@@ -596,14 +521,11 @@ function RouteComponent() {
                       <div className="mt-4">
                         <ImprovementCard
                           suggestions={msg.suggestions}
-                          planId={planId} // Del useParams()
-                          currentDatos={data?.datos} // De tu query usePlan(planId)
-                          onApply={(key, val) => {
-                            // Esto es opcional, si quieres hacer algo más en la UI del chat
-                            console.log(
-                              'Evento onApply disparado desde el chat',
-                            )
-                          }}
+                          planId={planId}
+                          currentDatos={data?.datos}
+                          activeChatId={activeChatId}
+                          // Puedes pasar una prop nueva si tu ImprovementCard la soporta:
+                          // isReadOnly={msg.suggestions.every(s => s.applied)}
                         />
                       </div>
                     )}
