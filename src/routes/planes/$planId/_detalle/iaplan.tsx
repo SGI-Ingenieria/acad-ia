@@ -126,16 +126,16 @@ function RouteComponent() {
 
   const conversacionJson = activeChatData?.conversacion_json || []
   const chatMessages = useMemo(() => {
-    const json = activeChatData?.conversacion_json
-    if (!Array.isArray(json)) return []
-
+    const json = activeChatData?.conversacion_json || []
     return json.map((msg: any, index: number) => {
       const isAssistant = msg.user === 'assistant'
 
       return {
-        id: `${activeChatId}-${index}-${msg.timestamp}`, // ID estable
+        id: `${activeChatId}-${index}`,
         role: isAssistant ? 'assistant' : 'user',
         content: isAssistant ? msg.message : msg.prompt,
+        // EXTRAEMOS EL CAMPO REFUSAL
+        isRefusal: isAssistant && msg.refusal === true,
         suggestions:
           isAssistant && msg.recommendations
             ? msg.recommendations.map((rec: any) => ({
@@ -275,7 +275,7 @@ function RouteComponent() {
     // Si no hay campos, enviamos el texto tal cual
     if (fields.length === 0) return userInput
 
-    return `Instrucción del usuario: ${userInput}`
+    return ` ${userInput}`
   }
 
   const handleSend = async (promptOverride?: string) => {
@@ -504,31 +504,44 @@ function RouteComponent() {
               {chatMessages.map((msg) => (
                 <div
                   key={msg.id}
-                  className={`flex max-w-[85%] flex-col ${msg.role === 'user' ? 'ml-auto items-end' : 'items-start'}`}
+                  className={`flex max-w-[85%] flex-col ${
+                    msg.role === 'user' ? 'ml-auto items-end' : 'items-start'
+                  }`}
                 >
                   <div
-                    className={`rounded-2xl p-3 text-sm whitespace-pre-wrap shadow-sm ${
+                    className={`relative rounded-2xl p-3 text-sm whitespace-pre-wrap shadow-sm transition-all duration-300 ${
                       msg.role === 'user'
                         ? 'rounded-tr-none bg-teal-600 text-white'
-                        : 'rounded-tl-none border bg-white text-slate-700'
+                        : `rounded-tl-none border bg-white text-slate-700 ${
+                            // --- LÓGICA DE REFUSAL ---
+                            msg.isRefusal
+                              ? 'border-red-200 bg-red-50/50 ring-1 ring-red-100'
+                              : 'border-slate-100'
+                          }`
                     }`}
                   >
-                    {/* Contenido de texto normal */}
-                    {msg.content}
-
-                    {/* Si el mensaje tiene sugerencias (ImprovementCard) */}
-                    {msg.suggestions && msg.suggestions.length > 0 && (
-                      <div className="mt-4">
-                        <ImprovementCard
-                          suggestions={msg.suggestions}
-                          planId={planId}
-                          currentDatos={data?.datos}
-                          activeChatId={activeChatId}
-                          // Puedes pasar una prop nueva si tu ImprovementCard la soporta:
-                          // isReadOnly={msg.suggestions.every(s => s.applied)}
-                        />
+                    {/* Icono opcional de advertencia si es refusal */}
+                    {msg.isRefusal && (
+                      <div className="mb-1 flex items-center gap-1 text-[10px] font-bold text-red-500 uppercase">
+                        <span>Aviso del Asistente</span>
                       </div>
                     )}
+
+                    {msg.content}
+
+                    {/* Renderizado de sugerencias (ImprovementCard) */}
+                    {!msg.isRefusal &&
+                      msg.suggestions &&
+                      msg.suggestions.length > 0 && (
+                        <div className="mt-4">
+                          <ImprovementCard
+                            suggestions={msg.suggestions}
+                            planId={planId}
+                            currentDatos={data?.datos}
+                            conversacionId={activeChatId}
+                          />
+                        </div>
+                      )}
                   </div>
                 </div>
               ))}
