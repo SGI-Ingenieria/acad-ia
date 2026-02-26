@@ -14,6 +14,7 @@ import {
   MessageSquarePlus,
   Archive,
   RotateCcw,
+  Loader2,
 } from 'lucide-react'
 import { useState, useEffect, useRef, useMemo } from 'react'
 
@@ -66,7 +67,25 @@ interface SelectedField {
   label: string
   value: string
 }
-
+interface EstructuraDefinicion {
+  properties?: {
+    [key: string]: {
+      title: string
+      description?: string
+    }
+  }
+}
+interface ChatMessageJSON {
+  user: 'user' | 'assistant'
+  message?: string
+  prompt?: string
+  refusal?: boolean
+  recommendations?: Array<{
+    campo_afectado: string
+    texto_mejora: string
+    aplicada: boolean
+  }>
+}
 export const Route = createFileRoute('/planes/$planId/_detalle/iaplan')({
   component: RouteComponent,
 })
@@ -76,20 +95,14 @@ function RouteComponent() {
   const { data } = usePlan(planId)
   const routerState = useRouterState()
   const [openIA, setOpenIA] = useState(false)
-  const [conversacionId, setConversacionId] = useState<string | null>(null)
-  const { mutateAsync: sendChat, isLoading } = useAIPlanChat()
+  const { mutateAsync: sendChat, isPending: isLoading } = useAIPlanChat()
   const { mutate: updateStatusMutation } = useUpdateConversationStatus()
 
   const [activeChatId, setActiveChatId] = useState<string | undefined>(
     undefined,
   )
-
-  /*  const { data: historyMessages, isLoading: isLoadingHistory } =
-    useChatHistory(activeChatId) */
-
   const { data: lastConversation, isLoading: isLoadingConv } =
     useConversationByPlan(planId)
-  // archivos
   const [selectedArchivoIds, setSelectedArchivoIds] = useState<Array<string>>(
     [],
   )
@@ -109,45 +122,81 @@ function RouteComponent() {
   const [editingChatId, setEditingChatId] = useState<string | null>(null)
   const editableRef = useRef<HTMLSpanElement>(null)
   const { mutate: updateTitleMutation } = useUpdateConversationTitle()
+  const [isSending, setIsSending] = useState(false)
+  const [optimisticMessage, setOptimisticMessage] = useState<string | null>(
+    null,
+  )
 
   const availableFields = useMemo(() => {
-    if (!data?.estructuras_plan?.definicion?.properties) return []
-    return Object.entries(data.estructuras_plan.definicion.properties).map(
-      ([key, value]) => ({
-        key,
-        label: value.title,
-        value: String(value.description || ''),
-      }),
-    )
+    // 1. Hacemos un cast de la definición a nuestra interfaz
+    const definicion = data?.estructuras_plan
+      ?.definicion as EstructuraDefinicion
+
+    if (!definicion.properties) return []
+
+    return Object.entries(definicion.properties).map(([key, value]) => ({
+      key,
+      label: value.title,
+      // 2. Aquí value ya no es unknown, es parte de nuestra interfaz
+      value: String(value.description || ''),
+    }))
   }, [data])
   const activeChatData = useMemo(() => {
     return lastConversation?.find((chat: any) => chat.id === activeChatId)
   }, [lastConversation, activeChatId])
 
-  const conversacionJson = activeChatData?.conversacion_json || []
   const chatMessages = useMemo(() => {
-    const json = activeChatData?.conversacion_json || []
-    return json.map((msg: any, index: number) => {
+    // Forzamos el cast a Array de nuestra interfaz
+    const json = (activeChatData?.conversacion_json ||
+      []) as unknown as Array<ChatMessageJSON>
+
+    // Ahora .map() funcionará sin errores
+    return json.map((msg, index: number) => {
       const isAssistant = msg.user === 'assistant'
 
       return {
         id: `${activeChatId}-${index}`,
         role: isAssistant ? 'assistant' : 'user',
         content: isAssistant ? msg.message : msg.prompt,
-        // EXTRAEMOS EL CAMPO REFUSAL
         isRefusal: isAssistant && msg.refusal === true,
         suggestions:
           isAssistant && msg.recommendations
-            ? msg.recommendations.map((rec: any) => ({
-                key: rec.campo_afectado,
-                label: rec.campo_afectado.replace(/_/g, ' '),
-                newValue: rec.texto_mejora,
-                applied: rec.aplicada,
-              }))
+            ? msg.recommendations.map((rec) => {
+                const fieldConfig = availableFields.find(
+                  (f) => f.key === rec.campo_afectado,
+                )
+                return {
+                  key: rec.campo_afectado,
+                  label: fieldConfig
+                    ? fieldConfig.label
+                    : rec.campo_afectado.replace(/_/g, ' '),
+                  newValue: rec.texto_mejora,
+                  applied: rec.aplicada,
+                }
+              })
             : [],
       }
     })
-  }, [activeChatData, activeChatId])
+  }, [activeChatData, activeChatId, availableFields])
+  const scrollToBottom = () => {
+    if (scrollRef.current) {
+      // Buscamos el viewport interno del ScrollArea de Radix
+      const scrollContainer = scrollRef.current.querySelector(
+        '[data-radix-scroll-area-viewport]',
+      )
+      if (scrollContainer) {
+        scrollContainer.scrollTo({
+          top: scrollContainer.scrollHeight,
+          behavior: 'smooth',
+        })
+      }
+    }
+  }
+
+  // Auto-scroll cuando cambian los mensajes o cuando la IA está cargando
+  useEffect(() => {
+    scrollToBottom()
+  }, [chatMessages, isLoading])
 
   useEffect(() => {
     // Si no hay un chat seleccionado manualmente y la API nos devuelve chats existentes
@@ -215,8 +264,6 @@ function RouteComponent() {
       { id, estado: 'ACTIVA' },
       {
         onSuccess: () => {
-          // Al invalidar la query, React Query traerá la lista fresca
-          // y el chat se moverá solo de "archivados" a "activos"
           queryClient.invalidateQueries({
             queryKey: ['conversation-by-plan', planId],
           })
@@ -228,7 +275,6 @@ function RouteComponent() {
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const val = e.target.value
     setInput(val)
-    // Solo abrir si termina en ":"
     setShowSuggestions(val.endsWith(':'))
   }
 
@@ -236,7 +282,6 @@ function RouteComponent() {
     input: string,
     fields: Array<SelectedField>,
   ) => {
-    // Quita cualquier bloque previo de campos
     const cleaned = input.replace(/\n?\[Campos:[^\]]*]/g, '').trim()
 
     if (fields.length === 0) return cleaned
@@ -272,7 +317,6 @@ function RouteComponent() {
   }
 
   const buildPrompt = (userInput: string, fields: Array<SelectedField>) => {
-    // Si no hay campos, enviamos el texto tal cual
     if (fields.length === 0) return userInput
 
     return ` ${userInput}`
@@ -281,10 +325,11 @@ function RouteComponent() {
   const handleSend = async (promptOverride?: string) => {
     const rawText = promptOverride || input
     if (!rawText.trim() && selectedFields.length === 0) return
-
+    if (isSending || (!rawText.trim() && selectedFields.length === 0)) return
     const currentFields = [...selectedFields]
     const finalPrompt = buildPrompt(rawText, currentFields)
-
+    setIsSending(true)
+    setOptimisticMessage(rawText)
     setInput('')
     try {
       const payload: any = {
@@ -306,9 +351,14 @@ function RouteComponent() {
       await queryClient.invalidateQueries({
         queryKey: ['conversation-by-plan', planId],
       })
+      setOptimisticMessage(null)
     } catch (error) {
       console.error('Error en el chat:', error)
       // Aquí sí podrías usar un toast o un mensaje de error temporal
+    } finally {
+      // 5. CRÍTICO: Detener el estado de carga SIEMPRE
+      setIsSending(false)
+      setOptimisticMessage(null)
     }
   }
 
@@ -329,6 +379,10 @@ function RouteComponent() {
       ),
     }
   }, [lastConversation])
+
+  const removeSelectedField = (fieldKey: string) => {
+    setSelectedFields((prev) => prev.filter((f) => f.key !== fieldKey))
+  }
 
   return (
     <div className="flex h-[calc(100vh-160px)] max-h-[calc(100vh-160px)] w-full gap-6 overflow-hidden p-4">
@@ -395,7 +449,7 @@ function RouteComponent() {
                         e.preventDefault()
                         const newTitle = e.currentTarget.textContent || ''
                         updateTitleMutation(
-                          { id: chat.id, titulo: newTitle },
+                          { id: chat.id, nombre: newTitle },
                           {
                             onSuccess: () => setEditingChatId(null),
                           },
@@ -501,7 +555,7 @@ function RouteComponent() {
         <div className="relative min-h-0 flex-1">
           <ScrollArea ref={scrollRef} className="h-full w-full">
             <div className="mx-auto max-w-3xl space-y-6 p-6">
-              {chatMessages.map((msg) => (
+              {chatMessages.map((msg: any) => (
                 <div
                   key={msg.id}
                   className={`flex max-w-[85%] flex-col ${
@@ -529,7 +583,6 @@ function RouteComponent() {
 
                     {msg.content}
 
-                    {/* Renderizado de sugerencias (ImprovementCard) */}
                     {!msg.isRefusal &&
                       msg.suggestions &&
                       msg.suggestions.length > 0 && (
@@ -538,18 +591,35 @@ function RouteComponent() {
                             suggestions={msg.suggestions}
                             planId={planId}
                             currentDatos={data?.datos}
-                            conversacionId={activeChatId}
+                            activeChatId={activeChatId}
+                            onApplySuccess={(key) => removeSelectedField(key)}
                           />
                         </div>
                       )}
                   </div>
                 </div>
               ))}
-              {isLoading && (
-                <div className="flex gap-2 p-4">
-                  <div className="h-2 w-2 animate-bounce rounded-full bg-teal-400" />
-                  <div className="h-2 w-2 animate-bounce rounded-full bg-teal-400 [animation-delay:0.2s]" />
-                  <div className="h-2 w-2 animate-bounce rounded-full bg-teal-400 [animation-delay:0.4s]" />
+              {optimisticMessage && (
+                <div className="animate-in fade-in slide-in-from-right-2 ml-auto flex max-w-[85%] flex-col items-end">
+                  <div className="rounded-2xl rounded-tr-none bg-teal-600/70 p-3 text-sm whitespace-pre-wrap text-white shadow-sm">
+                    {optimisticMessage}
+                  </div>
+                </div>
+              )}
+              {isSending && (
+                <div className="animate-in fade-in slide-in-from-left-2 flex flex-col items-start duration-300">
+                  <div className="rounded-2xl rounded-tl-none border border-slate-200 bg-white p-4 shadow-sm">
+                    <div className="flex items-center gap-2">
+                      <div className="flex gap-1">
+                        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-teal-500 [animation-delay:-0.3s]" />
+                        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-teal-500 [animation-delay:-0.15s]" />
+                        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-teal-500" />
+                      </div>
+                      <span className="text-[10px] font-medium tracking-tight text-slate-400 uppercase">
+                        Esperando respuesta...
+                      </span>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
@@ -631,6 +701,13 @@ function RouteComponent() {
                 <Textarea
                   value={input}
                   onChange={handleInputChange}
+                  onKeyDown={(e) => {
+                    // Enter envía, Shift+Enter hace salto de línea
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault()
+                      if (!isSending) handleSend()
+                    }
+                  }}
                   placeholder={
                     selectedFields.length > 0
                       ? 'Escribe instrucciones adicionales...'
@@ -641,12 +718,16 @@ function RouteComponent() {
                 <Button
                   onClick={() => handleSend()}
                   disabled={
-                    (!input.trim() && selectedFields.length === 0) || isLoading
+                    isSending || (!input.trim() && selectedFields.length === 0)
                   }
                   size="icon"
                   className="mb-1 h-9 w-9 shrink-0 bg-teal-600 hover:bg-teal-700"
                 >
-                  <Send size={16} className="text-white" />
+                  {isSending ? (
+                    <Loader2 className="animate-spin" size={16} />
+                  ) : (
+                    <Send size={16} />
+                  )}
                 </Button>
               </div>
             </div>

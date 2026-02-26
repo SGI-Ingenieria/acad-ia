@@ -207,8 +207,7 @@ export async function update_recommendation_applied_status(
     .single()
 
   if (fetchError) throw fetchError
-  if (!conv?.conversacion_json)
-    throw new Error('No se encontró la conversación')
+  if (!conv.conversacion_json) throw new Error('No se encontró la conversación')
 
   // 2. Transformar el JSON para marcar como aplicada la recomendación específica
   // Usamos una transformación inmutable para evitar efectos secundarios
