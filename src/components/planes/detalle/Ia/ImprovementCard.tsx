@@ -2,26 +2,29 @@ import { Check, Loader2 } from 'lucide-react'
 import { useState } from 'react'
 
 import { Button } from '@/components/ui/button'
-import { useUpdatePlanFields } from '@/data' // Tu hook existente
+import { useUpdatePlanFields, useUpdateRecommendationApplied } from '@/data'
 
 export const ImprovementCard = ({
   suggestions,
   onApply,
-  planId, // Necesitamos el ID
-  currentDatos, // Necesitamos los datos actuales para no sobrescribir todo el JSON
+  planId,
+  currentDatos,
+  activeChatId,
+  onApplySuccess,
 }: {
   suggestions: Array<any>
   onApply?: (key: string, value: string) => void
   planId: string
   currentDatos: any
+  activeChatId: any
+  onApplySuccess?: (key: string) => void
 }) => {
-  const [appliedFields, setAppliedFields] = useState<Array<string>>([])
+  const [localApplied, setLocalApplied] = useState<Array<string>>([])
   const updatePlan = useUpdatePlanFields()
+  const updateAppliedStatus = useUpdateRecommendationApplied()
 
   const handleApply = (key: string, newValue: string) => {
     if (!currentDatos) return
-
-    // 1. Lógica para preparar el valor (idéntica a tu handleSave original)
     const currentValue = currentDatos[key]
     let finalValue: any
 
@@ -35,13 +38,11 @@ export const ImprovementCard = ({
       finalValue = newValue
     }
 
-    // 2. Construir el nuevo objeto 'datos' manteniendo lo que ya existía
     const datosActualizados = {
       ...currentDatos,
       [key]: finalValue,
     }
 
-    // 3. Ejecutar la mutación directamente aquí
     updatePlan.mutate(
       {
         planId: planId as any,
@@ -49,9 +50,17 @@ export const ImprovementCard = ({
       },
       {
         onSuccess: () => {
-          setAppliedFields((prev) => [...prev, key])
+          setLocalApplied((prev) => [...prev, key])
+
+          if (onApplySuccess) onApplySuccess(key)
+          if (activeChatId) {
+            updateAppliedStatus.mutate({
+              conversacionId: activeChatId,
+              campoAfectado: key,
+            })
+          }
+
           if (onApply) onApply(key, newValue)
-          console.log(`Campo ${key} guardado exitosamente`)
         },
       },
     )
@@ -60,7 +69,7 @@ export const ImprovementCard = ({
   return (
     <div className="mt-2 flex w-full flex-col gap-4">
       {suggestions.map((sug) => {
-        const isApplied = appliedFields.includes(sug.key)
+        const isApplied = sug.applied === true || localApplied.includes(sug.key)
         const isUpdating =
           updatePlan.isPending &&
           updatePlan.variables.patch.datos?.[sug.key] !== undefined

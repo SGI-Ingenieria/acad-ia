@@ -111,12 +111,6 @@ export async function create_conversation(planId: string) {
   )
 
   if (error) throw error
-
-  // LOG de depuración: Mira qué estructura trae 'data'
-  console.log('Respuesta creación conv:', data)
-
-  // Si data es { id: "..." }, devolvemos data.
-  // Si data viene envuelto, asegúrate de retornar el objeto con el id.
   return data
 }
 
@@ -180,4 +174,65 @@ export async function getConversationByPlan(planId: string) {
 
   // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   return data ?? []
+}
+
+export async function update_conversation_title(
+  conversacionId: string,
+  nuevoTitulo: string,
+) {
+  const supabase = supabaseBrowser()
+
+  const { data, error } = await supabase
+    .from('conversaciones_plan')
+    .update({ nombre: nuevoTitulo }) // Asegúrate que la columna se llame 'title' o 'nombre'
+    .eq('id', conversacionId)
+    .select()
+    .single()
+
+  if (error) throw error
+  return data
+}
+
+export async function update_recommendation_applied_status(
+  conversacionId: string,
+  campoAfectado: string,
+) {
+  const supabase = supabaseBrowser()
+
+  // 1. Obtener el estado actual del JSON
+  const { data: conv, error: fetchError } = await supabase
+    .from('conversaciones_plan')
+    .select('conversacion_json')
+    .eq('id', conversacionId)
+    .single()
+
+  if (fetchError) throw fetchError
+  if (!conv.conversacion_json) throw new Error('No se encontró la conversación')
+
+  // 2. Transformar el JSON para marcar como aplicada la recomendación específica
+  // Usamos una transformación inmutable para evitar efectos secundarios
+  const nuevoJson = (conv.conversacion_json as Array<any>).map((msg) => {
+    if (msg.user === 'assistant' && Array.isArray(msg.recommendations)) {
+      return {
+        ...msg,
+        recommendations: msg.recommendations.map((rec: any) =>
+          rec.campo_afectado === campoAfectado
+            ? { ...rec, aplicada: true }
+            : rec,
+        ),
+      }
+    }
+    return msg
+  })
+
+  // 3. Actualizar la base de datos con el nuevo JSON
+  const { data, error: updateError } = await supabase
+    .from('conversaciones_plan')
+    .update({ conversacion_json: nuevoJson })
+    .eq('id', conversacionId)
+    .select()
+    .single()
+
+  if (updateError) throw updateError
+  return data
 }
