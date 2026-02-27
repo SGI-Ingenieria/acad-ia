@@ -144,6 +144,48 @@ export async function plans_get(planId: UUID): Promise<PlanEstudio> {
   return requireData(data, 'Plan no encontrado.')
 }
 
+/**
+ * Variante de `plans_get` que NO lanza si no existe (devuelve null).
+ * Útil para flujos de polling donde el plan puede tardar en aparecer.
+ */
+export async function plans_get_maybe(
+  planId: UUID,
+): Promise<PlanEstudio | null> {
+  const supabase = supabaseBrowser()
+
+  const { data, error } = await supabase
+    .from('planes_estudio')
+    .select(
+      `
+      *,
+      carreras (*, facultades(*)),
+      estructuras_plan (*),
+      estados_plan (*)
+    `,
+    )
+    .eq('id', planId)
+    .maybeSingle()
+
+  throwIfError(error)
+  return (data ?? null) as unknown as PlanEstudio | null
+}
+
+export async function plans_delete(planId: UUID): Promise<{ id: UUID }> {
+  const supabase = supabaseBrowser()
+
+  const { data, error } = await supabase
+    .from('planes_estudio')
+    .delete()
+    .eq('id', planId)
+    .select('id')
+    .maybeSingle()
+
+  throwIfError(error)
+
+  // Si por alguna razón no retorna fila (RLS / triggers), devolvemos el id solicitado.
+  return { id: ((data as any)?.id ?? planId) as UUID }
+}
+
 export async function plan_lineas_list(
   planId: UUID,
 ): Promise<Array<LineaPlan>> {

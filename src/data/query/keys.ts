@@ -13,6 +13,7 @@ export const qk = {
 
   planesList: (filters: unknown) => ['planes', 'list', filters] as const,
   plan: (planId: string) => ['planes', 'detail', planId] as const,
+  planMaybe: (planId: string) => ['planes', 'detail-maybe', planId] as const,
   planLineas: (planId: string) => ['planes', planId, 'lineas'] as const,
   planAsignaturas: (planId: string) =>
     ['planes', planId, 'asignaturas'] as const,
@@ -22,6 +23,8 @@ export const qk = {
   sugerenciasAsignaturas: () => ['asignaturas', 'sugerencias'] as const,
   asignatura: (asignaturaId: string) =>
     ['asignaturas', 'detail', asignaturaId] as const,
+  asignaturaMaybe: (asignaturaId: string) =>
+    ['asignaturas', 'detail-maybe', asignaturaId] as const,
   asignaturaBibliografia: (asignaturaId: string) =>
     ['asignaturas', asignaturaId, 'bibliografia'] as const,
   asignaturaHistorial: (asignaturaId: string) =>

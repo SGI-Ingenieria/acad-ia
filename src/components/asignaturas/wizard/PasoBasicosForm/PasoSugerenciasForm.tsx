@@ -26,7 +26,7 @@ export default function PasoSugerenciasForm({
   onChange: Dispatch<SetStateAction<NewSubjectWizardState>>
 }) {
   const enfoque = wizard.iaMultiple?.enfoque ?? ''
-  const cantidadDeSugerencias = wizard.iaMultiple?.cantidadDeSugerencias ?? 10
+  const cantidadDeSugerencias = wizard.iaMultiple?.cantidadDeSugerencias ?? 5
   const isLoading = wizard.iaMultiple?.isLoading ?? false
 
   const [showConservacionTooltip, setShowConservacionTooltip] = useState(false)
@@ -163,7 +163,7 @@ export default function PasoSugerenciasForm({
               Cantidad de sugerencias
             </Label>
             <Input
-              placeholder="Ej. 10"
+              placeholder="Ej. 5"
               value={cantidadDeSugerencias}
               type="number"
               min={1}

@@ -2,6 +2,7 @@ import {
   createFileRoute,
   Outlet,
   Link,
+  useLocation,
   useParams,
   useRouterState,
 } from '@tanstack/react-router'
@@ -9,6 +10,7 @@ import { ArrowLeft, GraduationCap } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import { Badge } from '@/components/ui/badge'
+import { lateralConfetti } from '@/components/ui/lateral-confetti'
 import { useSubject, useUpdateAsignatura } from '@/data'
 
 export const Route = createFileRoute(
@@ -62,8 +64,7 @@ interface DatosPlan {
 }
 
 function AsignaturaLayout() {
-  const routerState = useRouterState()
-  const state = routerState.location.state as any
+  const location = useLocation()
   const { asignaturaId } = useParams({
     from: '/planes/$planId/asignaturas/$asignaturaId',
   })
@@ -117,6 +118,14 @@ function AsignaturaLayout() {
     select: (state) => state.location.pathname,
   })
 
+  // Confetti al llegar desde creación IA
+  useEffect(() => {
+    if ((location.state as any)?.showConfetti) {
+      lateralConfetti()
+      window.history.replaceState({}, document.title)
+    }
+  }, [location.state])
+
   if (loadingAsig) {
     return (
       <div className="flex h-screen items-center justify-center bg-[#0b1d3a] text-white">
@@ -130,7 +139,7 @@ function AsignaturaLayout() {
 
   return (
     <div>
-      <section className="bg-gradient-to-b from-[#0b1d3a] to-[#0e2a5c] text-white">
+      <section className="bg-linear-to-b from-[#0b1d3a] to-[#0e2a5c] text-white">
         <div className="mx-auto max-w-7xl px-6 py-10">
           <Link
             to="/planes/$planId/asignaturas"

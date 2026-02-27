@@ -1,15 +1,21 @@
 import { useNavigate } from '@tanstack/react-router'
 import { Loader2 } from 'lucide-react'
-import { useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 import type { AIGeneratePlanInput } from '@/data'
 import type { NivelPlanEstudio, TipoCiclo } from '@/data/types/domain'
 import type { NewPlanWizardState } from '@/features/planes/nuevo/types'
 // import type { Database } from '@/types/supabase'
+import type { RealtimeChannel } from '@supabase/supabase-js'
 
 import { Button } from '@/components/ui/button'
-// import { supabaseBrowser } from '@/data'
-import { useCreatePlanManual, useGeneratePlanAI } from '@/data/hooks/usePlans'
+import { plans_get_maybe } from '@/data/api/plans.api'
+import {
+  useCreatePlanManual,
+  useDeletePlanEstudio,
+  useGeneratePlanAI,
+} from '@/data/hooks/usePlans'
+import { supabaseBrowser } from '@/data/supabase/client'
 
 export function WizardControls({
   errorMessage,
@@ -35,9 +41,152 @@ export function WizardControls({
   const navigate = useNavigate()
   const generatePlanAI = useGeneratePlanAI()
   const createPlanManual = useCreatePlanManual()
+  const deletePlan = useDeletePlanEstudio()
   const [isSpinningIA, setIsSpinningIA] = useState(false)
-  // const supabaseClient = supabaseBrowser()
-  // const persistPlanFromAI = usePersistPlanFromAI()
+  const cancelledRef = useRef(false)
+  const realtimeChannelRef = useRef<RealtimeChannel | null>(null)
+  const watchPlanIdRef = useRef<string | null>(null)
+  const watchTimeoutRef = useRef<number | null>(null)
+
+  useEffect(() => {
+    cancelledRef.current = false
+    return () => {
+      cancelledRef.current = true
+    }
+  }, [])
+
+  const stopPlanWatch = useCallback(() => {
+    if (watchTimeoutRef.current) {
+      window.clearTimeout(watchTimeoutRef.current)
+      watchTimeoutRef.current = null
+    }
+
+    watchPlanIdRef.current = null
+
+    const ch = realtimeChannelRef.current
+    if (ch) {
+      realtimeChannelRef.current = null
+      try {
+        supabaseBrowser().removeChannel(ch)
+      } catch {
+        // noop
+      }
+    }
+  }, [])
+
+  useEffect(() => {
+    return () => {
+      stopPlanWatch()
+    }
+  }, [stopPlanWatch])
+
+  const checkPlanStateAndAct = useCallback(
+    async (planId: string) => {
+      if (cancelledRef.current) return
+      if (watchPlanIdRef.current !== planId) return
+
+      const plan = await plans_get_maybe(planId as any)
+      if (!plan) return
+
+      const clave = String(plan.estados_plan?.clave ?? '').toUpperCase()
+
+      if (clave.startsWith('GENERANDO')) return
+
+      if (clave.startsWith('BORRADOR')) {
+        stopPlanWatch()
+        setIsSpinningIA(false)
+        setWizard((w) => ({ ...w, isLoading: false }))
+        navigate({
+          to: `/planes/${plan.id}`,
+          state: { showConfetti: true },
+        })
+        return
+      }
+
+      if (clave.startsWith('FALLID')) {
+        stopPlanWatch()
+        setIsSpinningIA(false)
+
+        deletePlan
+          .mutateAsync(plan.id)
+          .catch(() => {
+            // Si falla el borrado, igual mostramos el error.
+          })
+          .finally(() => {
+            setWizard((w) => ({
+              ...w,
+              isLoading: false,
+              errorMessage: 'La generación del plan falló',
+            }))
+          })
+      }
+    },
+    [deletePlan, navigate, setWizard, stopPlanWatch],
+  )
+
+  const beginPlanWatch = useCallback(
+    (planId: string) => {
+      stopPlanWatch()
+      watchPlanIdRef.current = planId
+
+      watchTimeoutRef.current = window.setTimeout(
+        () => {
+          if (cancelledRef.current) return
+          if (watchPlanIdRef.current !== planId) return
+
+          stopPlanWatch()
+          setIsSpinningIA(false)
+          setWizard((w) => ({
+            ...w,
+            isLoading: false,
+            errorMessage:
+              'La generación está tardando demasiado. Intenta de nuevo en unos minutos.',
+          }))
+        },
+        6 * 60 * 1000,
+      )
+
+      const supabase = supabaseBrowser()
+      const channel = supabase.channel(`planes-status-${planId}`)
+      realtimeChannelRef.current = channel
+
+      channel.on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'planes_estudio',
+          filter: `id=eq.${planId}`,
+        },
+        () => {
+          void checkPlanStateAndAct(planId)
+        },
+      )
+
+      channel.subscribe((status) => {
+        const st = status as
+          | 'SUBSCRIBED'
+          | 'TIMED_OUT'
+          | 'CLOSED'
+          | 'CHANNEL_ERROR'
+        if (cancelledRef.current) return
+        if (st === 'CHANNEL_ERROR' || st === 'TIMED_OUT') {
+          stopPlanWatch()
+          setIsSpinningIA(false)
+          setWizard((w) => ({
+            ...w,
+            isLoading: false,
+            errorMessage:
+              'No se pudo suscribir al estado del plan. Intenta de nuevo.',
+          }))
+        }
+      })
+
+      // Fallback inmediato por si el plan ya cambió antes de suscribir.
+      void checkPlanStateAndAct(planId)
+    },
+    [checkPlanStateAndAct, setWizard, stopPlanWatch],
+  )
 
   const handleCreate = async () => {
     // Start loading
@@ -82,14 +231,16 @@ export function WizardControls({
         console.log(`${new Date().toISOString()} - Enviando a generar plan IA`)
 
         setIsSpinningIA(true)
-        const plan = await generatePlanAI.mutateAsync(aiInput as any)
-        setIsSpinningIA(false)
-        console.log(`${new Date().toISOString()} - Plan IA generado`, plan)
+        const resp: any = await generatePlanAI.mutateAsync(aiInput as any)
+        const planId = resp?.plan?.id ?? resp?.id
+        console.log(`${new Date().toISOString()} - Plan IA generado`, resp)
 
-        navigate({
-          to: `/planes/${plan.id}`,
-          state: { showConfetti: true },
-        })
+        if (!planId) {
+          throw new Error('No se pudo obtener el id del plan generado por IA')
+        }
+
+        // Inicia realtime; los efectos navegan o marcan error.
+        beginPlanWatch(String(planId))
         return
       }
 
@@ -114,14 +265,14 @@ export function WizardControls({
       }
     } catch (err: any) {
       setIsSpinningIA(false)
+      stopPlanWatch()
       setWizard((w) => ({
         ...w,
         isLoading: false,
         errorMessage: err?.message ?? 'Error generando el plan',
       }))
     } finally {
-      setIsSpinningIA(false)
-      setWizard((w) => ({ ...w, isLoading: false }))
+      // Si entramos en watch realtime, el loading se corta desde checkPlanStateAndAct.
     }
   }
 

@@ -15,7 +15,6 @@ import type {
   TipoAsignatura,
   UUID,
 } from '../types/domain'
-import type { UploadedFile } from '@/components/planes/wizard/PasoDetallesPanel/FileDropZone'
 import type {
   AsignaturaSugerida,
   DataAsignaturaSugerida,
@@ -178,54 +177,49 @@ export async function subjects_create_manual(
   return requireData(data, 'No se pudo crear la asignatura.')
 }
 
-export type AIGenerateSubjectInput = {
-  plan_estudio_id: Asignatura['plan_estudio_id']
-  datosBasicos: {
-    nombre: Asignatura['nombre']
-    codigo?: Asignatura['codigo']
-    tipo: Asignatura['tipo'] | null
-    creditos: Asignatura['creditos'] | null
-    horasAcademicas?: Asignatura['horas_academicas'] | null
-    horasIndependientes?: Asignatura['horas_independientes'] | null
-    estructuraId: Asignatura['estructura_id'] | null
+/**
+ * Nuevo payload unificado (JSON) para la Edge `ai_generate_subject`.
+ * - Siempre incluye `datosUpdate.plan_estudio_id`.
+ * - `datosUpdate.id` es opcional (si no existe, la Edge puede crear).
+ * En el frontend, insertamos primero y usamos `id` para actualizar.
+ */
+export type AISubjectUnifiedInput = {
+  datosUpdate: Partial<{
+    id: string
+    plan_estudio_id: string
+    estructura_id: string
+    nombre: string
+    codigo: string | null
+    tipo: string | null
+    creditos: number
+    horas_academicas: number | null
+    horas_independientes: number | null
+    numero_ciclo: number | null
+    linea_plan_id: string | null
+    orden_celda: number | null
+  }> & {
+    plan_estudio_id: string
   }
-  // clonInterno?: {
-  //   facultadId?: string
-  //   carreraId?: string
-  //   planOrigenId?: string
-  //   asignaturaOrigenId?: string | null
-  // }
-  // clonTradicional?: {
-  //   archivoWordAsignaturaId: string | null
-  //   archivosAdicionalesIds: Array<string>
-  // }
   iaConfig?: {
-    descripcionEnfoqueAcademico: string
-    instruccionesAdicionalesIA: string
-    archivosReferencia: Array<string>
-    repositoriosReferencia?: Array<string>
-    archivosAdjuntos?: Array<UploadedFile>
+    descripcionEnfoqueAcademico?: string
+    instruccionesAdicionalesIA?: string
+    archivosAdjuntos?: Array<string>
   }
 }
 
-/**
- * Edge (JSON): actualizar/llenar una asignatura existente por id.
- * Nota: este flujo NO acepta `instruccionesAdicionalesIA` (solo FormData lo usa).
- */
-export type AIGenerateSubjectJsonInput = Partial<{
-  plan_estudio_id: Asignatura['plan_estudio_id']
-  nombre: Asignatura['nombre']
-  codigo: Asignatura['codigo']
-  tipo: Asignatura['tipo'] | null
-  creditos: Asignatura['creditos']
-  horas_academicas: Asignatura['horas_academicas'] | null
-  horas_independientes: Asignatura['horas_independientes'] | null
-  estructura_id: Asignatura['estructura_id'] | null
-  linea_plan_id: Asignatura['linea_plan_id'] | null
-  numero_ciclo: Asignatura['numero_ciclo'] | null
-  descripcionEnfoqueAcademico: string
-}> & {
-  id: Asignatura['id']
+export async function subjects_get_maybe(
+  subjectId: UUID,
+): Promise<Asignatura | null> {
+  const supabase = supabaseBrowser()
+
+  const { data, error } = await supabase
+    .from('asignaturas')
+    .select('id,plan_estudio_id,estado')
+    .eq('id', subjectId)
+    .maybeSingle()
+
+  throwIfError(error)
+  return (data ?? null) as unknown as Asignatura | null
 }
 
 export type GenerateSubjectSuggestionsInput = {
@@ -263,30 +257,8 @@ export async function generate_subject_suggestions(
 }
 
 export async function ai_generate_subject(
-  input: AIGenerateSubjectInput | AIGenerateSubjectJsonInput,
+  input: AISubjectUnifiedInput,
 ): Promise<any> {
-  if ('datosBasicos' in input) {
-    const edgeFunctionBody = new FormData()
-    edgeFunctionBody.append('plan_estudio_id', input.plan_estudio_id)
-    edgeFunctionBody.append('datosBasicos', JSON.stringify(input.datosBasicos))
-    edgeFunctionBody.append(
-      'iaConfig',
-      JSON.stringify({
-        ...input.iaConfig,
-        archivosAdjuntos: undefined, // los manejamos aparte
-      }),
-    )
-    input.iaConfig?.archivosAdjuntos?.forEach((file) => {
-      edgeFunctionBody.append(`archivosAdjuntos`, file.file)
-    })
-    return invokeEdge<any>(
-      EDGE.ai_generate_subject,
-      edgeFunctionBody,
-      undefined,
-      supabaseBrowser(),
-    )
-  }
-
   return invokeEdge<any>(EDGE.ai_generate_subject, input, {
     headers: { 'Content-Type': 'application/json' },
   })
