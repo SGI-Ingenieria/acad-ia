@@ -12,6 +12,7 @@ import {
   update_conversation_status,
   update_recommendation_applied_status,
   update_conversation_title,
+  getMessagesByConversation,
 } from '../api/ai.api'
 
 // eslint-disable-next-line node/prefer-node-protocol
@@ -85,6 +86,25 @@ export function useConversationByPlan(planId: string | null) {
     queryKey: ['conversation-by-plan', planId],
     queryFn: () => getConversationByPlan(planId!),
     enabled: !!planId, // solo ejecuta si existe planId
+  })
+}
+
+export function useMessagesByChat(conversationId: string | null) {
+  return useQuery({
+    // La queryKey debe ser única; incluimos el ID para que se refresque al cambiar de chat
+    queryKey: ['conversation-messages', conversationId],
+
+    // Solo ejecutamos la función si el ID no es null o undefined
+    queryFn: () => {
+      if (!conversationId) throw new Error('Conversation ID is required')
+      return getMessagesByConversation(conversationId)
+    },
+
+    // Importante: 'enabled' controla que no se dispare la petición si no hay ID
+    enabled: !!conversationId,
+
+    // Opcional: Mantener los datos previos mientras se carga la nueva conversación
+    placeholderData: (previousData) => previousData,
   })
 }
 

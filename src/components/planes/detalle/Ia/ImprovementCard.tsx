@@ -8,6 +8,7 @@ export const ImprovementCard = ({
   suggestions,
   onApply,
   planId,
+  dbMessageId,
   currentDatos,
   activeChatId,
   onApplySuccess,
@@ -16,6 +17,7 @@ export const ImprovementCard = ({
   onApply?: (key: string, value: string) => void
   planId: string
   currentDatos: any
+  dbMessageId: string
   activeChatId: any
   onApplySuccess?: (key: string) => void
 }) => {
@@ -53,9 +55,11 @@ export const ImprovementCard = ({
           setLocalApplied((prev) => [...prev, key])
 
           if (onApplySuccess) onApplySuccess(key)
-          if (activeChatId) {
+
+          // --- CAMBIO AQUÍ: Ahora enviamos el ID del mensaje ---
+          if (dbMessageId) {
             updateAppliedStatus.mutate({
-              conversacionId: activeChatId,
+              conversacionId: dbMessageId, // Cambiamos el nombre de la propiedad si es necesario
               campoAfectado: key,
             })
           }

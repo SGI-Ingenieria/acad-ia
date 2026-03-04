@@ -100,7 +100,7 @@ export async function library_search(payload: {
 export async function create_conversation(planId: string) {
   const supabase = supabaseBrowser()
   const { data, error } = await supabase.functions.invoke(
-    'create-chat-conversation/conversations',
+    'create-chat-conversation/plan/conversations',
     {
       method: 'POST',
       body: {
@@ -149,7 +149,7 @@ export async function ai_plan_chat_v2(payload: {
 }): Promise<{ reply: string; meta?: any }> {
   const supabase = supabaseBrowser()
   const { data, error } = await supabase.functions.invoke(
-    `create-chat-conversation/conversations/${payload.conversacionId}/messages`,
+    `create-chat-conversation/conversations/plan/${payload.conversacionId}/messages`,
     {
       method: 'POST',
       body: {
@@ -175,6 +175,22 @@ export async function getConversationByPlan(planId: string) {
   // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   return data ?? []
 }
+export async function getMessagesByConversation(conversationId: string) {
+  const supabase = supabaseBrowser()
+
+  const { data, error } = await supabase
+    .from('plan_mensajes_ia')
+    .select('*')
+    .eq('conversacion_plan_id', conversationId)
+    .order('fecha_creacion', { ascending: true }) // Ascendente para que el chat fluya en orden cronológico
+
+  if (error) {
+    console.error('Error al obtener mensajes:', error.message)
+    throw error
+  }
+
+  return data ?? []
+}
 
 export async function update_conversation_title(
   conversacionId: string,
@@ -194,45 +210,40 @@ export async function update_conversation_title(
 }
 
 export async function update_recommendation_applied_status(
-  conversacionId: string,
+  mensajeId: string, // Ahora es más eficiente usar el ID del mensaje directamente
   campoAfectado: string,
 ) {
   const supabase = supabaseBrowser()
 
-  // 1. Obtener el estado actual del JSON
-  const { data: conv, error: fetchError } = await supabase
-    .from('conversaciones_plan')
-    .select('conversacion_json')
-    .eq('id', conversacionId)
+  // 1. Obtener la propuesta actual de ese mensaje específico
+  const { data: msgData, error: fetchError } = await supabase
+    .from('plan_mensajes_ia')
+    .select('propuesta')
+    .eq('id', mensajeId)
     .single()
 
   if (fetchError) throw fetchError
-  if (!conv.conversacion_json) throw new Error('No se encontró la conversación')
+  if (!msgData?.propuesta)
+    throw new Error('No se encontró la propuesta en el mensaje')
 
-  // 2. Transformar el JSON para marcar como aplicada la recomendación específica
-  // Usamos una transformación inmutable para evitar efectos secundarios
-  const nuevoJson = (conv.conversacion_json as Array<any>).map((msg) => {
-    if (msg.user === 'assistant' && Array.isArray(msg.recommendations)) {
-      return {
-        ...msg,
-        recommendations: msg.recommendations.map((rec: any) =>
-          rec.campo_afectado === campoAfectado
-            ? { ...rec, aplicada: true }
-            : rec,
-        ),
-      }
-    }
-    return msg
-  })
+  const propuestaActual = msgData.propuesta as any
 
-  // 3. Actualizar la base de datos con el nuevo JSON
-  const { data, error: updateError } = await supabase
-    .from('conversaciones_plan')
-    .update({ conversacion_json: nuevoJson })
-    .eq('id', conversacionId)
-    .select()
-    .single()
+  // 2. Modificar el array de recommendations dentro de la propuesta
+  // Mantenemos el resto de la propuesta (prompt, respuesta, etc.) intacto
+  const nuevaPropuesta = {
+    ...propuestaActual,
+    recommendations: (propuestaActual.recommendations || []).map((rec: any) =>
+      rec.campo_afectado === campoAfectado ? { ...rec, aplicada: true } : rec,
+    ),
+  }
+
+  // 3. Actualizar la base de datos con el nuevo objeto JSON
+  const { error: updateError } = await supabase
+    .from('plan_mensajes_ia')
+    .update({ propuesta: nuevaPropuesta })
+    .eq('id', mensajeId)
 
   if (updateError) throw updateError
-  return data
+
+  return true
 }

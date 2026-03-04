@@ -29,6 +29,7 @@ import { Textarea } from '@/components/ui/textarea'
 import {
   useAIPlanChat,
   useConversationByPlan,
+  useMessagesByChat,
   useUpdateConversationStatus,
   useUpdateConversationTitle,
 } from '@/data'
@@ -103,6 +104,8 @@ function RouteComponent() {
   )
   const { data: lastConversation, isLoading: isLoadingConv } =
     useConversationByPlan(planId)
+  const { data: mensajesDelChat, isLoading: isLoadingMessages } =
+    useMessagesByChat(activeChatId)
   const [selectedArchivoIds, setSelectedArchivoIds] = useState<Array<string>>(
     [],
   )
@@ -154,53 +157,50 @@ function RouteComponent() {
   }, [lastConversation, activeChatId])
 
   const chatMessages = useMemo(() => {
-    // 1. Si no hay ID o no hay data del chat, retornamos vacío
-    if (!activeChatId || !activeChatData) return []
+    if (!activeChatId || !mensajesDelChat) return []
 
-    const json = (activeChatData.conversacion_json ||
-      []) as unknown as Array<ChatMessageJSON>
+    // flatMap nos permite devolver 2 elementos (pregunta y respuesta) por cada registro de la BD
+    return mensajesDelChat.flatMap((msg: any) => {
+      const messages = []
 
-    // 2. Verificamos que 'json' sea realmente un array antes de mapear
-    if (!Array.isArray(json)) return []
+      // 1. Mensaje del Usuario
+      messages.push({
+        id: `${msg.id}-user`,
+        role: 'user',
+        content: msg.mensaje,
+        selectedFields: msg.campos || [], // Aquí están tus campos
+      })
 
-    return json.map((msg, index: number) => {
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-      if (!msg?.user) {
-        return {
-          id: `err-${index}`,
+      // 2. Mensaje del Asistente (si hay respuesta)
+      if (msg.respuesta) {
+        // Extraemos las recomendaciones de la nueva estructura: msg.propuesta.recommendations
+        const rawRecommendations = msg.propuesta?.recommendations || []
+
+        messages.push({
+          id: `${msg.id}-ai`,
+          dbMessageId: msg.id,
           role: 'assistant',
-          content: '',
-          suggestions: [],
-        }
+          content: msg.respuesta,
+          isRefusal: msg.is_refusal,
+          suggestions: rawRecommendations.map((rec: any) => {
+            const fieldConfig = availableFields.find(
+              (f) => f.key === rec.campo_afectado,
+            )
+            return {
+              key: rec.campo_afectado,
+              label: fieldConfig
+                ? fieldConfig.label
+                : rec.campo_afectado.replace(/_/g, ' '),
+              newValue: rec.texto_mejora,
+              applied: rec.aplicada,
+            }
+          }),
+        })
       }
 
-      const isAssistant = msg.user === 'assistant'
-
-      return {
-        id: `${activeChatId}-${index}`,
-        role: isAssistant ? 'assistant' : 'user',
-        content: isAssistant ? msg.message || '' : msg.prompt || '', // Agregamos fallback a string vacío
-        isRefusal: isAssistant && msg.refusal === true,
-        suggestions:
-          isAssistant && msg.recommendations
-            ? msg.recommendations.map((rec) => {
-                const fieldConfig = availableFields.find(
-                  (f) => f.key === rec.campo_afectado,
-                )
-                return {
-                  key: rec.campo_afectado,
-                  label: fieldConfig
-                    ? fieldConfig.label
-                    : rec.campo_afectado.replace(/_/g, ' '),
-                  newValue: rec.texto_mejora,
-                  applied: rec.aplicada,
-                }
-              })
-            : [],
-      }
+      return messages
     })
-  }, [activeChatData, activeChatId, availableFields])
-
+  }, [mensajesDelChat, activeChatId, availableFields])
   const scrollToBottom = () => {
     if (scrollRef.current) {
       // Buscamos el viewport interno del ScrollArea de Radix
@@ -226,6 +226,8 @@ function RouteComponent() {
   }, [lastConversation])
 
   useEffect(() => {
+    console.log(mensajesDelChat)
+
     scrollToBottom()
   }, [chatMessages, isLoading])
 
@@ -242,30 +244,38 @@ function RouteComponent() {
   }, [input, selectedFields])
 
   useEffect(() => {
-    if (isLoadingConv || !lastConversation) return
+    if (isLoadingConv || isSending) return
 
-    const isChatStillActive = activeChats.some(
+    const currentChatExists = activeChats.some(
       (chat) => chat.id === activeChatId,
     )
     const isCreationMode = messages.length === 1 && messages[0].id === 'welcome'
 
-    // Caso A: El chat actual ya no es válido (fue archivado o borrado)
-    if (activeChatId && !isChatStillActive && !isCreationMode) {
+    // 1. Si el chat que teníamos seleccionado ya no existe (ej. se archivó)
+    if (activeChatId && !currentChatExists && !isCreationMode) {
       setActiveChatId(undefined)
       setMessages([])
-      return // Salimos para evitar ejecuciones extra en este render
+      return
     }
 
-    // Caso B: No hay chat seleccionado y hay chats disponibles (Auto-selección al cargar)
-    if (!activeChatId && activeChats.length > 0 && !isCreationMode) {
+    // 2. Auto-selección inicial: Solo si no hay ID, no estamos creando y hay chats
+    if (
+      !activeChatId &&
+      activeChats.length > 0 &&
+      !isCreationMode &&
+      chatMessages.length === 0
+    ) {
       setActiveChatId(activeChats[0].id)
     }
+  }, [
+    activeChats,
+    activeChatId,
+    isLoadingConv,
+    isSending,
+    messages.length,
+    chatMessages.length,
+  ])
 
-    // Caso C: Si la lista de chats está vacía y no estamos creando uno, limpiar por si acaso
-    if (activeChats.length === 0 && activeChatId && !isCreationMode) {
-      setActiveChatId(undefined)
-    }
-  }, [activeChats, activeChatId, isLoadingConv, messages.length])
   useEffect(() => {
     const state = routerState.location.state as any
     if (!state?.campo_edit || availableFields.length === 0) return
@@ -352,13 +362,16 @@ function RouteComponent() {
     input: string,
     fields: Array<SelectedField>,
   ) => {
-    const cleaned = input.replace(/\n?\[Campos:[^\]]*]/g, '').trim()
+    // 1. Limpiamos cualquier rastro anterior de la etiqueta (por si acaso)
+    // Esta regex ahora también limpia si el texto termina de forma natural
+    const cleaned = input.replace(/[:\s]+[^:]*$/, '').trim()
 
     if (fields.length === 0) return cleaned
 
     const fieldLabels = fields.map((f) => f.label).join(', ')
 
-    return `${cleaned}\n[Campos: ${fieldLabels}]`
+    // 2. Devolvemos un formato natural: "Mejora este campo: Nombre del Campo"
+    return `${cleaned}: ${fieldLabels}`
   }
 
   const toggleField = (field: SelectedField) => {
@@ -388,42 +401,46 @@ function RouteComponent() {
 
   const handleSend = async (promptOverride?: string) => {
     const rawText = promptOverride || input
-    if (!rawText.trim() && selectedFields.length === 0) return
     if (isSending || (!rawText.trim() && selectedFields.length === 0)) return
+
     const currentFields = [...selectedFields]
-    const finalPrompt = buildPrompt(rawText, currentFields)
     setIsSending(true)
     setOptimisticMessage(rawText)
-    setInput('')
-    setSelectedArchivoIds([])
-    setSelectedRepositorioIds([])
-    setUploadedFiles([])
-    try {
-      const payload: any = {
-        planId: planId,
-        content: finalPrompt,
-        conversacionId: activeChatId || undefined,
-      }
 
-      if (currentFields.length > 0) {
-        payload.campos = currentFields.map((f) => f.key)
+    // Limpiar input inmediatamente para feedback visual
+    setInput('')
+    setSelectedFields([])
+
+    try {
+      const payload = {
+        planId,
+        content: buildPrompt(rawText, currentFields),
+        conversacionId: activeChatId,
+        campos:
+          currentFields.length > 0
+            ? currentFields.map((f) => f.key)
+            : undefined,
       }
 
       const response = await sendChat(payload)
 
+      // IMPORTANTE: Si es un chat nuevo, actualizar el ID antes de invalidar
       if (response.conversacionId && response.conversacionId !== activeChatId) {
         setActiveChatId(response.conversacionId)
       }
 
-      await queryClient.invalidateQueries({
-        queryKey: ['conversation-by-plan', planId],
-      })
-      setOptimisticMessage(null)
+      // Invalidar ambas para asegurar que la lista de la izquierda y los mensajes se refresquen
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ['conversation-by-plan', planId],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ['conversation-messages', response.conversacionId],
+        }),
+      ])
     } catch (error) {
-      console.error('Error en el chat:', error)
-      // Aquí sí podrías usar un toast o un mensaje de error temporal
+      console.error('Error:', error)
     } finally {
-      // 5. CRÍTICO: Detener el estado de carga SIEMPRE
       setIsSending(false)
       setOptimisticMessage(null)
     }
@@ -666,6 +683,7 @@ function RouteComponent() {
                             <div className="mt-4">
                               <ImprovementCard
                                 suggestions={msg.suggestions}
+                                dbMessageId={msg.dbMessageId}
                                 planId={planId}
                                 currentDatos={data?.datos}
                                 activeChatId={activeChatId}
