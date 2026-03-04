@@ -429,7 +429,7 @@ function RouteComponent() {
         setActiveChatId(response.conversacionId)
       }
 
-      // Invalidar ambas para asegurar que la lista de la izquierda y los mensajes se refresquen
+      // Invalidar ambas para asegurar que la lista de la izquierda y los mensajes se
       await Promise.all([
         queryClient.invalidateQueries({
           queryKey: ['conversation-by-plan', planId],
