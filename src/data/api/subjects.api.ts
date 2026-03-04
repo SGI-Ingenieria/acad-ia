@@ -117,7 +117,7 @@ export async function subjects_get(subjectId: UUID): Promise<AsignaturaDetail> {
         id,carrera_id,estructura_id,nombre,nivel,tipo_ciclo,numero_ciclos,datos,estado_actual_id,activo,tipo_origen,meta_origen,creado_por,actualizado_por,creado_en,actualizado_en,
         carreras(id,facultad_id,nombre,nombre_corto,clave_sep,activa, facultades(id,nombre,nombre_corto,color,icono))
       ),
-      estructuras_asignatura(id,nombre,version,definicion)
+      estructuras_asignatura(id,nombre,definicion)
     `,
     )
     .eq('id', subjectId)
