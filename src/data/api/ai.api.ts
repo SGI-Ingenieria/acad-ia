@@ -247,3 +247,115 @@ export async function update_recommendation_applied_status(
 
   return true
 }
+
+// --- FUNCIONES DE ASIGNATURA ---
+
+export async function create_subject_conversation(subjectId: string) {
+  const supabase = supabaseBrowser()
+  const { data, error } = await supabase.functions.invoke(
+    'create-chat-conversation/asignatura/conversations', // Ruta corregida
+    {
+      method: 'POST',
+      body: {
+        asignatura_id: subjectId,
+        instanciador: 'alex',
+      },
+    },
+  )
+  if (error) throw error
+  return data // Retorna { conversation_asignatura: { id, ... } }
+}
+
+export async function ai_subject_chat_v2(payload: {
+  conversacionId: string
+  content: string
+  campos?: Array<string>
+}) {
+  const supabase = supabaseBrowser()
+  const { data, error } = await supabase.functions.invoke(
+    `create-chat-conversation/conversations/asignatura/${payload.conversacionId}/messages`, // Ruta corregida
+    {
+      method: 'POST',
+      body: {
+        content: payload.content,
+        campos: payload.campos || [],
+      },
+    },
+  )
+  if (error) throw error
+  return data
+}
+
+export async function getConversationBySubject(subjectId: string) {
+  const supabase = supabaseBrowser()
+  const { data, error } = await supabase
+    .from('conversaciones_asignatura') // Tabla corregida
+    .select('*')
+    .eq('asignatura_id', subjectId)
+    .order('creado_en', { ascending: false })
+
+  if (error) throw error
+  return data ?? []
+}
+
+export async function getMessagesBySubjectConversation(conversationId: string) {
+  const supabase = supabaseBrowser()
+  const { data, error } = await supabase
+    .from('asignatura_mensajes_ia') // Tabla corregida
+    .select('*')
+    .eq('conversacion_asignatura_id', conversationId)
+    .order('fecha_creacion', { ascending: true })
+
+  if (error) throw error
+  return data ?? []
+}
+
+export async function update_subject_recommendation_applied(
+  mensajeId: string,
+  campoAfectado: string,
+) {
+  const supabase = supabaseBrowser()
+
+  // 1. Obtener propuesta actual
+  const { data: msgData, error: fetchError } = await supabase
+    .from('asignatura_mensajes_ia')
+    .select('propuesta')
+    .eq('id', mensajeId)
+    .single()
+
+  if (fetchError) throw fetchError
+  const propuestaActual = msgData?.propuesta as any
+
+  // 2. Marcar como aplicada
+  const nuevaPropuesta = {
+    ...propuestaActual,
+    recommendations: (propuestaActual.recommendations || []).map((rec: any) =>
+      rec.campo_afectado === campoAfectado ? { ...rec, aplicada: true } : rec,
+    ),
+  }
+
+  // 3. Update
+  const { error: updateError } = await supabase
+    .from('asignatura_mensajes_ia')
+    .update({ propuesta: nuevaPropuesta })
+    .eq('id', mensajeId)
+
+  if (updateError) throw updateError
+  return true
+}
+
+export async function update_subject_conversation_status(
+  conversacionId: string,
+  nuevoEstado: 'ARCHIVADA' | 'ACTIVA',
+) {
+  const supabase = supabaseBrowser()
+  const { data, error } = await supabase
+    .from('conversaciones_asignatura')
+    .update({ estado: nuevoEstado })
+    .eq('id', conversacionId)
+    .select()
+    .single()
+
+  if (error) throw error
+  return data
+}

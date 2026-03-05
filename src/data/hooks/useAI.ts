@@ -3,7 +3,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   ai_plan_chat_v2,
   ai_plan_improve,
-  ai_subject_chat,
   ai_subject_improve,
   create_conversation,
   get_chat_history,
@@ -13,6 +12,12 @@ import {
   update_recommendation_applied_status,
   update_conversation_title,
   getMessagesByConversation,
+  update_subject_conversation_status,
+  update_subject_recommendation_applied,
+  getMessagesBySubjectConversation,
+  getConversationBySubject,
+  ai_subject_chat_v2,
+  create_subject_conversation,
 } from '../api/ai.api'
 
 // eslint-disable-next-line node/prefer-node-protocol
@@ -137,10 +142,6 @@ export function useAISubjectImprove() {
   return useMutation({ mutationFn: ai_subject_improve })
 }
 
-export function useAISubjectChat() {
-  return useMutation({ mutationFn: ai_subject_chat })
-}
-
 export function useLibrarySearch() {
   return useMutation({ mutationFn: library_search })
 }
@@ -154,6 +155,92 @@ export function useUpdateConversationTitle() {
     onSuccess: (_, variables) => {
       // Invalidamos para que la lista de chats se refresque
       qc.invalidateQueries({ queryKey: ['conversation-by-plan'] })
+    },
+  })
+}
+
+// Asignaturas
+
+export function useAISubjectChat() {
+  const qc = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (payload: {
+      subjectId: UUID
+      content: string
+      campos?: Array<string>
+      conversacionId?: string
+    }) => {
+      let currentId = payload.conversacionId
+
+      // 1. Si no hay ID, creamos la conversación de asignatura
+      if (!currentId) {
+        const response = await create_subject_conversation(payload.subjectId)
+        currentId = response.conversation_asignatura.id
+      }
+
+      // 2. Enviamos mensaje al endpoint de asignatura
+      const result = await ai_subject_chat_v2({
+        conversacionId: currentId!,
+        content: payload.content,
+        campos: payload.campos,
+      })
+
+      return { ...result, conversacionId: currentId }
+    },
+    onSuccess: (data) => {
+      // Invalidamos mensajes para que se refresque el chat
+      qc.invalidateQueries({
+        queryKey: ['subject-messages', data.conversacionId],
+      })
+    },
+  })
+}
+
+export function useConversationBySubject(subjectId: string | null) {
+  return useQuery({
+    queryKey: ['conversation-by-subject', subjectId],
+    queryFn: () => getConversationBySubject(subjectId!),
+    enabled: !!subjectId,
+  })
+}
+
+export function useMessagesBySubjectChat(conversationId: string | null) {
+  return useQuery({
+    queryKey: ['subject-messages', conversationId],
+    queryFn: () => {
+      if (!conversationId) throw new Error('Conversation ID is required')
+      return getMessagesBySubjectConversation(conversationId)
+    },
+    enabled: !!conversationId,
+    placeholderData: (previousData) => previousData,
+  })
+}
+
+export function useUpdateSubjectRecommendation() {
+  const qc = useQueryClient()
+
+  return useMutation({
+    mutationFn: (payload: { mensajeId: string; campoAfectado: string }) =>
+      update_subject_recommendation_applied(
+        payload.mensajeId,
+        payload.campoAfectado,
+      ),
+    onSuccess: () => {
+      // Refrescamos los mensajes para ver el check de "aplicado"
+      qc.invalidateQueries({ queryKey: ['subject-messages'] })
+    },
+  })
+}
+
+export function useUpdateSubjectConversationStatus() {
+  const qc = useQueryClient()
+
+  return useMutation({
+    mutationFn: (payload: { id: string; estado: 'ARCHIVADA' | 'ACTIVA' }) =>
+      update_subject_conversation_status(payload.id, payload.estado),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['conversation-by-subject'] })
     },
   })
 }

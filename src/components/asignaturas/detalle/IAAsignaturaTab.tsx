@@ -13,14 +13,20 @@ import {
 } from 'lucide-react'
 import { useState, useEffect, useRef, useMemo } from 'react'
 
-import type { IAMessage, IASugerencia } from '@/types/asignatura'
+import type { IASugerencia } from '@/types/asignatura'
 
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Textarea } from '@/components/ui/textarea'
-import { useSubject } from '@/data'
+import {
+  useAISubjectChat,
+  useConversationBySubject,
+  useMessagesBySubjectChat,
+  useSubject,
+  useUpdateSubjectRecommendation,
+} from '@/data'
 import { cn } from '@/lib/utils'
 
 // Tipos importados de tu archivo de asignatura
@@ -60,14 +66,13 @@ interface SelectedField {
 
 interface IAAsignaturaTabProps {
   asignatura: Record<string, any>
-  messages: Array<IAMessage>
+
   onSendMessage: (message: string, campoId?: string) => void
   onAcceptSuggestion: (sugerencia: IASugerencia) => void
   onRejectSuggestion: (messageId: string) => void
 }
 
 export function IAAsignaturaTab({
-  messages,
   onSendMessage,
   onAcceptSuggestion,
   onRejectSuggestion,
@@ -85,6 +90,49 @@ export function IAAsignaturaTab({
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
+  const [isSending, setIsSending] = useState(false)
+
+  const { data: conversaciones } = useConversationBySubject(asignaturaId)
+  const activeConversationId = conversaciones?.[0]?.id
+
+  const { data: rawMessages } = useMessagesBySubjectChat(activeConversationId)
+  const { mutateAsync: sendMessage } = useAISubjectChat()
+  const { mutate: applySuggestion } = useUpdateSubjectRecommendation()
+
+  const messages = useMemo(() => {
+    return rawMessages
+      ?.map((m) => ({
+        id: m.id,
+        role: 'user', // El mensaje del usuario
+        content: m.mensaje,
+        sugerencia: null,
+      }))
+      .concat(
+        rawMessages?.map((m) => ({
+          id: `${m.id}-ai`,
+          role: 'assistant',
+          content: m.respuesta,
+          sugerencia:
+            m.propuesta?.recommendations?.length > 0
+              ? {
+                  id: m.id,
+                  campoKey: m.propuesta.recommendations[0].campo_afectado,
+                  campoNombre:
+                    m.propuesta.recommendations[0].campo_afectado.replace(
+                      /_/g,
+                      ' ',
+                    ),
+                  valorSugerido: m.propuesta.recommendations[0].texto_mejora,
+                  aceptada: m.propuesta.recommendations[0].aplicada,
+                }
+              : null,
+        })),
+      )
+      .sort((a, b) => (a.id > b.id ? 1 : -1)) // Unir y ordenar (simplificado)
+
+    // NOTA: En producción, es mejor que tu query devuelva los mensajes ya intercalados
+    // o usar el campo 'conversacion_json' de la tabla padre para mayor fidelidad.
+  }, [rawMessages])
 
   // 1. Transformar datos de la asignatura para el menú
   const availableFields = useMemo(() => {
@@ -187,17 +235,19 @@ export function IAAsignaturaTab({
     const rawText = promptOverride || input
     if (!rawText.trim() && selectedFields.length === 0) return
 
-    const finalPrompt = buildPrompt(rawText)
-
-    setIsLoading(true)
-    // Llamamos a la función que viene por props
-    onSendMessage(finalPrompt, selectedFields[0]?.key)
-
-    setInput('')
-    setSelectedFields([])
-
-    // Simular carga local para el feedback visual
-    setTimeout(() => setIsLoading(false), 1200)
+    setIsSending(true)
+    try {
+      await sendMessage({
+        subjectId: asignaturaId as any,
+        content: rawText,
+        campos: selectedFields.map((f) => f.key),
+        conversacionId: activeConversationId,
+      })
+      setInput('')
+      setSelectedFields([])
+    } finally {
+      setIsSending(false)
+    }
   }
 
   return (
