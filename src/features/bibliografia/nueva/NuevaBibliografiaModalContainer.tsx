@@ -506,13 +506,20 @@ export function NuevaBibliografiaModalContainer({
       const engine = new CSL.Engine(sys as any, xmlStyle)
       engine.updateItems(Object.keys(cslItems))
       const result = engine.makeBibliography()
+                              
+      // result[0] contiene los metadatos, result[1] las citas formateadas
+      const meta = result?.[0] as { entry_ids?: string[][] } | undefined
       const entries = (result?.[1] ?? []) as Array<string>
 
-      const byId = Object.keys(cslItems)
       const citations: Record<string, string> = {}
-      for (let i = 0; i < byId.length; i++) {
-        const id = byId[i]
+                                                            
+      // meta.entry_ids es un arreglo de arreglos: [["id-2"], ["id-1"], ...]
+      const sortedIds = meta?.entry_ids ?? []
+
+      for (let i = 0; i < entries.length; i++) {
+        const id = sortedIds[i]?.[0] // Sacamos el ID real de esta posición
         if (!id) continue
+                                                                                                      
         const cita = citeprocHtmlToPlainText(entries[i] ?? '')
         citations[id] = cita
       }
