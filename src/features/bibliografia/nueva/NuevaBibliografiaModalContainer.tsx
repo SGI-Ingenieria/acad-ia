@@ -4,10 +4,15 @@ import { Globe, Loader2, Plus, RefreshCw, X } from 'lucide-react'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 
 import type { BuscarBibliografiaRequest } from '@/data'
-import type { GoogleBooksVolume } from '@/data/api/subjects.api'
+import type {
+  EndpointResult,
+  GoogleBooksVolume,
+  OpenLibraryDoc,
+} from '@/data/api/subjects.api'
 import type { TablesInsert } from '@/types/supabase'
 
 import { defineStepper } from '@/components/stepper'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -41,6 +46,54 @@ import { cn } from '@/lib/utils'
 type MetodoBibliografia = 'MANUAL' | 'IA' | null
 export type FormatoCita = 'apa' | 'ieee' | 'vancouver' | 'chicago'
 
+type IdiomaBibliografia =
+  | 'ALL'
+  | 'ES'
+  | 'EN'
+  | 'DE'
+  | 'ZH'
+  | 'FR'
+  | 'IT'
+  | 'JA'
+  | 'RU'
+
+const IDIOMA_LABEL: Record<IdiomaBibliografia, string> = {
+  ALL: 'Todos',
+  ES: 'Español',
+  EN: 'Inglés',
+  DE: 'Alemán',
+  ZH: 'Chino',
+  FR: 'Francés',
+  IT: 'Italiano',
+  JA: 'Japonés',
+  RU: 'Ruso',
+}
+
+const IDIOMA_TO_GOOGLE: Record<IdiomaBibliografia, string | undefined> = {
+  ALL: undefined,
+  ES: 'es',
+  EN: 'en',
+  DE: 'de',
+  ZH: 'zh',
+  FR: 'fr',
+  IT: 'it',
+  JA: 'ja',
+  RU: 'ru',
+}
+
+// ISO 639-2 (bibliographic codes) commonly used by Open Library.
+const IDIOMA_TO_OPEN_LIBRARY: Record<IdiomaBibliografia, string | undefined> = {
+  ALL: undefined,
+  ES: 'spa',
+  EN: 'eng',
+  DE: 'ger',
+  ZH: 'chi',
+  FR: 'fre',
+  IT: 'ita',
+  JA: 'jpn',
+  RU: 'rus',
+}
+
 type CSLAuthor = {
   family: string
   given: string
@@ -65,7 +118,7 @@ type BibliografiaTipoFuente = NonNullable<
 type BibliografiaRef = {
   id: string
   source: BibliografiaTipoFuente
-  raw?: GoogleBooksVolume
+  raw?: GoogleBooksVolume | OpenLibraryDoc
   title: string
   authors: Array<string>
   publisher?: string
@@ -79,12 +132,13 @@ type WizardState = {
   metodo: MetodoBibliografia
   ia: {
     q: string
-    cantidadDeSugerencias: number | null
+    idioma: IdiomaBibliografia
     showConservacionTooltip: boolean
     sugerencias: Array<{
       id: string
       selected: boolean
-      volume: GoogleBooksVolume
+      endpoint: EndpointResult['endpoint']
+      item: GoogleBooksVolume | OpenLibraryDoc
     }>
     isLoading: boolean
     errorMessage: string | null
@@ -105,6 +159,13 @@ type WizardState = {
   generatingIds: Set<string>
   isSaving: boolean
   errorMessage: string | null
+}
+
+type IASugerencia = WizardState['ia']['sugerencias'][number]
+function iaSugerenciaToEndpointResult(s: IASugerencia): EndpointResult {
+  return s.endpoint === 'google'
+    ? { endpoint: 'google', item: s.item as GoogleBooksVolume }
+    : { endpoint: 'open_library', item: s.item as OpenLibraryDoc }
 }
 
 const Wizard = defineStepper(
@@ -140,19 +201,99 @@ function tryParseYear(publishedDate?: string): number | undefined {
   return Number.isFinite(year) ? year : undefined
 }
 
-function volumeToRef(volume: GoogleBooksVolume): BibliografiaRef {
-  const info = volume.volumeInfo ?? {}
-  const title = (info.title ?? '').trim() || 'Sin título'
-  const authors = Array.isArray(info.authors) ? info.authors : []
-  const publisher = info.publisher
-  const year = tryParseYear(info.publishedDate)
-  const isbn =
-    info.industryIdentifiers?.find((x) => x.identifier)?.identifier ?? undefined
+function randomUUID(): string {
+  try {
+    const c = (globalThis as any).crypto
+    if (c && typeof c.randomUUID === 'function') return c.randomUUID()
+  } catch {
+    // ignore
+  }
+  return `${Date.now()}-${Math.random().toString(16).slice(2)}`
+}
+
+function tryParseYearFromOpenLibrary(doc: OpenLibraryDoc): number | undefined {
+  const y1 = doc['first_publish_year']
+  if (typeof y1 === 'number' && Number.isFinite(y1)) return y1
+
+  const years = doc['publish_year']
+  if (Array.isArray(years)) {
+    const numeric = years
+      .map((x) => (typeof x === 'number' ? x : Number(x)))
+      .filter((n) => Number.isFinite(n))
+    if (numeric.length > 0) return Math.max(...numeric)
+  }
+
+  const published = doc['publish_date']
+  if (typeof published === 'string') return tryParseYear(published)
+  return undefined
+}
+
+function getEndpointResultId(result: EndpointResult): string {
+  if (result.endpoint === 'google') {
+    return `google:${result.item.id}`
+  }
+
+  const doc = result.item
+  const key = doc['key']
+  if (typeof key === 'string' && key.trim()) return `open_library:${key}`
+
+  const cover = doc['cover_edition_key']
+  if (typeof cover === 'string' && cover.trim()) return `open_library:${cover}`
+
+  const editionKey = doc['edition_key']
+  if (Array.isArray(editionKey) && typeof editionKey[0] === 'string') {
+    return `open_library:${editionKey[0]}`
+  }
+
+  return `open_library:${randomUUID()}`
+}
+
+function endpointResultToRef(result: EndpointResult): BibliografiaRef {
+  if (result.endpoint === 'google') {
+    const volume = result.item
+    const info = volume.volumeInfo ?? {}
+    const title = (info.title ?? '').trim() || 'Sin título'
+    const authors = Array.isArray(info.authors) ? info.authors : []
+    const publisher = typeof info.publisher === 'string' ? info.publisher : undefined
+    const year = tryParseYear(info.publishedDate)
+    const isbn =
+      info.industryIdentifiers?.find((x) => x?.identifier)?.identifier ?? undefined
+
+    return {
+      id: getEndpointResultId(result),
+      source: 'BIBLIOTECA',
+      raw: volume,
+      title,
+      authors,
+      publisher,
+      year,
+      isbn,
+      tipo: 'BASICA',
+    }
+  }
+
+  const doc = result.item
+  const title = (typeof doc['title'] === 'string' ? doc['title'] : '').trim() ||
+    'Sin título'
+  const authors = Array.isArray(doc['author_name'])
+    ? (doc['author_name'] as Array<unknown>).filter((a): a is string => typeof a === 'string')
+    : []
+  const publisher = Array.isArray(doc['publisher'])
+    ? (doc['publisher'] as Array<unknown>).find(
+        (p): p is string => typeof p === 'string',
+      )
+    : typeof doc['publisher'] === 'string'
+      ? doc['publisher']
+      : undefined
+  const year = tryParseYearFromOpenLibrary(doc)
+  const isbn = Array.isArray(doc['isbn'])
+    ? (doc['isbn'] as Array<unknown>).find((x): x is string => typeof x === 'string')
+    : undefined
 
   return {
-    id: volume.id,
-    source: 'MANUAL',
-    raw: volume,
+    id: getEndpointResultId(result),
+    source: 'BIBLIOTECA',
+    raw: doc,
     title,
     authors,
     publisher,
@@ -160,6 +301,23 @@ function volumeToRef(volume: GoogleBooksVolume): BibliografiaRef {
     isbn,
     tipo: 'BASICA',
   }
+}
+
+function getResultYear(result: EndpointResult): number | undefined {
+  if (result.endpoint === 'google') {
+    const info = result.item.volumeInfo ?? {}
+    return tryParseYear(info.publishedDate)
+  }
+  return tryParseYearFromOpenLibrary(result.item)
+}
+
+function sortResultsByMostRecent(a: EndpointResult, b: EndpointResult) {
+  const ya = getResultYear(a)
+  const yb = getResultYear(b)
+  if (typeof ya === 'number' && typeof yb === 'number') return yb - ya
+  if (typeof ya === 'number') return -1
+  if (typeof yb === 'number') return 1
+  return 0
 }
 
 function AutoSizeTextarea({
@@ -294,7 +452,7 @@ export function NuevaBibliografiaModalContainer({
     metodo: null,
     ia: {
       q: '',
-      cantidadDeSugerencias: 10,
+      idioma: 'ALL',
       showConservacionTooltip: false,
       sugerencias: [],
       isLoading: false,
@@ -342,7 +500,7 @@ export function NuevaBibliografiaModalContainer({
     wizard.metodo === 'IA'
       ? wizard.ia.sugerencias
           .filter((s) => s.selected)
-          .map((s) => volumeToRef(s.volume))
+          .map((s) => endpointResultToRef(iaSugerenciaToEndpointResult(s)))
       : wizard.manual.refs
 
   // Mantener `wizard.refs` como snapshot para pasos 3/4.
@@ -378,25 +536,8 @@ export function NuevaBibliografiaModalContainer({
   async function handleBuscarSugerencias() {
     const hadNoSugerenciasBefore = wizard.ia.sugerencias.length === 0
 
-    const cantidad = wizard.ia.cantidadDeSugerencias
-    if (
-      !Number.isFinite(cantidad ?? Number.NaN) ||
-      (cantidad as number) < 1 ||
-      (cantidad as number) > 40
-    ) {
-      setWizard((w) => ({
-        ...w,
-        ia: {
-          ...w.ia,
-          errorMessage:
-            'La cantidad de sugerencias debe ser un entero entre 1 y 40 (o vacío).',
-        },
-        errorMessage: null,
-      }))
-      return
-    }
-
-    const selected = wizard.ia.sugerencias.filter((s) => s.selected)
+    const q = wizard.ia.q.trim()
+    if (!q) return
 
     setWizard((w) => ({
       ...w,
@@ -412,30 +553,58 @@ export function NuevaBibliografiaModalContainer({
     }))
 
     try {
-      const selectedCount = selected.length
+      const idioma = wizard.ia.idioma
+      const googleLangRestrict = IDIOMA_TO_GOOGLE[idioma]
+      const openLibraryLanguage = IDIOMA_TO_OPEN_LIBRARY[idioma]
+
+      const google: BuscarBibliografiaRequest['google'] = {
+        orderBy: 'newest',
+        startIndex: 0,
+      }
+      if (googleLangRestrict) google.langRestrict = googleLangRestrict
+
+      const openLibrary: BuscarBibliografiaRequest['openLibrary'] = {
+        sort: 'new',
+        page: 1,
+      }
+      if (openLibraryLanguage) openLibrary.language = openLibraryLanguage
+
       const req: BuscarBibliografiaRequest = {
-        searchTerms: {
-          q: wizard.ia.q,
-          maxResults: (cantidad as number) + selectedCount,
-          // orderBy: ignorado por ahora
-        },
+        searchTerms: { q },
+        google,
+        openLibrary,
       }
 
-      const items = await buscar_bibliografia(req)
+      const items = (await buscar_bibliografia(req))
+        .slice()
+        .sort(sortResultsByMostRecent)
 
       setWizard((w) => {
         const existingById = new Map(w.ia.sugerencias.map((s) => [s.id, s]))
 
         const newOnes = items
+          .map((r) => ({
+            id: getEndpointResultId(r),
+            selected: false,
+            endpoint: r.endpoint,
+            item: r.item,
+          }))
           .filter((it) => !existingById.has(it.id))
-          .slice(0, cantidad as number)
-          .map((it) => ({ id: it.id, selected: false, volume: it }))
+
+        const merged = [...w.ia.sugerencias, ...newOnes].slice()
+        merged.sort(
+          (a, b) =>
+            sortResultsByMostRecent(
+              iaSugerenciaToEndpointResult(a),
+              iaSugerenciaToEndpointResult(b),
+            ) || a.id.localeCompare(b.id),
+        )
 
         return {
           ...w,
           ia: {
             ...w.ia,
-            sugerencias: [...w.ia.sugerencias, ...newOnes],
+            sugerencias: merged,
             showConservacionTooltip:
               hadNoSugerenciasBefore && newOnes.length > 0,
             isLoading: false,
@@ -506,20 +675,22 @@ export function NuevaBibliografiaModalContainer({
       const engine = new CSL.Engine(sys as any, xmlStyle)
       engine.updateItems(Object.keys(cslItems))
       const result = engine.makeBibliography()
-                              
+
       // result[0] contiene los metadatos, result[1] las citas formateadas
-      const meta = result?.[0] as { entry_ids?: string[][] } | undefined
+      const meta = result?.[0] as
+        | { entry_ids?: Array<Array<string>> }
+        | undefined
       const entries = (result?.[1] ?? []) as Array<string>
 
       const citations: Record<string, string> = {}
-                                                            
+
       // meta.entry_ids es un arreglo de arreglos: [["id-2"], ["id-1"], ...]
       const sortedIds = meta?.entry_ids ?? []
 
       for (let i = 0; i < entries.length; i++) {
         const id = sortedIds[i]?.[0] // Sacamos el ID real de esta posición
         if (!id) continue
-                                                                                                      
+
         const cita = citeprocHtmlToPlainText(entries[i] ?? '')
         citations[id] = cita
       }
@@ -697,7 +868,7 @@ export function NuevaBibliografiaModalContainer({
                   {wizard.metodo === 'IA' ? (
                     <SugerenciasStep
                       q={wizard.ia.q}
-                      cantidad={wizard.ia.cantidadDeSugerencias}
+                      idioma={wizard.ia.idioma}
                       isLoading={wizard.ia.isLoading}
                       errorMessage={wizard.ia.errorMessage}
                       sugerencias={wizard.ia.sugerencias}
@@ -879,7 +1050,7 @@ function MetodoStep({
 
 function SugerenciasStep({
   q,
-  cantidad,
+  idioma,
   isLoading,
   errorMessage,
   sugerencias,
@@ -889,32 +1060,27 @@ function SugerenciasStep({
   onGenerate,
 }: {
   q: string
-  cantidad: number | null
+  idioma: IdiomaBibliografia
   isLoading: boolean
   errorMessage: string | null
   sugerencias: Array<{
     id: string
     selected: boolean
-    volume: GoogleBooksVolume
+    endpoint: EndpointResult['endpoint']
+    item: GoogleBooksVolume | OpenLibraryDoc
   }>
   showConservacionTooltip: boolean
   onDismissConservacionTooltip: () => void
   onChange: (
     patch: Partial<{
       q: string
-      cantidadDeSugerencias: number | null
+      idioma: IdiomaBibliografia
       sugerencias: any
     }>,
   ) => void
   onGenerate: () => void
 }) {
   const selectedCount = sugerencias.filter((s) => s.selected).length
-
-  const cantidadIsValid =
-    typeof cantidad === 'number' &&
-    Number.isFinite(cantidad) &&
-    cantidad >= 1 &&
-    cantidad <= 40
 
   return (
     <div className="space-y-4">
@@ -936,41 +1102,34 @@ function SugerenciasStep({
           </div>
 
           <div className="mt-3 flex w-full flex-col items-end justify-between gap-3 sm:flex-row">
-            <div className="w-full sm:w-44">
-              <Label className="mb-2 block">Cantidad de sugerencias</Label>
-              <Input
-                type="number"
-                min={1}
-                max={40}
-                step={1}
-                inputMode="numeric"
-                placeholder="Ej. 10"
-                value={cantidad ?? ''}
-                onKeyDown={(e) => {
-                  if (['.', ',', '-', 'e', 'E', '+'].includes(e.key)) {
-                    e.preventDefault()
-                  }
-                }}
-                onChange={(e) => {
-                  const raw = e.target.value
-                  if (raw === '') {
-                    onChange({ cantidadDeSugerencias: null })
-                    return
-                  }
-                  const asNumber = Number(raw)
-                  if (!Number.isFinite(asNumber)) return
-                  const n = Math.floor(Math.abs(asNumber))
-                  const capped = Math.min(Math.max(n >= 1 ? n : 1, 1), 40)
-                  onChange({ cantidadDeSugerencias: capped })
-                }}
-              />
+            <div className="w-full sm:w-56">
+              <Label className="mb-2 block">Idioma</Label>
+              <Select
+                value={idioma}
+                onValueChange={(v) =>
+                  onChange({ idioma: v as IdiomaBibliografia })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona" />
+                </SelectTrigger>
+                <SelectContent>
+                  {(Object.keys(IDIOMA_LABEL) as Array<IdiomaBibliografia>).map(
+                    (k) => (
+                      <SelectItem key={k} value={k}>
+                        {IDIOMA_LABEL[k]}
+                      </SelectItem>
+                    ),
+                  )}
+                </SelectContent>
+              </Select>
             </div>
 
             <Button
               type="button"
               variant="outline"
               onClick={onGenerate}
-              disabled={isLoading || q.trim().length === 0 || !cantidadIsValid}
+              disabled={isLoading || q.trim().length === 0}
               className="gap-2"
             >
               {isLoading ? (
@@ -1021,11 +1180,34 @@ function SugerenciasStep({
         </div>
         <div className="max-h-96 space-y-1 overflow-y-auto pr-1">
           {sugerencias.map((s) => {
-            const info = s.volume.volumeInfo ?? {}
-            const title = (info.title ?? 'Sin título').trim()
-            const authors = (info.authors ?? []).join(', ')
-            const year = tryParseYear(info.publishedDate)
             const selected = s.selected
+
+            const badgeLabel = s.endpoint === 'google' ? 'Google' : 'Open Library'
+
+            const title =
+              s.endpoint === 'google'
+                ? (((s.item as GoogleBooksVolume).volumeInfo?.title ??
+                    'Sin título')).trim()
+                : (typeof (s.item as OpenLibraryDoc)['title'] === 'string'
+                    ? ((s.item as OpenLibraryDoc)['title'] as string)
+                    : 'Sin título'
+                  ).trim()
+
+            const authors =
+              s.endpoint === 'google'
+                ? ((s.item as GoogleBooksVolume).volumeInfo?.authors ?? []).join(', ')
+                : Array.isArray((s.item as OpenLibraryDoc)['author_name'])
+                  ? ((s.item as OpenLibraryDoc)['author_name'] as Array<unknown>)
+                      .filter((a): a is string => typeof a === 'string')
+                      .join(', ')
+                  : ''
+
+            const year =
+              s.endpoint === 'google'
+                ? tryParseYear(
+                    (s.item as GoogleBooksVolume).volumeInfo?.publishedDate,
+                  )
+                : tryParseYearFromOpenLibrary(s.item as OpenLibraryDoc)
 
             return (
               <Label
@@ -1046,7 +1228,14 @@ function SugerenciasStep({
                   }
                 />
                 <div className="min-w-0 flex-1">
-                  <div className="text-sm font-medium">{title}</div>
+                  <div className="flex min-w-0 items-center gap-2">
+                    <div className="min-w-0 truncate text-sm font-medium">
+                      {title}
+                    </div>
+                    <Badge variant="secondary" className="shrink-0">
+                      {badgeLabel}
+                    </Badge>
+                  </div>
                   <div className="text-muted-foreground text-xs">
                     {authors || '—'}
                     {year ? ` • ${year}` : ''}
@@ -1145,7 +1334,7 @@ function DatosBasicosManualStep({
             onClick={() => {
               const year = Number.parseInt(draft.yearText.trim(), 10)
               const ref: BibliografiaRef = {
-                id: `manual-${crypto.randomUUID()}`,
+                id: `manual-${randomUUID()}`,
                 source: 'MANUAL',
                 title: draft.title.trim(),
                 authors: draft.authorsText
