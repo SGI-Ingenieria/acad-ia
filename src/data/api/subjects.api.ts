@@ -42,8 +42,19 @@ const EDGE = {
 export type BuscarBibliografiaRequest = {
   searchTerms: {
     q: string
-    maxResults: number
+  }
+
+  google: {
     orderBy?: 'newest' | 'relevance'
+    langRestrict?: string
+    startIndex?: number
+    [k: string]: unknown
+  }
+
+  openLibrary: {
+    language?: string
+    page?: number
+    sort?: string
     [k: string]: unknown
   }
 }
@@ -82,20 +93,22 @@ export type GoogleBooksVolume = {
   [k: string]: unknown
 }
 
+export type OpenLibraryDoc = Record<string, unknown>
+
+export type EndpointResult =
+  | { endpoint: 'google'; item: GoogleBooksVolume }
+  | { endpoint: 'open_library'; item: OpenLibraryDoc }
+
 export async function buscar_bibliografia(
   input: BuscarBibliografiaRequest,
-): Promise<Array<GoogleBooksVolume>> {
+): Promise<Array<EndpointResult>> {
   const q = input.searchTerms.q
-  const maxResults = input.searchTerms.maxResults
 
   if (typeof q !== 'string' || q.trim().length < 1) {
     throw new Error('q es requerido')
   }
-  if (!Number.isInteger(maxResults) || maxResults < 0 || maxResults > 40) {
-    throw new Error('maxResults debe ser entero entre 0 y 40')
-  }
 
-  return await invokeEdge<Array<GoogleBooksVolume>>(
+  return await invokeEdge<Array<EndpointResult>>(
     EDGE.buscar_bibliografia,
     input,
     { headers: { 'Content-Type': 'application/json' } },
