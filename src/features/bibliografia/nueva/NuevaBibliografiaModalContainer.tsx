@@ -1,7 +1,7 @@
 import { useNavigate } from '@tanstack/react-router'
 import CSL from 'citeproc'
 import { Globe, Loader2, Plus, RefreshCw, X } from 'lucide-react'
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 import type { BuscarBibliografiaRequest } from '@/data'
 import type {
@@ -120,6 +120,7 @@ type BibliografiaRef = {
   source: BibliografiaTipoFuente
   raw?: GoogleBooksVolume | OpenLibraryDoc
   title: string
+  subtitle?: string
   authors: Array<string>
   publisher?: string
   year?: number
@@ -253,17 +254,22 @@ function endpointResultToRef(result: EndpointResult): BibliografiaRef {
     const volume = result.item
     const info = volume.volumeInfo ?? {}
     const title = (info.title ?? '').trim() || 'Sin título'
+    const subtitle =
+      typeof info.subtitle === 'string' ? info.subtitle.trim() : undefined
     const authors = Array.isArray(info.authors) ? info.authors : []
-    const publisher = typeof info.publisher === 'string' ? info.publisher : undefined
+    const publisher =
+      typeof info.publisher === 'string' ? info.publisher : undefined
     const year = tryParseYear(info.publishedDate)
     const isbn =
-      info.industryIdentifiers?.find((x) => x?.identifier)?.identifier ?? undefined
+      info.industryIdentifiers?.find((x) => x.identifier)?.identifier ??
+      undefined
 
     return {
       id: getEndpointResultId(result),
       source: 'BIBLIOTECA',
       raw: volume,
       title,
+      subtitle,
       authors,
       publisher,
       year,
@@ -273,10 +279,15 @@ function endpointResultToRef(result: EndpointResult): BibliografiaRef {
   }
 
   const doc = result.item
-  const title = (typeof doc['title'] === 'string' ? doc['title'] : '').trim() ||
+  const title =
+    (typeof doc['title'] === 'string' ? doc['title'] : '').trim() ||
     'Sin título'
+  const subtitle =
+    typeof doc['subtitle'] === 'string' ? doc['subtitle'].trim() : undefined
   const authors = Array.isArray(doc['author_name'])
-    ? (doc['author_name'] as Array<unknown>).filter((a): a is string => typeof a === 'string')
+    ? (doc['author_name'] as Array<unknown>).filter(
+        (a): a is string => typeof a === 'string',
+      )
     : []
   const publisher = Array.isArray(doc['publisher'])
     ? (doc['publisher'] as Array<unknown>).find(
@@ -287,7 +298,9 @@ function endpointResultToRef(result: EndpointResult): BibliografiaRef {
       : undefined
   const year = tryParseYearFromOpenLibrary(doc)
   const isbn = Array.isArray(doc['isbn'])
-    ? (doc['isbn'] as Array<unknown>).find((x): x is string => typeof x === 'string')
+    ? (doc['isbn'] as Array<unknown>).find(
+        (x): x is string => typeof x === 'string',
+      )
     : undefined
 
   return {
@@ -295,6 +308,7 @@ function endpointResultToRef(result: EndpointResult): BibliografiaRef {
     source: 'BIBLIOTECA',
     raw: doc,
     title,
+    subtitle,
     authors,
     publisher,
     year,
@@ -318,50 +332,6 @@ function sortResultsByMostRecent(a: EndpointResult, b: EndpointResult) {
   if (typeof ya === 'number') return -1
   if (typeof yb === 'number') return 1
   return 0
-}
-
-function AutoSizeTextarea({
-  value,
-  disabled,
-  placeholder,
-  className,
-  onChange,
-}: {
-  value: string
-  disabled?: boolean
-  placeholder?: string
-  className?: string
-  onChange: (next: string) => void
-}) {
-  const ref = useRef<HTMLTextAreaElement | null>(null)
-
-  const autosize = () => {
-    const el = ref.current
-    if (!el) return
-    el.style.height = '0px'
-    el.style.height = `${el.scrollHeight}px`
-  }
-
-  useLayoutEffect(() => {
-    autosize()
-  }, [value])
-
-  return (
-    <Textarea
-      ref={ref}
-      rows={1}
-      value={value}
-      disabled={disabled}
-      placeholder={placeholder}
-      className={cn('min-h-0 resize-none overflow-hidden pr-10', className)}
-      onChange={(e) => {
-        const el = e.currentTarget
-        el.style.height = '0px'
-        el.style.height = `${el.scrollHeight}px`
-        onChange(el.value)
-      }}
-    />
-  )
 }
 
 function citeprocHtmlToPlainText(value: string) {
@@ -951,6 +921,14 @@ export function NuevaBibliografiaModalContainer({
                         },
                       )
                     }}
+                    onChangeRef={(id, patch) =>
+                      setWizard((w) => ({
+                        ...w,
+                        refs: w.refs.map((r) =>
+                          r.id === id ? { ...r, ...patch } : r,
+                        ),
+                      }))
+                    }
                     onChangeTipo={(id, tipo) =>
                       setWizard((w) => ({
                         ...w,
@@ -959,19 +937,6 @@ export function NuevaBibliografiaModalContainer({
                         ),
                       }))
                     }
-                    onChangeCita={(id, value) => {
-                      if (!wizard.formato) return
-                      setWizard((w) => ({
-                        ...w,
-                        citaEdits: {
-                          ...w.citaEdits,
-                          [wizard.formato!]: {
-                            ...w.citaEdits[wizard.formato!],
-                            [id]: value,
-                          },
-                        },
-                      }))
-                    }}
                   />
                 </Wizard.Stepper.Panel>
               )}
@@ -1182,22 +1147,44 @@ function SugerenciasStep({
           {sugerencias.map((s) => {
             const selected = s.selected
 
-            const badgeLabel = s.endpoint === 'google' ? 'Google' : 'Open Library'
+            const badgeLabel =
+              s.endpoint === 'google' ? 'Google' : 'Open Library'
 
             const title =
               s.endpoint === 'google'
-                ? (((s.item as GoogleBooksVolume).volumeInfo?.title ??
-                    'Sin título')).trim()
+                ? (
+                    (s.item as GoogleBooksVolume).volumeInfo?.title ??
+                    'Sin título'
+                  ).trim()
                 : (typeof (s.item as OpenLibraryDoc)['title'] === 'string'
                     ? ((s.item as OpenLibraryDoc)['title'] as string)
                     : 'Sin título'
                   ).trim()
 
+            const subtitle =
+              s.endpoint === 'google'
+                ? (typeof (s.item as GoogleBooksVolume).volumeInfo?.subtitle ===
+                  'string'
+                    ? ((s.item as GoogleBooksVolume).volumeInfo
+                        ?.subtitle as string)
+                    : ''
+                  ).trim()
+                : (typeof (s.item as OpenLibraryDoc)['subtitle'] === 'string'
+                    ? ((s.item as OpenLibraryDoc)['subtitle'] as string)
+                    : ''
+                  ).trim()
+
             const authors =
               s.endpoint === 'google'
-                ? ((s.item as GoogleBooksVolume).volumeInfo?.authors ?? []).join(', ')
+                ? (
+                    (s.item as GoogleBooksVolume).volumeInfo?.authors ?? []
+                  ).join(', ')
                 : Array.isArray((s.item as OpenLibraryDoc)['author_name'])
-                  ? ((s.item as OpenLibraryDoc)['author_name'] as Array<unknown>)
+                  ? (
+                      (s.item as OpenLibraryDoc)[
+                        'author_name'
+                      ] as Array<unknown>
+                    )
                       .filter((a): a is string => typeof a === 'string')
                       .join(', ')
                   : ''
@@ -1232,13 +1219,20 @@ function SugerenciasStep({
                     <div className="min-w-0 truncate text-sm font-medium">
                       {title}
                     </div>
-                    <Badge variant="secondary" className="shrink-0">
-                      {badgeLabel}
-                    </Badge>
+                    {subtitle ? (
+                      <div className="text-muted-foreground min-w-0 truncate text-xs">
+                        {subtitle}
+                      </div>
+                    ) : null}
                   </div>
                   <div className="text-muted-foreground text-xs">
                     {authors || '—'}
                     {year ? ` • ${year}` : ''}
+                  </div>
+                  <div className="flex justify-end-safe">
+                    <Badge variant="secondary" className="shrink-0">
+                      {badgeLabel}
+                    </Badge>
                   </div>
                 </div>
               </Label>
@@ -1401,8 +1395,8 @@ function FormatoYCitasStep({
   generatingIds,
   onChangeFormato,
   onRegenerate,
+  onChangeRef,
   onChangeTipo,
-  onChangeCita,
 }: {
   refs: Array<BibliografiaRef>
   formato: FormatoCita | null
@@ -1410,8 +1404,8 @@ function FormatoYCitasStep({
   generatingIds: Set<string>
   onChangeFormato: (formato: FormatoCita | null) => void
   onRegenerate: () => void
+  onChangeRef: (id: string, patch: Partial<BibliografiaRef>) => void
   onChangeTipo: (id: string, tipo: BibliografiaTipo) => void
-  onChangeCita: (id: string, value: string) => void
 }) {
   const isGeneratingAny = generatingIds.size > 0
 
@@ -1477,33 +1471,26 @@ function FormatoYCitasStep({
 
             const isGenerating = generatingIds.has(r.id)
 
+            const authorsText = r.authors.join('\n')
+            const yearText = typeof r.year === 'number' ? String(r.year) : ''
+            const isbnText = r.isbn ?? ''
+            const publisherText = r.publisher ?? ''
+
             return (
               <Card key={r.id} className="overflow-hidden">
-                <CardHeader className="bg-muted/10">
-                  <CardTitle className="text-base leading-tight">
-                    {r.title}
-                  </CardTitle>
-                  <CardDescription className="wrap-break-word">
-                    {infoText}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-12">
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-12">
                     <div className="space-y-2 sm:col-span-9">
-                      <Label className="text-xs">Cita formateada</Label>
-                      <div className="relative">
-                        <AutoSizeTextarea
-                          value={citations[r.id] ?? ''}
-                          onChange={(next) => onChangeCita(r.id, next)}
-                          disabled={isGenerating || isGeneratingAny}
-                          placeholder="Cita generada…"
-                        />
-                        {isGenerating && (
-                          <div className="absolute inset-y-0 right-3 flex items-center">
-                            <Loader2 className="text-muted-foreground h-4 w-4 animate-spin" />
-                          </div>
-                        )}
-                      </div>
+                      <Label className="text-xs">Título</Label>
+                      <Input
+                        value={r.title}
+                        disabled={isGeneratingAny || isGenerating}
+                        onChange={(e) =>
+                          onChangeRef(r.id, {
+                            title: e.currentTarget.value,
+                          })
+                        }
+                      />
                     </div>
 
                     <div className="flex w-full flex-col items-start gap-2 sm:col-span-3 sm:items-stretch">
@@ -1523,6 +1510,95 @@ function FormatoYCitasStep({
                           </SelectItem>
                         </SelectContent>
                       </Select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-12">
+                    <div className="space-y-2 sm:col-span-6">
+                      <Label className="text-xs">Autores (uno por línea)</Label>
+                      <Textarea
+                        value={authorsText}
+                        disabled={isGeneratingAny || isGenerating}
+                        className="min-h-22.5"
+                        onChange={(e) =>
+                          onChangeRef(r.id, {
+                            authors: e.currentTarget.value
+                              .split(/\r?\n/)
+                              .map((x) => x.trim())
+                              .filter(Boolean),
+                          })
+                        }
+                      />
+                    </div>
+
+                    <div className="space-y-2 sm:col-span-6">
+                      <Label className="text-xs">Editorial</Label>
+                      <Input
+                        value={publisherText}
+                        disabled={isGeneratingAny || isGenerating}
+                        onChange={(e) =>
+                          onChangeRef(r.id, {
+                            publisher:
+                              e.currentTarget.value.trim() || undefined,
+                          })
+                        }
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-12">
+                    <div className="space-y-2 sm:col-span-3">
+                      <Label className="text-xs">Año</Label>
+                      <Input
+                        value={yearText}
+                        disabled={isGeneratingAny || isGenerating}
+                        placeholder="2024"
+                        onChange={(e) => {
+                          const raw = e.currentTarget.value
+                          const year = Number.parseInt(raw.trim(), 10)
+                          onChangeRef(r.id, {
+                            year: Number.isFinite(year) ? year : undefined,
+                          })
+                        }}
+                      />
+                    </div>
+
+                    <div className="space-y-2 sm:col-span-9">
+                      <Label className="text-xs">ISBN</Label>
+                      <Input
+                        value={isbnText}
+                        disabled={isGeneratingAny || isGenerating}
+                        onChange={(e) =>
+                          onChangeRef(r.id, {
+                            isbn: e.currentTarget.value.trim() || undefined,
+                          })
+                        }
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-xs">Cita generada</Label>
+                    <div className="bg-muted/30 border-border rounded-md border px-3 py-2 text-sm">
+                      <div className="flex items-start gap-2">
+                        <div className="min-w-0 flex-1">
+                          {citations[r.id] ? (
+                            <p className="wrap-break-word">{citations[r.id]}</p>
+                          ) : (
+                            <p className="text-muted-foreground">
+                              Cita generada…
+                            </p>
+                          )}
+                          {/* {infoText ? (
+                            <p className="text-muted-foreground mt-1 text-xs">
+                              {infoText}
+                            </p>
+                          ) : null} */}
+                        </div>
+                        {isGenerating ? (
+                          <Loader2 className="text-muted-foreground mt-0.5 h-4 w-4 animate-spin" />
+                        ) : null}
+                      </div>
                     </div>
                   </div>
                 </CardContent>
@@ -1593,7 +1669,14 @@ function ResumenStep({
                 key={r.id}
                 className="bg-background rounded-md border p-3 text-sm shadow-sm"
               >
-                <p className="mb-1 font-medium">{r.title}</p>
+                <div className="mb-1 flex min-w-0 items-baseline gap-2">
+                  <p className="min-w-0 truncate font-medium">{r.title}</p>
+                  {r.subtitle ? (
+                    <p className="text-muted-foreground min-w-0 truncate text-xs">
+                      {r.subtitle}
+                    </p>
+                  ) : null}
+                </div>
                 <p className="text-muted-foreground">
                   {citations[r.id] ?? 'Sin cita generada'}
                 </p>
@@ -1615,7 +1698,14 @@ function ResumenStep({
                 key={r.id}
                 className="bg-background rounded-md border p-3 text-sm shadow-sm"
               >
-                <p className="mb-1 font-medium">{r.title}</p>
+                <div className="mb-1 flex min-w-0 items-baseline gap-2">
+                  <p className="min-w-0 truncate font-medium">{r.title}</p>
+                  {r.subtitle ? (
+                    <p className="text-muted-foreground min-w-0 truncate text-xs">
+                      {r.subtitle}
+                    </p>
+                  ) : null}
+                </div>
                 <p className="text-muted-foreground">
                   {citations[r.id] ?? 'Sin cita generada'}
                 </p>
