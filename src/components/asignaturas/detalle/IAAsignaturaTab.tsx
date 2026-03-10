@@ -111,25 +111,28 @@ export function IAAsignaturaTab({
     if (!rawMessages) return []
     return rawMessages.flatMap((m) => {
       const msgs = []
+
+      // 1. Mensaje del usuario
       msgs.push({ id: `${m.id}-user`, role: 'user', content: m.mensaje })
+
+      // 2. Respuesta de la IA
       if (m.respuesta) {
+        // Mapeamos TODAS las recomendaciones del array
+        const sugerencias =
+          m.propuesta?.recommendations?.map((rec: any, index: number) => ({
+            id: `${m.id}-sug-${index}`, // ID único por sugerencia
+            messageId: m.id,
+            campoKey: rec.campo_afectado,
+            campoNombre: rec.campo_afectado.replace(/_/g, ' '),
+            valorSugerido: rec.texto_mejora,
+            aceptada: rec.aplicada,
+          })) || []
+
         msgs.push({
           id: `${m.id}-ai`,
           role: 'assistant',
           content: m.respuesta,
-          sugerencia: m.propuesta?.recommendations?.[0]
-            ? {
-                id: m.id,
-                campoKey: m.propuesta.recommendations[0].campo_afectado,
-                campoNombre:
-                  m.propuesta.recommendations[0].campo_afectado.replace(
-                    /_/g,
-                    ' ',
-                  ),
-                valorSugerido: m.propuesta.recommendations[0].texto_mejora,
-                aceptada: m.propuesta.recommendations[0].aplicada,
-              }
-            : null,
+          sugerencias: sugerencias, // Ahora es un plural (array)
         })
       }
       return msgs
@@ -271,6 +274,7 @@ export function IAAsignaturaTab({
         <ScrollArea className="flex-1">
           <div className="space-y-1 pr-3">
             {(showArchived ? archivedChats : activeChats).map((chat: any) => (
+              // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
               <div
                 key={chat.id}
                 onClick={() => {
@@ -324,104 +328,122 @@ export function IAAsignaturaTab({
 
         <div className="relative min-h-0 flex-1">
           <ScrollArea ref={scrollRef} className="h-full w-full">
-            <div className="mx-auto max-w-3xl space-y-6 p-6">
-              {messages.length === 0 && !isSending && (
-                <div className="flex h-full flex-col items-center justify-center space-y-4 text-center opacity-60">
-                  <div className="rounded-full bg-teal-100 p-4">
-                    <Sparkles size={32} className="text-teal-600" />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-slate-700">
-                      Nueva Consultoría IA
-                    </h3>
-                    <p className="max-w-[250px] text-xs text-slate-500">
-                      Selecciona campos con ":" o usa una acción rápida para
-                      comenzar.
-                    </p>
-                  </div>
-                </div>
-              )}
+            <div className="mx-auto max-w-3xl space-y-8 p-6">
               {messages.map((msg) => (
                 <div
                   key={msg.id}
-                  className={`flex ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'} items-start gap-3`}
+                  className={cn(
+                    'flex gap-4',
+                    msg.role === 'user' ? 'flex-row-reverse' : 'flex-row',
+                  )}
                 >
                   <Avatar
-                    className={`h-8 w-8 shrink-0 border ${msg.role === 'assistant' ? 'bg-teal-50' : 'bg-slate-200'}`}
+                    className={cn(
+                      'h-9 w-9 shrink-0 border shadow-sm',
+                      msg.role === 'assistant'
+                        ? 'bg-teal-600 text-white'
+                        : 'bg-slate-100',
+                    )}
                   >
-                    <AvatarFallback className="text-[10px]">
+                    <AvatarFallback>
                       {msg.role === 'assistant' ? (
-                        <Sparkles size={14} className="text-teal-600" />
+                        <Sparkles size={16} />
                       ) : (
-                        <UserCheck size={14} />
+                        <UserCheck size={16} />
                       )}
                     </AvatarFallback>
                   </Avatar>
+
                   <div
-                    className={`flex max-w-[85%] flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}
+                    className={cn(
+                      'flex max-w-[85%] flex-col gap-3',
+                      msg.role === 'user' ? 'items-end' : 'items-start',
+                    )}
                   >
                     <div
                       className={cn(
-                        'rounded-2xl p-3 text-sm whitespace-pre-wrap shadow-sm',
+                        'relative overflow-hidden rounded-2xl border shadow-sm',
                         msg.role === 'user'
-                          ? 'rounded-tr-none bg-teal-600 text-white'
-                          : 'rounded-tl-none border bg-white text-slate-700',
+                          ? 'rounded-tr-none border-teal-700 bg-teal-600 px-4 py-3 text-white'
+                          : 'w-full rounded-tl-none border-slate-200 bg-white text-slate-800',
                       )}
                     >
-                      {msg.content}
-                    </div>
-
-                    {msg.sugerencia && !msg.sugerencia.aceptada && (
-                      <div className="animate-in fade-in slide-in-from-top-1 mt-3 w-full">
-                        <div className="rounded-xl border border-teal-100 bg-white p-4 shadow-md">
-                          <p className="mb-2 text-[10px] font-bold text-slate-400 uppercase">
-                            Propuesta: {msg.sugerencia.campoNombre}
-                          </p>
-                          <div className="mb-4 max-h-40 overflow-y-auto rounded-lg bg-slate-50 p-3 text-xs text-slate-600 italic">
-                            {msg.sugerencia.valorSugerido}
-                          </div>
-                          <div className="flex gap-2">
-                            <Button
-                              size="sm"
-                              onClick={() => onAcceptSuggestion(msg.sugerencia)}
-                              className="h-8 bg-teal-600 hover:bg-teal-700"
-                            >
-                              <Check size={14} className="mr-1" /> Aplicar
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => onRejectSuggestion(msg.id)}
-                              className="h-8"
-                            >
-                              <X size={14} className="mr-1" /> Descartar
-                            </Button>
-                          </div>
-                        </div>
+                      {/* Texto del mensaje principal */}
+                      <div
+                        className={cn(
+                          'text-sm leading-relaxed',
+                          msg.role === 'assistant' && 'p-4',
+                        )}
+                      >
+                        {msg.content}
                       </div>
-                    )}
+
+                      {/* CONTENEDOR DE SUGERENCIAS INTEGRADO */}
+                      {msg.role === 'assistant' &&
+                        msg.sugerencias &&
+                        msg.sugerencias.length > 0 && (
+                          <div className="space-y-3 border-t bg-slate-50/50 p-3">
+                            <p className="mb-1 text-[10px] font-bold text-slate-400 uppercase">
+                              Mejoras disponibles:
+                            </p>
+                            {msg.sugerencias.map((sug: any) =>
+                              sug.aceptada ? (
+                                /* --- ESTADO: YA APLICADO (Basado en tu última imagen) --- */
+                                <div
+                                  key={sug.id}
+                                  className="group flex flex-col rounded-xl border border-slate-100 bg-white p-3 shadow-sm transition-all"
+                                >
+                                  <div className="mb-3 flex items-center justify-between gap-4">
+                                    <span className="text-sm font-bold text-slate-800">
+                                      {sug.campoNombre}
+                                    </span>
+
+                                    {/* Badge de Aplicado */}
+                                    <div className="flex items-center gap-1.5 rounded-full border border-slate-100 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-400">
+                                      <Check size={14} />
+                                      Aplicado
+                                    </div>
+                                  </div>
+
+                                  <div className="rounded-lg border border-teal-100 bg-teal-50/30 p-3 text-xs leading-relaxed text-slate-500">
+                                    "{sug.valorSugerido}"
+                                  </div>
+                                </div>
+                              ) : (
+                                /* --- ESTADO: PENDIENTE POR APLICAR --- */
+                                <div
+                                  key={sug.id}
+                                  className="group flex flex-col rounded-xl border border-teal-100 bg-white p-3 shadow-sm transition-all hover:border-teal-200"
+                                >
+                                  <div className="mb-3 flex items-center justify-between gap-4">
+                                    <span className="max-w-[150px] truncate rounded-lg border border-teal-100 bg-teal-50/50 px-2.5 py-1 text-[10px] font-bold tracking-wider text-teal-700 uppercase">
+                                      {sug.campoNombre}
+                                    </span>
+
+                                    <Button
+                                      size="sm"
+                                      className="h-8 w-auto bg-teal-600 px-4 text-xs font-semibold shadow-sm transition-colors hover:bg-teal-700"
+                                      onClick={() => onAcceptSuggestion(sug)}
+                                    >
+                                      <Check size={14} className="mr-1.5" />
+                                      Aplicar mejora
+                                    </Button>
+                                  </div>
+
+                                  <div className="line-clamp-4 rounded-lg border border-dashed border-slate-200 bg-slate-50/50 p-3 text-xs leading-relaxed text-slate-600 italic">
+                                    "{sug.valorSugerido}"
+                                  </div>
+                                </div>
+                              ),
+                            )}
+                          </div>
+                        )}
+                    </div>
                   </div>
                 </div>
               ))}
-              {isAiThinking && (
-                <div className="animate-in fade-in flex flex-row items-start gap-3 duration-300">
-                  <Avatar className="h-8 w-8 shrink-0 border bg-teal-50">
-                    <AvatarFallback>
-                      <Sparkles
-                        size={14}
-                        className="animate-pulse text-teal-600"
-                      />
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="rounded-2xl rounded-tl-none border bg-white p-4 shadow-sm">
-                    <div className="flex gap-1.5">
-                      <div className="h-2 w-2 animate-bounce rounded-full bg-teal-400 [animation-delay:-0.3s]" />
-                      <div className="h-2 w-2 animate-bounce rounded-full bg-teal-400 [animation-delay:-0.15s]" />
-                      <div className="h-2 w-2 animate-bounce rounded-full bg-teal-400" />
-                    </div>
-                  </div>
-                </div>
-              )}
+              {/* Espacio extra al final para que el scroll no tape el último mensaje */}
+              <div className="h-4" />
             </div>
           </ScrollArea>
         </div>
