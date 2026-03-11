@@ -50,7 +50,7 @@ import { buscar_bibliografia } from '@/data'
 import { useCreateBibliografia } from '@/data/hooks/useSubjects'
 import { cn } from '@/lib/utils'
 
-type MetodoBibliografia = 'MANUAL' | 'IA' | null
+type MetodoBibliografia = 'MANUAL' | 'EN_LINEA' | null
 export type FormatoCita = 'apa' | 'ieee' | 'vancouver' | 'chicago'
 
 type IdiomaBibliografia =
@@ -462,7 +462,7 @@ export function NuevaBibliografiaModalContainer({
   const localeCacheRef = useRef(new Map<string, string>())
 
   const titleOverrides =
-    wizard.metodo === 'IA'
+    wizard.metodo === 'EN_LINEA'
       ? { paso2: 'Sugerencias', paso3: 'Estructura' }
       : { paso2: 'Datos básicos', paso3: 'Detalles' }
 
@@ -474,7 +474,7 @@ export function NuevaBibliografiaModalContainer({
   }
 
   const refsForStep3: Array<BibliografiaRef> =
-    wizard.metodo === 'IA'
+    wizard.metodo === 'EN_LINEA'
       ? wizard.ia.sugerencias
           .filter((s) => s.selected)
           .map((s) => endpointResultToRef(iaSugerenciaToEndpointResult(s)))
@@ -501,10 +501,10 @@ export function NuevaBibliografiaModalContainer({
   }, [wizard.citaEdits, wizard.formato, wizard.refs])
 
   const canContinueDesdeMetodo =
-    wizard.metodo === 'MANUAL' || wizard.metodo === 'IA'
+    wizard.metodo === 'MANUAL' || wizard.metodo === 'EN_LINEA'
 
   const canContinueDesdePaso2 =
-    wizard.metodo === 'IA'
+    wizard.metodo === 'EN_LINEA'
       ? wizard.ia.sugerencias.some((s) => s.selected)
       : wizard.manual.refs.length > 0
 
@@ -842,7 +842,7 @@ export function NuevaBibliografiaModalContainer({
 
               {idx === 1 && (
                 <Wizard.Stepper.Panel>
-                  {wizard.metodo === 'IA' ? (
+                  {wizard.metodo === 'EN_LINEA' ? (
                     <SugerenciasStep
                       q={wizard.ia.q}
                       idioma={wizard.ia.idioma}
@@ -1001,11 +1001,11 @@ function MetodoStep({
       <Card
         className={cn(
           'cursor-pointer transition-all',
-          isSelected('IA') && 'ring-ring ring-2',
+          isSelected('EN_LINEA') && 'ring-ring ring-2',
         )}
         role="button"
         tabIndex={0}
-        onClick={() => onChange('IA')}
+        onClick={() => onChange('EN_LINEA')}
       >
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -1097,22 +1097,46 @@ function SugerenciasStep({
               </Select>
             </div>
 
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onGenerate}
-              disabled={isLoading || q.trim().length === 0}
-              className="gap-2"
-            >
-              {isLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <RefreshCw className="h-3.5 w-3.5" />
-              )}
-              {sugerencias.length > 0
-                ? 'Generar más sugerencias'
-                : 'Generar sugerencias'}
-            </Button>
+            {!isLoading && q.trim().length < 3 ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-block">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={onGenerate}
+                      disabled={true}
+                      className="gap-2"
+                    >
+                      <RefreshCw className="h-3.5 w-3.5" />
+                      {sugerencias.length > 0
+                        ? 'Generar más sugerencias'
+                        : 'Generar sugerencias'}
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="top" sideOffset={6} className="max-w-xs">
+                  <p>El query debe ser de al menos 3 caracteres</p>
+                </TooltipContent>
+              </Tooltip>
+            ) : (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onGenerate}
+                disabled={isLoading || q.trim().length < 3}
+                className="gap-2"
+              >
+                {isLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-3.5 w-3.5" />
+                )}
+                {sugerencias.length > 0
+                  ? 'Generar más sugerencias'
+                  : 'Generar sugerencias'}
+              </Button>
+            )}
           </div>
 
           {errorMessage ? (
@@ -1689,7 +1713,11 @@ function ResumenStep({
   const basicas = refs.filter((r) => r.tipo === 'BASICA')
   const complementarias = refs.filter((r) => r.tipo === 'COMPLEMENTARIA')
   const metodoLabel =
-    metodo === 'MANUAL' ? 'Manual' : metodo === 'IA' ? 'Buscar en línea' : '—'
+    metodo === 'MANUAL'
+      ? 'Manual'
+      : metodo === 'EN_LINEA'
+        ? 'Buscar en línea'
+        : '—'
 
   return (
     <div className="space-y-8">
