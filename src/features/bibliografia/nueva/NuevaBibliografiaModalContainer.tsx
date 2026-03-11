@@ -8,7 +8,14 @@ import {
   RefreshCw,
   X,
 } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 
 import type { BuscarBibliografiaRequest } from '@/data'
 import type {
@@ -50,7 +57,7 @@ import { buscar_bibliografia } from '@/data'
 import { useCreateBibliografia } from '@/data/hooks/useSubjects'
 import { cn } from '@/lib/utils'
 
-type MetodoBibliografia = 'MANUAL' | 'IA' | null
+type MetodoBibliografia = 'MANUAL' | 'EN_LINEA' | null
 export type FormatoCita = 'apa' | 'ieee' | 'vancouver' | 'chicago'
 
 type IdiomaBibliografia =
@@ -101,6 +108,9 @@ const IDIOMA_TO_OPEN_LIBRARY: Record<IdiomaBibliografia, string | undefined> = {
   RU: 'rus',
 }
 
+const MIN_YEAR = 1450
+const MAX_YEAR = new Date().getFullYear() + 1
+
 type CSLAuthor = {
   family: string
   given: string
@@ -112,7 +122,8 @@ type CSLItem = {
   title: string
   author: Array<CSLAuthor>
   publisher?: string
-  issued?: { 'date-parts': Array<Array<number>> }
+  issued?: { 'date-parts': Array<Array<number>>; circa?: boolean }
+  status?: string
   ISBN?: string
 }
 
@@ -131,6 +142,8 @@ type BibliografiaRef = {
   authors: Array<string>
   publisher?: string
   year?: number
+  yearIsApproximate?: boolean
+  isInPress?: boolean
   isbn?: string
 
   tipo: BibliografiaTipo
@@ -207,6 +220,19 @@ function tryParseYear(publishedDate?: string): number | undefined {
   if (!match) return undefined
   const year = Number.parseInt(match[0], 10)
   return Number.isFinite(year) ? year : undefined
+}
+
+function sanitizeYearInput(value: string): string {
+  return value.replace(/[^\d]/g, '').slice(0, 4)
+}
+
+function tryParseStrictYear(value: string): number | undefined {
+  const cleaned = sanitizeYearInput(value)
+  if (!/^\d{4}$/.test(cleaned)) return undefined
+  const year = Number.parseInt(cleaned, 10)
+  if (!Number.isFinite(year)) return undefined
+  if (year < MIN_YEAR || year > MAX_YEAR) return undefined
+  return year
 }
 
 function randomUUID(): string {
@@ -425,6 +451,8 @@ export function NuevaBibliografiaModalContainer({
   const navigate = useNavigate()
   const createBibliografia = useCreateBibliografia()
 
+  const formatoStepRef = useRef<FormatoYCitasStepHandle | null>(null)
+
   const [wizard, setWizard] = useState<WizardState>({
     metodo: null,
     ia: {
@@ -462,7 +490,7 @@ export function NuevaBibliografiaModalContainer({
   const localeCacheRef = useRef(new Map<string, string>())
 
   const titleOverrides =
-    wizard.metodo === 'IA'
+    wizard.metodo === 'EN_LINEA'
       ? { paso2: 'Sugerencias', paso3: 'Estructura' }
       : { paso2: 'Datos básicos', paso3: 'Detalles' }
 
@@ -474,7 +502,7 @@ export function NuevaBibliografiaModalContainer({
   }
 
   const refsForStep3: Array<BibliografiaRef> =
-    wizard.metodo === 'IA'
+    wizard.metodo === 'EN_LINEA'
       ? wizard.ia.sugerencias
           .filter((s) => s.selected)
           .map((s) => endpointResultToRef(iaSugerenciaToEndpointResult(s)))
@@ -501,10 +529,10 @@ export function NuevaBibliografiaModalContainer({
   }, [wizard.citaEdits, wizard.formato, wizard.refs])
 
   const canContinueDesdeMetodo =
-    wizard.metodo === 'MANUAL' || wizard.metodo === 'IA'
+    wizard.metodo === 'MANUAL' || wizard.metodo === 'EN_LINEA'
 
   const canContinueDesdePaso2 =
-    wizard.metodo === 'IA'
+    wizard.metodo === 'EN_LINEA'
       ? wizard.ia.sugerencias.some((s) => s.selected)
       : wizard.manual.refs.length > 0
 
@@ -512,6 +540,8 @@ export function NuevaBibliografiaModalContainer({
 
   async function handleBuscarSugerencias() {
     const hadNoSugerenciasBefore = wizard.ia.sugerencias.length === 0
+
+    if (wizard.ia.sugerencias.filter((s) => s.selected).length >= 20) return
 
     const q = wizard.ia.q.trim()
     if (!q) return
@@ -633,13 +663,21 @@ export function NuevaBibliografiaModalContainer({
 
       const cslItems: Record<string, CSLItem> = {}
       for (const r of refs) {
+        const trimmedTitle = r.title.trim()
         cslItems[r.id] = {
           id: r.id,
           type: 'book',
-          title: r.title || 'Sin título',
+          title: trimmedTitle || 'Sin título',
           author: r.authors.map(parsearAutor),
           publisher: r.publisher,
-          issued: r.year ? { 'date-parts': [[r.year]] } : undefined,
+          issued:
+            r.isInPress || !r.year
+              ? undefined
+              : {
+                  'date-parts': [[r.year]],
+                  circa: r.yearIsApproximate ? true : undefined,
+                },
+          status: r.isInPress ? 'in press' : undefined,
           ISBN: r.isbn,
         }
       }
@@ -797,7 +835,14 @@ export function NuevaBibliografiaModalContainer({
                     </Button>
                   ) : (
                     <Button
-                      onClick={() => methods.next()}
+                      onClick={() => {
+                        if (idx === 2) {
+                          const ok =
+                            formatoStepRef.current?.validateBeforeNext() ?? true
+                          if (!ok) return
+                        }
+                        methods.next()
+                      }}
                       disabled={
                         wizard.ia.isLoading ||
                         wizard.isSaving ||
@@ -842,7 +887,7 @@ export function NuevaBibliografiaModalContainer({
 
               {idx === 1 && (
                 <Wizard.Stepper.Panel>
-                  {wizard.metodo === 'IA' ? (
+                  {wizard.metodo === 'EN_LINEA' ? (
                     <SugerenciasStep
                       q={wizard.ia.q}
                       idioma={wizard.ia.idioma}
@@ -908,6 +953,7 @@ export function NuevaBibliografiaModalContainer({
               {idx === 2 && (
                 <Wizard.Stepper.Panel>
                   <FormatoYCitasStep
+                    ref={formatoStepRef}
                     refs={wizard.refs}
                     formato={wizard.formato}
                     citations={citationsForFormato}
@@ -1001,11 +1047,11 @@ function MetodoStep({
       <Card
         className={cn(
           'cursor-pointer transition-all',
-          isSelected('IA') && 'ring-ring ring-2',
+          isSelected('EN_LINEA') && 'ring-ring ring-2',
         )}
         role="button"
         tabIndex={0}
-        onClick={() => onChange('IA')}
+        onClick={() => onChange('EN_LINEA')}
       >
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -1068,7 +1114,8 @@ function SugerenciasStep({
             <Label>Búsqueda</Label>
             <Input
               value={q}
-              onChange={(e) => onChange({ q: e.target.value })}
+              maxLength={200}
+              onChange={(e) => onChange({ q: e.target.value.slice(0, 200) })}
               placeholder="Ej: ingeniería de software, bases de datos..."
             />
           </div>
@@ -1097,22 +1144,48 @@ function SugerenciasStep({
               </Select>
             </div>
 
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onGenerate}
-              disabled={isLoading || q.trim().length === 0}
-              className="gap-2"
-            >
-              {isLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <RefreshCw className="h-3.5 w-3.5" />
-              )}
-              {sugerencias.length > 0
-                ? 'Generar más sugerencias'
-                : 'Generar sugerencias'}
-            </Button>
+            {!isLoading && q.trim().length < 3 ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-block">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={onGenerate}
+                      disabled={true}
+                      className="gap-2"
+                    >
+                      <RefreshCw className="h-3.5 w-3.5" />
+                      {sugerencias.length > 0
+                        ? 'Generar más sugerencias'
+                        : 'Generar sugerencias'}
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="top" sideOffset={6} className="max-w-xs">
+                  <p>El query debe ser de al menos 3 caracteres</p>
+                </TooltipContent>
+              </Tooltip>
+            ) : (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onGenerate}
+                disabled={
+                  isLoading || q.trim().length < 3 || selectedCount >= 20
+                }
+                className="gap-2"
+              >
+                {isLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-3.5 w-3.5" />
+                )}
+                {sugerencias.length > 0
+                  ? 'Generar más sugerencias'
+                  : 'Generar sugerencias'}
+              </Button>
+            )}
           </div>
 
           {errorMessage ? (
@@ -1310,9 +1383,19 @@ function DatosBasicosManualStep({
             <Label>Título</Label>
             <Input
               value={draft.title}
+              maxLength={500}
               onChange={(e) =>
-                onChangeDraft({ ...draft, title: e.target.value })
+                onChangeDraft({
+                  ...draft,
+                  title: e.target.value.slice(0, 500),
+                })
               }
+              onBlur={() => {
+                const trimmed = draft.title.trim()
+                if (trimmed !== draft.title) {
+                  onChangeDraft({ ...draft, title: trimmed })
+                }
+              }}
             />
           </div>
 
@@ -1320,8 +1403,12 @@ function DatosBasicosManualStep({
             <Label>Autores (uno por línea)</Label>
             <Textarea
               value={draft.authorsText}
+              maxLength={2000}
               onChange={(e) =>
-                onChangeDraft({ ...draft, authorsText: e.target.value })
+                onChangeDraft({
+                  ...draft,
+                  authorsText: e.target.value.slice(0, 2000),
+                })
               }
               className="min-h-22.5"
             />
@@ -1333,8 +1420,12 @@ function DatosBasicosManualStep({
               <Input
                 value={draft.publisher}
                 onChange={(e) =>
-                  onChangeDraft({ ...draft, publisher: e.target.value })
+                  onChangeDraft({
+                    ...draft,
+                    publisher: e.target.value.slice(0, 300),
+                  })
                 }
+                maxLength={300}
               />
             </div>
             <div className="grid gap-2">
@@ -1342,9 +1433,23 @@ function DatosBasicosManualStep({
               <Input
                 value={draft.yearText}
                 onChange={(e) =>
-                  onChangeDraft({ ...draft, yearText: e.target.value })
+                  onChangeDraft({
+                    ...draft,
+                    yearText: sanitizeYearInput(e.target.value),
+                  })
                 }
-                placeholder="2024"
+                onBlur={() => {
+                  if (!draft.yearText) return
+                  if (!tryParseStrictYear(draft.yearText)) {
+                    onChangeDraft({ ...draft, yearText: '' })
+                  }
+                }}
+                type="number"
+                inputMode="numeric"
+                step={1}
+                min={MIN_YEAR}
+                max={MAX_YEAR}
+                placeholder={(MAX_YEAR - 1).toString()}
               />
             </div>
           </div>
@@ -1354,8 +1459,12 @@ function DatosBasicosManualStep({
             <Input
               value={draft.isbn}
               onChange={(e) =>
-                onChangeDraft({ ...draft, isbn: e.target.value })
+                onChangeDraft({
+                  ...draft,
+                  isbn: e.target.value.slice(0, 20),
+                })
               }
+              maxLength={20}
             />
           </div>
 
@@ -1363,17 +1472,20 @@ function DatosBasicosManualStep({
             type="button"
             disabled={!canAdd}
             onClick={() => {
-              const year = Number.parseInt(draft.yearText.trim(), 10)
+              const year = tryParseStrictYear(draft.yearText)
+              const title = draft.title.trim()
+              if (!title) return
+
               const ref: BibliografiaRef = {
                 id: `manual-${randomUUID()}`,
                 source: 'MANUAL',
-                title: draft.title.trim(),
+                title,
                 authors: draft.authorsText
                   .split(/\r?\n/)
                   .map((x) => x.trim())
                   .filter(Boolean),
                 publisher: draft.publisher.trim() || undefined,
-                year: Number.isFinite(year) ? year : undefined,
+                year,
                 isbn: draft.isbn.trim() || undefined,
                 tipo: 'BASICA',
               }
@@ -1425,16 +1537,11 @@ function DatosBasicosManualStep({
   )
 }
 
-function FormatoYCitasStep({
-  refs,
-  formato,
-  citations,
-  generatingIds,
-  onChangeFormato,
-  onRegenerate,
-  onChangeRef,
-  onChangeTipo,
-}: {
+type FormatoYCitasStepHandle = {
+  validateBeforeNext: () => boolean
+}
+
+type FormatoYCitasStepProps = {
   refs: Array<BibliografiaRef>
   formato: FormatoCita | null
   citations: Record<string, string>
@@ -1443,18 +1550,47 @@ function FormatoYCitasStep({
   onRegenerate: () => void
   onChangeRef: (id: string, patch: Partial<BibliografiaRef>) => void
   onChangeTipo: (id: string, tipo: BibliografiaTipo) => void
-}) {
+}
+
+const FormatoYCitasStep = forwardRef<
+  FormatoYCitasStepHandle,
+  FormatoYCitasStepProps
+>(function FormatoYCitasStep(
+  {
+    refs,
+    formato,
+    citations,
+    generatingIds,
+    onChangeFormato,
+    onRegenerate,
+    onChangeRef,
+    onChangeTipo,
+  },
+  ref,
+) {
   const isGeneratingAny = generatingIds.size > 0
   const [authorsDraftById, setAuthorsDraftById] = useState<
     Record<string, string>
   >({})
+  const [yearDraftById, setYearDraftById] = useState<Record<string, string>>({})
+  const [titleErrorsById, setTitleErrorsById] = useState<
+    Record<string, string>
+  >({})
+
+  const titleInputRefs = useRef<Record<string, HTMLInputElement | null>>({})
+
+  const scrollToTitle = (id: string) => {
+    const el = titleInputRefs.current[id]
+    if (!el) return
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    el.focus()
+  }
 
   useEffect(() => {
     const ids = new Set(refs.map((r) => r.id))
     setAuthorsDraftById((prev) => {
       let next = prev
 
-      // Remove drafts for refs that no longer exist
       for (const id of Object.keys(prev)) {
         if (!ids.has(id)) {
           if (next === prev) next = { ...prev }
@@ -1462,7 +1598,6 @@ function FormatoYCitasStep({
         }
       }
 
-      // Initialize drafts for new refs (do not override existing edits)
       for (const r of refs) {
         if (typeof next[r.id] !== 'string') {
           if (next === prev) next = { ...prev }
@@ -1472,11 +1607,60 @@ function FormatoYCitasStep({
 
       return next
     })
+
+    setYearDraftById((prev) => {
+      let next = prev
+
+      for (const id of Object.keys(prev)) {
+        if (!ids.has(id)) {
+          if (next === prev) next = { ...prev }
+          delete next[id]
+        }
+      }
+
+      for (const r of refs) {
+        if (typeof next[r.id] !== 'string') {
+          if (next === prev) next = { ...prev }
+          next[r.id] = r.isInPress
+            ? ''
+            : typeof r.year === 'number'
+              ? String(r.year)
+              : ''
+        }
+      }
+
+      return next
+    })
   }, [refs])
+
+  const validateBeforeNext = () => {
+    const nextErrors: Record<string, string> = {}
+    let firstInvalidId: string | undefined
+
+    for (const r of refs) {
+      const trimmed = r.title.trim()
+      if (r.title !== trimmed) onChangeRef(r.id, { title: trimmed })
+
+      if (!trimmed) {
+        nextErrors[r.id] = 'El título es requerido'
+        if (!firstInvalidId) firstInvalidId = r.id
+      }
+    }
+
+    setTitleErrorsById(nextErrors)
+
+    if (firstInvalidId) {
+      scrollToTitle(firstInvalidId)
+      return false
+    }
+
+    return true
+  }
+
+  useImperativeHandle(ref, () => ({ validateBeforeNext }))
 
   return (
     <div className="space-y-6">
-      {/* 1. SECCIÓN DE CONTROLES: Sutil, compacta y sticky */}
       <div className="bg-muted/40 border-border sticky top-0 z-10 rounded-lg border p-4 backdrop-blur-md">
         <div className="flex flex-col items-end justify-between gap-4 sm:flex-row">
           <div className="w-full flex-1 space-y-1.5 sm:max-w-xs">
@@ -1501,7 +1685,7 @@ function FormatoYCitasStep({
 
           <Button
             type="button"
-            variant="secondary" // Cambiado a secondary para menor peso visual
+            variant="secondary"
             className="w-full gap-2 sm:w-auto"
             onClick={onRegenerate}
             disabled={!formato || refs.length === 0 || isGeneratingAny}
@@ -1511,25 +1695,17 @@ function FormatoYCitasStep({
         </div>
       </div>
 
-      {/* 2. SECCIÓN DE LISTA: Separación visual clara */}
       <div className="space-y-4">
-        {/* {refs.length > 0 && (
-          <div className="flex items-center gap-2">
-            <h3 className="text-muted-foreground text-sm font-medium">
-              Referencias añadidas
-            </h3>
-            <Badge variant="secondary" className="text-xs">
-              {refs.length}
-            </Badge>
-          </div>
-        )} */}
-
         <div className="space-y-3">
           {refs.map((r) => {
             const isGenerating = generatingIds.has(r.id)
 
+            const titleError = titleErrorsById[r.id]
             const authorsText = authorsDraftById[r.id] ?? r.authors.join('\n')
-            const yearText = typeof r.year === 'number' ? String(r.year) : ''
+            const yearText = r.isInPress
+              ? ''
+              : (yearDraftById[r.id] ??
+                (typeof r.year === 'number' ? String(r.year) : ''))
             const isbnText = r.isbn ?? ''
             const publisherText = r.publisher ?? ''
 
@@ -1538,15 +1714,59 @@ function FormatoYCitasStep({
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-12">
                     <div className="space-y-2 sm:col-span-9">
-                      <Label className="text-xs">Título</Label>
+                      <div className="flex items-center justify-between gap-2">
+                        <Label className="text-xs">Título</Label>
+                        {titleError ? (
+                          <span className="text-destructive text-xs">
+                            {titleError}
+                          </span>
+                        ) : null}
+                      </div>
                       <Input
+                        ref={(el) => {
+                          titleInputRefs.current[r.id] = el
+                        }}
                         value={r.title}
+                        maxLength={500}
+                        aria-invalid={Boolean(titleError)}
+                        className={cn(
+                          titleError &&
+                            'border-destructive focus-visible:ring-destructive',
+                        )}
                         disabled={isGeneratingAny || isGenerating}
-                        onChange={(e) =>
-                          onChangeRef(r.id, {
-                            title: e.currentTarget.value,
-                          })
-                        }
+                        onChange={(e) => {
+                          const nextRaw = e.currentTarget.value.slice(0, 500)
+                          const wasNonEmpty = r.title.trim().length > 0
+                          const isEmptyNow = nextRaw.trim().length === 0
+
+                          onChangeRef(r.id, { title: nextRaw })
+
+                          if (isEmptyNow) {
+                            setTitleErrorsById((prev) => ({
+                              ...prev,
+                              [r.id]: 'El título es requerido',
+                            }))
+                            if (wasNonEmpty) scrollToTitle(r.id)
+                          } else {
+                            setTitleErrorsById((prev) => {
+                              if (!prev[r.id]) return prev
+                              const next = { ...prev }
+                              delete next[r.id]
+                              return next
+                            })
+                          }
+                        }}
+                        onBlur={() => {
+                          const trimmed = r.title.trim()
+                          if (trimmed !== r.title)
+                            onChangeRef(r.id, { title: trimmed })
+                          if (!trimmed) {
+                            setTitleErrorsById((prev) => ({
+                              ...prev,
+                              [r.id]: 'El título es requerido',
+                            }))
+                          }
+                        }}
                       />
                     </div>
 
@@ -1575,10 +1795,11 @@ function FormatoYCitasStep({
                       <Label className="text-xs">Autores (uno por línea)</Label>
                       <Textarea
                         value={authorsText}
+                        maxLength={2000}
                         disabled={isGeneratingAny || isGenerating}
                         className="min-h-22.5"
                         onChange={(e) => {
-                          const nextText = e.currentTarget.value
+                          const nextText = e.currentTarget.value.slice(0, 2000)
                           setAuthorsDraftById((prev) => ({
                             ...prev,
                             [r.id]: nextText,
@@ -1598,13 +1819,14 @@ function FormatoYCitasStep({
                       <Label className="text-xs">Editorial</Label>
                       <Input
                         value={publisherText}
+                        maxLength={300}
                         disabled={isGeneratingAny || isGenerating}
-                        onChange={(e) =>
+                        onChange={(e) => {
+                          const raw = e.currentTarget.value.slice(0, 300)
                           onChangeRef(r.id, {
-                            publisher:
-                              e.currentTarget.value.trim() || undefined,
+                            publisher: raw.trim() || undefined,
                           })
-                        }
+                        }}
                       />
                     </div>
                   </div>
@@ -1613,29 +1835,99 @@ function FormatoYCitasStep({
                     <div className="space-y-2 sm:col-span-3">
                       <Label className="text-xs">Año</Label>
                       <Input
+                        type="number"
+                        inputMode="numeric"
+                        step={1}
+                        min={MIN_YEAR}
+                        max={MAX_YEAR}
                         value={yearText}
-                        disabled={isGeneratingAny || isGenerating}
-                        placeholder="2024"
+                        disabled={
+                          isGeneratingAny ||
+                          isGenerating ||
+                          Boolean(r.isInPress)
+                        }
+                        placeholder={(MAX_YEAR - 1).toString()}
                         onChange={(e) => {
-                          const raw = e.currentTarget.value
-                          const year = Number.parseInt(raw.trim(), 10)
+                          const next = sanitizeYearInput(e.currentTarget.value)
+                          setYearDraftById((prev) => ({
+                            ...prev,
+                            [r.id]: next,
+                          }))
+
+                          const year = tryParseStrictYear(next)
                           onChangeRef(r.id, {
-                            year: Number.isFinite(year) ? year : undefined,
+                            year,
                           })
+                        }}
+                        onBlur={() => {
+                          const current = yearDraftById[r.id] ?? ''
+                          if (current.length === 0) return
+                          const parsed = tryParseStrictYear(current)
+                          if (!parsed) {
+                            setYearDraftById((prev) => ({
+                              ...prev,
+                              [r.id]: '',
+                            }))
+                            onChangeRef(r.id, { year: undefined })
+                          }
                         }}
                       />
                     </div>
 
-                    <div className="space-y-2 sm:col-span-9">
+                    <div className="space-y-2 sm:col-span-3">
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          checked={Boolean(r.yearIsApproximate)}
+                          disabled={isGeneratingAny || isGenerating}
+                          onCheckedChange={(checked) => {
+                            const nextChecked = Boolean(checked)
+                            onChangeRef(r.id, {
+                              yearIsApproximate: nextChecked,
+                              isInPress: nextChecked ? false : r.isInPress,
+                            })
+                          }}
+                        />
+                        <span className="text-xs">Año aproximado</span>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          checked={Boolean(r.isInPress)}
+                          disabled={isGeneratingAny || isGenerating}
+                          onCheckedChange={(checked) => {
+                            const nextChecked = Boolean(checked)
+                            onChangeRef(r.id, {
+                              isInPress: nextChecked,
+                              yearIsApproximate: nextChecked
+                                ? false
+                                : r.yearIsApproximate,
+                              year: nextChecked ? undefined : r.year,
+                            })
+
+                            if (nextChecked) {
+                              setYearDraftById((prev) => ({
+                                ...prev,
+                                [r.id]: '',
+                              }))
+                            }
+                          }}
+                        />
+                        <span className="text-xs">En prensa</span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2 sm:col-span-6">
                       <Label className="text-xs">ISBN</Label>
                       <Input
                         value={isbnText}
+                        maxLength={20}
                         disabled={isGeneratingAny || isGenerating}
-                        onChange={(e) =>
+                        onChange={(e) => {
+                          const next = e.currentTarget.value.slice(0, 20)
                           onChangeRef(r.id, {
-                            isbn: e.currentTarget.value.trim() || undefined,
+                            isbn: next.trim() || undefined,
                           })
-                        }
+                        }}
                       />
                     </div>
                   </div>
@@ -1652,11 +1944,6 @@ function FormatoYCitasStep({
                               Cita generada…
                             </p>
                           )}
-                          {/* {infoText ? (
-                            <p className="text-muted-foreground mt-1 text-xs">
-                              {infoText}
-                            </p>
-                          ) : null} */}
                         </div>
                         {isGenerating ? (
                           <Loader2 className="text-muted-foreground mt-0.5 h-4 w-4 animate-spin" />
@@ -1672,7 +1959,7 @@ function FormatoYCitasStep({
       </div>
     </div>
   )
-}
+})
 
 function ResumenStep({
   metodo,
@@ -1689,7 +1976,11 @@ function ResumenStep({
   const basicas = refs.filter((r) => r.tipo === 'BASICA')
   const complementarias = refs.filter((r) => r.tipo === 'COMPLEMENTARIA')
   const metodoLabel =
-    metodo === 'MANUAL' ? 'Manual' : metodo === 'IA' ? 'Buscar en línea' : '—'
+    metodo === 'MANUAL'
+      ? 'Manual'
+      : metodo === 'EN_LINEA'
+        ? 'Buscar en línea'
+        : '—'
 
   return (
     <div className="space-y-8">
@@ -1732,17 +2023,41 @@ function ResumenStep({
                 key={r.id}
                 className="bg-background rounded-md border p-3 text-sm shadow-sm"
               >
-                <div className="mb-1 flex min-w-0 items-baseline gap-2">
-                  <p className="min-w-0 truncate font-medium">{r.title}</p>
-                  {r.subtitle ? (
-                    <p className="text-muted-foreground min-w-0 truncate text-xs">
-                      {r.subtitle}
-                    </p>
-                  ) : null}
-                </div>
-                <p className="text-muted-foreground">
-                  {citations[r.id] ?? 'Sin cita generada'}
-                </p>
+                {(() => {
+                  const warnings = [
+                    r.authors.length === 0 ? 'Falta autor(es)' : null,
+                    !r.isInPress && !r.year ? 'Falta año' : null,
+                    !r.publisher ? 'Falta editorial' : null,
+                    !r.isbn ? 'Falta ISBN' : null,
+                  ].filter(Boolean) as Array<string>
+
+                  return (
+                    <>
+                      <div className="mb-1 flex min-w-0 items-baseline gap-2">
+                        <p className="min-w-0 truncate font-medium">
+                          {r.title}
+                        </p>
+                        {r.subtitle ? (
+                          <p className="text-muted-foreground min-w-0 truncate text-xs">
+                            {r.subtitle}
+                          </p>
+                        ) : null}
+                      </div>
+                      <p className="text-muted-foreground">
+                        {citations[r.id] ?? 'Sin cita generada'}
+                      </p>
+                      {warnings.length > 0 ? (
+                        <div className="mt-2 space-y-1">
+                          {warnings.map((w) => (
+                            <p key={w} className="text-destructive text-xs">
+                              {w}
+                            </p>
+                          ))}
+                        </div>
+                      ) : null}
+                    </>
+                  )
+                })()}
               </div>
             ))}
           </div>
@@ -1761,17 +2076,41 @@ function ResumenStep({
                 key={r.id}
                 className="bg-background rounded-md border p-3 text-sm shadow-sm"
               >
-                <div className="mb-1 flex min-w-0 items-baseline gap-2">
-                  <p className="min-w-0 truncate font-medium">{r.title}</p>
-                  {r.subtitle ? (
-                    <p className="text-muted-foreground min-w-0 truncate text-xs">
-                      {r.subtitle}
-                    </p>
-                  ) : null}
-                </div>
-                <p className="text-muted-foreground">
-                  {citations[r.id] ?? 'Sin cita generada'}
-                </p>
+                {(() => {
+                  const warnings = [
+                    r.authors.length === 0 ? 'Falta autor(es)' : null,
+                    !r.isInPress && !r.year ? 'Falta año' : null,
+                    !r.publisher ? 'Falta editorial' : null,
+                    !r.isbn ? 'Falta ISBN' : null,
+                  ].filter(Boolean) as Array<string>
+
+                  return (
+                    <>
+                      <div className="mb-1 flex min-w-0 items-baseline gap-2">
+                        <p className="min-w-0 truncate font-medium">
+                          {r.title}
+                        </p>
+                        {r.subtitle ? (
+                          <p className="text-muted-foreground min-w-0 truncate text-xs">
+                            {r.subtitle}
+                          </p>
+                        ) : null}
+                      </div>
+                      <p className="text-muted-foreground">
+                        {citations[r.id] ?? 'Sin cita generada'}
+                      </p>
+                      {warnings.length > 0 ? (
+                        <div className="mt-2 space-y-1">
+                          {warnings.map((w) => (
+                            <p key={w} className="text-destructive text-xs">
+                              {w}
+                            </p>
+                          ))}
+                        </div>
+                      ) : null}
+                    </>
+                  )
+                })()}
               </div>
             ))}
           </div>
