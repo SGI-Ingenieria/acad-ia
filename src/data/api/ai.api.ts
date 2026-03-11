@@ -359,3 +359,19 @@ export async function update_subject_conversation_status(
   if (error) throw error
   return data
 }
+
+export async function update_subject_conversation_name(
+  conversacionId: string,
+  nuevoNombre: string,
+) {
+  const supabase = supabaseBrowser()
+  const { data, error } = await supabase
+    .from('conversaciones_asignatura')
+    .update({ nombre: nuevoNombre }) // Asumiendo que la columna es 'titulo' según tu código previo, o cambia a 'nombre'
+    .eq('id', conversacionId)
+    .select()
+    .single()
+
+  if (error) throw error
+  return data
+}

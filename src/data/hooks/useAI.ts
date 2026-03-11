@@ -19,6 +19,7 @@ import {
   getConversationBySubject,
   ai_subject_chat_v2,
   create_subject_conversation,
+  update_subject_conversation_name,
 } from '../api/ai.api'
 import { supabaseBrowser } from '../supabase/client'
 
@@ -317,6 +318,20 @@ export function useUpdateSubjectConversationStatus() {
       update_subject_conversation_status(payload.id, payload.estado),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['conversation-by-subject'] })
+    },
+  })
+}
+
+export function useUpdateSubjectConversationName() {
+  const qc = useQueryClient()
+
+  return useMutation({
+    mutationFn: (payload: { id: string; nombre: string }) =>
+      update_subject_conversation_name(payload.id, payload.nombre),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['conversation-by-subject'] })
+      // También invalidamos los mensajes si el título se muestra en la cabecera
+      qc.invalidateQueries({ queryKey: ['subject-messages'] })
     },
   })
 }
