@@ -26,6 +26,12 @@ import type {
 import type { TablesInsert } from '@/types/supabase'
 
 import { defineStepper } from '@/components/stepper'
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -38,6 +44,7 @@ import {
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import {
   Select,
   SelectContent,
@@ -45,6 +52,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Separator } from '@/components/ui/separator'
 import { Textarea } from '@/components/ui/textarea'
 import {
   Tooltip,
@@ -56,6 +64,221 @@ import { WizardResponsiveHeader } from '@/components/wizard/WizardResponsiveHead
 import { buscar_bibliografia } from '@/data'
 import { useCreateBibliografia } from '@/data/hooks/useSubjects'
 import { cn } from '@/lib/utils'
+
+type BibliotecaOption = {
+  id: string
+  title: string
+  authors: Array<string>
+  publisher?: string
+  year?: number
+  isbn?: string
+  shelf?: string
+  badgeText?: string
+}
+
+type BibliotecaOptionTemplate = Omit<BibliotecaOption, 'id'>
+
+// Hardcodeado: 3 conjuntos de coincidencias (0, 2 y 5).
+const BIBLIOTECA_MATCH_SETS: Array<Array<BibliotecaOptionTemplate>> = [
+  [],
+  [
+    {
+      title: 'Coincidencia en biblioteca (Ejemplar 1)',
+      authors: ['Autor A', 'Autor B'],
+      publisher: 'Editorial X',
+      year: 2020,
+      isbn: '9780000000001',
+      shelf: 'QA76.9 .A1 2020',
+      badgeText: 'Coincidencia ISBN',
+    },
+    {
+      title: 'Coincidencia en biblioteca (Ejemplar 2)',
+      authors: ['Autor C'],
+      publisher: 'Editorial Y',
+      year: 2016,
+      shelf: 'QA76.9 .A2 2016',
+    },
+  ],
+  [
+    {
+      title: 'Coincidencia en biblioteca (Ejemplar 1)',
+      authors: ['Autor A', 'Autor B'],
+      publisher: 'Editorial X',
+      year: 2020,
+      isbn: '9780000000001',
+      shelf: 'QA76.9 .A1 2020',
+      badgeText: 'Coincidencia ISBN',
+    },
+    {
+      title: 'Coincidencia en biblioteca (Ejemplar 2)',
+      authors: ['Autor C'],
+      publisher: 'Editorial Y',
+      year: 2016,
+      shelf: 'QA76.9 .A2 2016',
+    },
+    {
+      title: 'Coincidencia en biblioteca (Ejemplar 3)',
+      authors: ['Autor D', 'Autor E'],
+      publisher: 'Editorial Z',
+      year: 2014,
+      shelf: 'QA76.9 .A3 2014',
+    },
+    {
+      title: 'Coincidencia en biblioteca (Ejemplar 4)',
+      authors: ['Autor F'],
+      publisher: 'Editorial W',
+      year: 2011,
+      shelf: 'QA76.9 .A4 2011',
+    },
+    {
+      title: 'Coincidencia en biblioteca (Ejemplar 5)',
+      authors: ['Autor G'],
+      publisher: 'Editorial V',
+      year: 2009,
+      shelf: 'QA76.9 .A5 2009',
+    },
+  ],
+]
+
+export function BookSelectionAccordion({
+  onlineSourceLabel,
+  online,
+  options,
+  value,
+  onValueChange,
+}: {
+  onlineSourceLabel: string
+  online: {
+    id: string
+    title: string
+    authorsLine: string
+    year?: number
+    isbn?: string
+  }
+  options: Array<BibliotecaOption>
+  value: string | undefined
+  onValueChange: (value: string) => void
+}) {
+  // Estado inicial indefinido para que nada esté seleccionado por defecto
+  const [selectedBook, setSelectedBook] = useState<string | undefined>(value)
+
+  useEffect(() => {
+    setSelectedBook(value)
+  }, [value])
+
+  const onlineValue = `online:${online.id}`
+
+  const optionBaseClass =
+    'relative flex items-start space-x-3 rounded-lg border p-4 transition-colors'
+
+  const optionClass = (isSelected: boolean) =>
+    cn(
+      optionBaseClass,
+      isSelected
+        ? 'border-primary bg-primary/5'
+        : 'hover:border-primary/30 hover:bg-accent/50',
+    )
+
+  return (
+    <>
+      {/* Un solo RadioGroup controla ambos lados */}
+      <RadioGroup
+        value={selectedBook}
+        onValueChange={(v) => {
+          setSelectedBook(v)
+          onValueChange(v)
+        }}
+        className="flex flex-col gap-6 md:flex-row"
+      >
+        {/* --- LADO IZQUIERDO: Sugerencia Online --- */}
+        <div className="flex-1 space-y-4">
+          <h4 className="text-muted-foreground text-sm font-medium">
+            Sugerencia Original ({onlineSourceLabel})
+          </h4>
+
+          <div className={optionClass(selectedBook === onlineValue)}>
+            <RadioGroupItem
+              value={onlineValue}
+              id={onlineValue}
+              className="mt-1"
+            />
+            <Label
+              htmlFor={onlineValue}
+              className="flex flex-1 cursor-pointer flex-col"
+            >
+              <span className="font-semibold">{online.title}</span>
+              <span className="text-muted-foreground text-sm">
+                {online.authorsLine}
+                {online.year ? ` (${online.year})` : ''}
+              </span>
+              {online.isbn ? (
+                <span className="text-muted-foreground mt-1 text-xs">
+                  ISBN: {online.isbn}
+                </span>
+              ) : null}
+            </Label>
+          </div>
+        </div>
+
+        {/* Separador vertical para escritorio, horizontal en móviles */}
+        <Separator orientation="vertical" className="hidden h-auto md:block" />
+        <Separator orientation="horizontal" className="md:hidden" />
+
+        {/* --- LADO DERECHO: Alternativas de Biblioteca --- */}
+        <div className="flex-1 space-y-4">
+          <h4 className="text-muted-foreground text-sm font-medium">
+            Disponibles en Biblioteca
+          </h4>
+
+          <div className="max-h-75 space-y-3 overflow-y-auto pr-2">
+            {options.length === 0 ? (
+              <div className="text-muted-foreground text-sm">
+                No se encontraron alternativas.
+              </div>
+            ) : (
+              options.map((opt) => {
+                const optValue = `biblio:${opt.id}`
+                const authorsLine = opt.authors.join('; ')
+                const isSelected = selectedBook === optValue
+                return (
+                  <div key={opt.id} className={optionClass(isSelected)}>
+                    <RadioGroupItem
+                      value={optValue}
+                      id={optValue}
+                      className="mt-1 cursor-pointer"
+                    />
+                    <Label
+                      htmlFor={optValue}
+                      className="flex flex-1 cursor-pointer flex-col"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold">{opt.title}</span>
+                        {opt.badgeText ? (
+                          <Badge className="bg-green-600 hover:bg-green-700">
+                            {opt.badgeText}
+                          </Badge>
+                        ) : null}
+                      </div>
+                      <span className="text-muted-foreground text-sm">
+                        {authorsLine}
+                        {opt.year ? ` (${opt.year})` : ''}
+                      </span>
+                      {opt.shelf ? (
+                        <span className="bg-muted mt-2 w-fit rounded px-1 font-mono text-xs">
+                          Estante: {opt.shelf}
+                        </span>
+                      ) : null}
+                    </Label>
+                  </div>
+                )
+              })
+            )}
+          </div>
+        </div>
+      </RadioGroup>
+    </>
+  )
+}
 
 type MetodoBibliografia = 'MANUAL' | 'EN_LINEA' | null
 export type FormatoCita = 'apa' | 'ieee' | 'vancouver' | 'chicago'
@@ -156,6 +379,10 @@ type WizardState = {
       selected: boolean
       endpoint: EndpointResult['endpoint']
       item: GoogleBooksVolume | OpenLibraryDoc
+      biblioteca?: {
+        options?: Array<BibliotecaOption>
+        choiceId?: string
+      }
     }>
     isLoading: boolean
     errorMessage: string | null
@@ -192,9 +419,95 @@ const Wizard = defineStepper(
     title: 'Datos básicos',
     description: 'Seleccionar o capturar',
   },
+  {
+    id: 'biblioteca',
+    title: 'Biblioteca',
+    description: 'Comparar con alternativas de la biblioteca',
+  },
   { id: 'paso3', title: 'Detalles', description: 'Formato y citas' },
   { id: 'resumen', title: 'Resumen', description: 'Confirmar' },
 )
+
+type BibliotecaStepHandle = {
+  validateBeforeNext: () => boolean
+}
+
+function bibliotecaOptionToRef(opt: BibliotecaOption): BibliografiaRef {
+  return {
+    id: opt.id,
+    raw: undefined,
+    title: opt.title,
+    subtitle: undefined,
+    authors: opt.authors,
+    publisher: opt.publisher,
+    year: opt.year,
+    isbn: opt.isbn,
+    tipo: 'BASICA',
+  }
+}
+
+function getOnlineSuggestionTitle(s: IASugerencia): string {
+  if (s.endpoint === 'google') {
+    const info = (s.item as GoogleBooksVolume).volumeInfo ?? {}
+    return (info.title ?? '').trim() || 'Sin título'
+  }
+
+  const doc = s.item as OpenLibraryDoc
+  return (
+    (typeof doc['title'] === 'string' ? doc['title'] : '').trim() ||
+    'Sin título'
+  )
+}
+
+function getOnlineSuggestionAuthors(s: IASugerencia): Array<string> {
+  if (s.endpoint === 'google') {
+    const info = (s.item as GoogleBooksVolume).volumeInfo ?? {}
+    return Array.isArray(info.authors) ? info.authors : []
+  }
+
+  const doc = s.item as OpenLibraryDoc
+  return Array.isArray(doc['author_name'])
+    ? (doc['author_name'] as Array<unknown>).filter(
+        (a): a is string => typeof a === 'string',
+      )
+    : []
+}
+
+function getOnlineSuggestionIsbn(s: IASugerencia): string | undefined {
+  if (s.endpoint === 'google') {
+    const info = (s.item as GoogleBooksVolume).volumeInfo
+    const isbn = info?.industryIdentifiers?.find(
+      (x) => x.identifier,
+    )?.identifier
+    return typeof isbn === 'string' && isbn.trim() ? isbn.trim() : undefined
+  }
+
+  const doc = s.item as OpenLibraryDoc
+  const isbn = Array.isArray(doc['isbn'])
+    ? (doc['isbn'] as Array<unknown>).find(
+        (x): x is string => typeof x === 'string',
+      )
+    : undefined
+  return typeof isbn === 'string' && isbn.trim() ? isbn.trim() : undefined
+}
+
+function getOnlineSuggestionYear(s: IASugerencia): number | undefined {
+  return s.endpoint === 'google'
+    ? tryParseYear((s.item as GoogleBooksVolume).volumeInfo?.publishedDate)
+    : tryParseYearFromOpenLibrary(s.item as OpenLibraryDoc)
+}
+
+function iaSugerenciaToChosenRef(s: IASugerencia): BibliografiaRef {
+  const choiceId = s.biblioteca?.choiceId
+  const options = s.biblioteca?.options
+
+  if (choiceId && choiceId !== 'online' && Array.isArray(options)) {
+    const chosen = options.find((o) => o.id === choiceId)
+    if (chosen) return bibliotecaOptionToRef(chosen)
+  }
+
+  return endpointResultToRef(iaSugerenciaToEndpointResult(s))
+}
 
 function parsearAutor(nombreCompleto: string): CSLAuthor {
   if (nombreCompleto.includes(',')) {
@@ -446,6 +759,7 @@ export function NuevaBibliografiaModalContainer({
   const createBibliografia = useCreateBibliografia()
 
   const formatoStepRef = useRef<FormatoYCitasStepHandle | null>(null)
+  const bibliotecaStepRef = useRef<BibliotecaStepHandle | null>(null)
 
   const [wizard, setWizard] = useState<WizardState>({
     metodo: null,
@@ -483,9 +797,9 @@ export function NuevaBibliografiaModalContainer({
   const styleCacheRef = useRef(new Map<string, string>())
   const localeCacheRef = useRef(new Map<string, string>())
 
-  const titleOverrides =
+  const titleOverrides: Record<string, string> =
     wizard.metodo === 'EN_LINEA'
-      ? { paso2: 'Sugerencias', paso3: 'Estructura' }
+      ? { paso2: 'Sugerencias', biblioteca: 'Biblioteca', paso3: 'Estructura' }
       : { paso2: 'Datos básicos', paso3: 'Detalles' }
 
   const handleClose = () => {
@@ -499,7 +813,7 @@ export function NuevaBibliografiaModalContainer({
     wizard.metodo === 'EN_LINEA'
       ? wizard.ia.sugerencias
           .filter((s) => s.selected)
-          .map((s) => endpointResultToRef(iaSugerenciaToEndpointResult(s)))
+          .map((s) => iaSugerenciaToChosenRef(s))
       : wizard.manual.refs
 
   // Mantener `wizard.refs` como snapshot para pasos 3/4.
@@ -789,14 +1103,17 @@ export function NuevaBibliografiaModalContainer({
     }
   }
 
+  const WizardDef = Wizard as any
+
   return (
-    <Wizard.Stepper.Provider
-      initialStep={Wizard.utils.getFirst().id}
+    <WizardDef.Stepper.Provider
+      initialStep={WizardDef.utils.getFirst().id}
       className="flex h-full flex-col"
     >
-      {({ methods }) => {
-        const idx = Wizard.utils.getIndex(methods.current.id)
-        const isLast = idx >= Wizard.steps.length - 1
+      {({ methods }: any) => {
+        const idx = WizardDef.utils.getIndex(methods.current.id)
+        const isLast = idx >= WizardDef.steps.length - 1
+        const currentId = methods.current.id as string
 
         return (
           <WizardLayout
@@ -804,17 +1121,59 @@ export function NuevaBibliografiaModalContainer({
             onClose={handleClose}
             headerSlot={
               <WizardResponsiveHeader
-                wizard={Wizard}
+                wizard={WizardDef}
                 methods={methods}
                 titleOverrides={titleOverrides}
+                hiddenStepIds={
+                  wizard.metodo === 'MANUAL' ? ['biblioteca'] : undefined
+                }
               />
             }
             footerSlot={
-              <Wizard.Stepper.Controls>
+              <WizardDef.Stepper.Controls>
                 <div className="flex grow items-center justify-between">
                   <Button
                     variant="secondary"
-                    onClick={() => methods.prev()}
+                    onClick={() => {
+                      const goToStep = (targetId: string) => {
+                        if (typeof methods?.goTo === 'function') {
+                          methods.goTo(targetId)
+                          return
+                        }
+                        if (typeof methods?.setStep === 'function') {
+                          methods.setStep(targetId)
+                          return
+                        }
+                        if (typeof methods?.navigation?.goTo === 'function') {
+                          methods.navigation.goTo(targetId)
+                          return
+                        }
+
+                        const targetIdx = WizardDef.utils.getIndex(targetId)
+
+                        const stepOnce = () => {
+                          const currentIdx = WizardDef.utils.getIndex(
+                            methods.current.id,
+                          )
+                          if (currentIdx === targetIdx) return
+                          if (currentIdx < targetIdx) methods.next()
+                          else methods.prev()
+                          queueMicrotask(stepOnce)
+                        }
+
+                        stepOnce()
+                      }
+
+                      if (
+                        wizard.metodo === 'MANUAL' &&
+                        methods.current.id === 'paso3'
+                      ) {
+                        goToStep('paso2')
+                        return
+                      }
+
+                      methods.prev()
+                    }}
                     disabled={
                       idx === 0 || wizard.ia.isLoading || wizard.isSaving
                     }
@@ -830,7 +1189,51 @@ export function NuevaBibliografiaModalContainer({
                   ) : (
                     <Button
                       onClick={() => {
-                        if (idx === 2) {
+                        const goToStep = (targetId: string) => {
+                          if (typeof methods?.goTo === 'function') {
+                            methods.goTo(targetId)
+                            return
+                          }
+                          if (typeof methods?.setStep === 'function') {
+                            methods.setStep(targetId)
+                            return
+                          }
+                          if (typeof methods?.navigation?.goTo === 'function') {
+                            methods.navigation.goTo(targetId)
+                            return
+                          }
+
+                          const targetIdx = WizardDef.utils.getIndex(targetId)
+
+                          const stepOnce = () => {
+                            const currentIdx = WizardDef.utils.getIndex(
+                              methods.current.id,
+                            )
+                            if (currentIdx === targetIdx) return
+                            if (currentIdx < targetIdx) methods.next()
+                            else methods.prev()
+                            queueMicrotask(stepOnce)
+                          }
+
+                          stepOnce()
+                        }
+
+                        if (
+                          wizard.metodo === 'MANUAL' &&
+                          currentId === 'paso2'
+                        ) {
+                          goToStep('paso3')
+                          return
+                        }
+
+                        if (currentId === 'biblioteca') {
+                          const ok =
+                            bibliotecaStepRef.current?.validateBeforeNext() ??
+                            true
+                          if (!ok) return
+                        }
+
+                        if (currentId === 'paso3') {
                           const ok =
                             formatoStepRef.current?.validateBeforeNext() ?? true
                           if (!ok) return
@@ -840,16 +1243,16 @@ export function NuevaBibliografiaModalContainer({
                       disabled={
                         wizard.ia.isLoading ||
                         wizard.isSaving ||
-                        (idx === 0 && !canContinueDesdeMetodo) ||
-                        (idx === 1 && !canContinueDesdePaso2) ||
-                        (idx === 2 && !canContinueDesdePaso3)
+                        (currentId === 'metodo' && !canContinueDesdeMetodo) ||
+                        (currentId === 'paso2' && !canContinueDesdePaso2) ||
+                        (currentId === 'paso3' && !canContinueDesdePaso3)
                       }
                     >
                       Siguiente
                     </Button>
                   )}
                 </div>
-              </Wizard.Stepper.Controls>
+              </WizardDef.Stepper.Controls>
             }
           >
             <div className="mx-auto max-w-3xl">
@@ -863,8 +1266,8 @@ export function NuevaBibliografiaModalContainer({
                 </Card>
               ) : null}
 
-              {idx === 0 && (
-                <Wizard.Stepper.Panel>
+              {currentId === 'metodo' && (
+                <WizardDef.Stepper.Panel>
                   <MetodoStep
                     metodo={wizard.metodo}
                     onChange={(metodo) =>
@@ -876,11 +1279,11 @@ export function NuevaBibliografiaModalContainer({
                       }))
                     }
                   />
-                </Wizard.Stepper.Panel>
+                </WizardDef.Stepper.Panel>
               )}
 
-              {idx === 1 && (
-                <Wizard.Stepper.Panel>
+              {currentId === 'paso2' && (
+                <WizardDef.Stepper.Panel>
                   {wizard.metodo === 'EN_LINEA' ? (
                     <SugerenciasStep
                       q={wizard.ia.q}
@@ -941,11 +1344,33 @@ export function NuevaBibliografiaModalContainer({
                       }
                     />
                   )}
-                </Wizard.Stepper.Panel>
+                </WizardDef.Stepper.Panel>
               )}
 
-              {idx === 2 && (
-                <Wizard.Stepper.Panel>
+              {currentId === 'biblioteca' && wizard.metodo === 'EN_LINEA' && (
+                <WizardDef.Stepper.Panel>
+                  <BibliotecaStep
+                    ref={bibliotecaStepRef}
+                    sugerencias={wizard.ia.sugerencias.filter(
+                      (s) => s.selected,
+                    )}
+                    onPatchSugerencia={(id, patch) =>
+                      setWizard((w) => ({
+                        ...w,
+                        ia: {
+                          ...w.ia,
+                          sugerencias: w.ia.sugerencias.map((s) =>
+                            s.id === id ? { ...s, ...patch } : s,
+                          ),
+                        },
+                      }))
+                    }
+                  />
+                </WizardDef.Stepper.Panel>
+              )}
+
+              {currentId === 'paso3' && (
+                <WizardDef.Stepper.Panel>
                   <FormatoYCitasStep
                     ref={formatoStepRef}
                     refs={wizard.refs}
@@ -985,11 +1410,11 @@ export function NuevaBibliografiaModalContainer({
                       }))
                     }
                   />
-                </Wizard.Stepper.Panel>
+                </WizardDef.Stepper.Panel>
               )}
 
-              {idx === 3 && (
-                <Wizard.Stepper.Panel>
+              {currentId === 'resumen' && (
+                <WizardDef.Stepper.Panel>
                   <ResumenStep
                     metodo={wizard.metodo}
                     formato={wizard.formato}
@@ -998,13 +1423,13 @@ export function NuevaBibliografiaModalContainer({
                       wizard.formato ? wizard.citaEdits[wizard.formato] : {}
                     }
                   />
-                </Wizard.Stepper.Panel>
+                </WizardDef.Stepper.Panel>
               )}
             </div>
           </WizardLayout>
         )
       }}
-    </Wizard.Stepper.Provider>
+    </WizardDef.Stepper.Provider>
   )
 }
 
@@ -1347,6 +1772,189 @@ function SugerenciasStep({
     </div>
   )
 }
+
+type BibliotecaStepProps = {
+  sugerencias: Array<IASugerencia>
+  onPatchSugerencia: (id: string, patch: Partial<IASugerencia>) => void
+}
+
+const BibliotecaStep = forwardRef<BibliotecaStepHandle, BibliotecaStepProps>(
+  function BibliotecaStep({ sugerencias, onPatchSugerencia }, ref) {
+    const [openIds, setOpenIds] = useState<Array<string>>([])
+    const anchorRefs = useRef<Record<string, HTMLDivElement | null>>({})
+    const initializedRef = useRef(new Set<string>())
+
+    const scrollToAccordion = (id: string) => {
+      const el = anchorRefs.current[id]
+      if (!el) return
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
+
+    useEffect(() => {
+      for (const s of sugerencias) {
+        const b = s.biblioteca
+        const hasOptions = Array.isArray(b?.options)
+        if (hasOptions) continue
+        if (initializedRef.current.has(s.id)) continue
+
+        initializedRef.current.add(s.id)
+
+        const setIdx = Math.floor(Math.random() * 3)
+        const templates = BIBLIOTECA_MATCH_SETS[setIdx] ?? []
+        const options: Array<BibliotecaOption> = templates.map((t, i) => ({
+          id: `biblio:${s.id}:${i + 1}`,
+          ...t,
+        }))
+
+        onPatchSugerencia(s.id, {
+          biblioteca: {
+            options,
+            choiceId: options.length === 0 ? 'online' : undefined,
+          },
+        })
+      }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [sugerencias])
+
+    const validateBeforeNext = () => {
+      const unresolved = sugerencias.find((s) => {
+        const b = s.biblioteca
+        if (!b || !Array.isArray(b.options)) return true
+        if (b.options.length === 0) return false
+        return !b.choiceId
+      })
+
+      if (!unresolved) return true
+
+      setOpenIds((prev) =>
+        prev.includes(unresolved.id) ? prev : [...prev, unresolved.id],
+      )
+      requestAnimationFrame(() => scrollToAccordion(unresolved.id))
+      return false
+    }
+
+    useImperativeHandle(ref, () => ({ validateBeforeNext }))
+
+    return (
+      <div className="space-y-4">
+        <Card>
+          <CardHeader>
+            <CardTitle>Comparar con alternativas de la biblioteca</CardTitle>
+            <CardDescription>
+              Conserva la sugerencia original o sustitúyela por una
+              coincidencia.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+
+        <Accordion
+          type="multiple"
+          value={openIds}
+          onValueChange={setOpenIds}
+          className="w-full space-y-2"
+        >
+          {sugerencias.map((s) => {
+            const title = getOnlineSuggestionTitle(s)
+            const authors = getOnlineSuggestionAuthors(s)
+            const authorsLine = authors.join('; ') || '—'
+            const year = getOnlineSuggestionYear(s)
+            const isbn = getOnlineSuggestionIsbn(s)
+            const sourceLabel =
+              s.endpoint === 'google' ? 'Google Books' : 'Open Library'
+
+            const b = s.biblioteca
+            const options = b?.options ?? []
+
+            const badgeState: 'por_revisar' | 'sustituido' | 'mantenido' =
+              !b || !Array.isArray(b.options)
+                ? 'por_revisar'
+                : options.length === 0
+                  ? 'mantenido'
+                  : !b.choiceId
+                    ? 'por_revisar'
+                    : b.choiceId === 'online'
+                      ? 'mantenido'
+                      : 'sustituido'
+
+            const badge =
+              badgeState === 'por_revisar' ? (
+                <Badge className="bg-yellow-500 text-black hover:bg-yellow-500">
+                  Por revisar
+                </Badge>
+              ) : badgeState === 'sustituido' ? (
+                <Badge className="bg-green-600 text-white hover:bg-green-700">
+                  Sustituido
+                </Badge>
+              ) : (
+                <Badge className="bg-blue-600 text-white hover:bg-blue-700">
+                  Mantenido
+                </Badge>
+              )
+
+            const radioValue =
+              b?.choiceId === 'online' || (options.length === 0 && !b?.choiceId)
+                ? `online:${s.id}`
+                : typeof b?.choiceId === 'string'
+                  ? `biblio:${b.choiceId}`
+                  : undefined
+
+            return (
+              <AccordionItem
+                key={s.id}
+                value={s.id}
+                className="border-border/60 bg-background/40 rounded-lg border border-b-0 px-3"
+              >
+                <div
+                  ref={(el) => {
+                    anchorRefs.current[s.id] = el
+                  }}
+                />
+                <AccordionTrigger className="hover:bg-accent/30 data-[state=open]:bg-accent/20 data-[state=open]:text-accent-foreground -mx-3 px-3">
+                  <div className="flex w-full items-center justify-between gap-3">
+                    <span className="min-w-0 text-wrap">{title}</span>
+                    {badge}
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className="text-muted-foreground mt-4">
+                  <div className="mx-1 grid gap-3 pb-2">
+                    <BookSelectionAccordion
+                      onlineSourceLabel={sourceLabel}
+                      online={{
+                        id: s.id,
+                        title,
+                        authorsLine,
+                        year,
+                        isbn,
+                      }}
+                      options={options}
+                      value={radioValue}
+                      onValueChange={(v) => {
+                        const nextChoiceId = v.startsWith('online:')
+                          ? 'online'
+                          : v.startsWith('biblio:')
+                            ? v.slice('biblio:'.length)
+                            : undefined
+
+                        if (!nextChoiceId) return
+
+                        onPatchSugerencia(s.id, {
+                          biblioteca: {
+                            options,
+                            choiceId: nextChoiceId,
+                          },
+                        })
+                      }}
+                    />
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            )
+          })}
+        </Accordion>
+      </div>
+    )
+  },
+)
 
 function DatosBasicosManualStep({
   draft,
