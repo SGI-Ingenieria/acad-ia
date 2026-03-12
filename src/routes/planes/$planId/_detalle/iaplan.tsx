@@ -227,7 +227,7 @@ function RouteComponent() {
     scrollToBottom()
   }, [chatMessages, isLoading])
 
-  useEffect(() => {
+  /* useEffect(() => {
     // Verificamos cuáles campos de la lista "selectedFields" ya no están presentes en el texto del input
     const camposActualizados = selectedFields.filter((field) =>
       input.includes(field.label),
@@ -237,7 +237,7 @@ function RouteComponent() {
     if (camposActualizados.length !== selectedFields.length) {
       setSelectedFields(camposActualizados)
     }
-  }, [input, selectedFields])
+  }, [input, selectedFields]) */
 
   useEffect(() => {
     if (isLoadingConv || isSending) return
@@ -297,7 +297,7 @@ function RouteComponent() {
       },
     ])
     setInput('')
-    setSelectedFields([])
+    // setSelectedFields([])
   }
 
   const archiveChat = (e: React.MouseEvent, id: string) => {
@@ -405,7 +405,7 @@ function RouteComponent() {
     setIsSending(true)
     setOptimisticMessage(finalContent)
     setInput('')
-    setSelectedFields([])
+    // setSelectedFields([])
 
     try {
       const payload = {

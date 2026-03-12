@@ -131,15 +131,45 @@ export function IAAsignaturaTab({
   }, [todasConversaciones])
 
   const availableFields = useMemo(() => {
-    if (!datosGenerales?.datos) return []
-    const estructuraProps =
-      datosGenerales?.estructuras_asignatura?.definicion?.properties || {}
-    return Object.keys(datosGenerales.datos).map((key) => ({
-      key,
-      label:
-        estructuraProps[key]?.title || key.replace(/_/g, ' ').toUpperCase(),
-      value: String(datosGenerales.datos[key] || ''),
-    }))
+    // 1. Obtenemos los campos dinámicos de la DB
+    const dynamicFields = datosGenerales?.datos
+      ? Object.keys(datosGenerales.datos).map((key) => {
+          const estructuraProps =
+            datosGenerales?.estructuras_asignatura?.definicion?.properties || {}
+          return {
+            key,
+            label:
+              estructuraProps[key]?.title ||
+              key.replace(/_/g, ' ').toUpperCase(),
+            value: String(datosGenerales.datos[key] || ''),
+          }
+        })
+      : []
+
+    // 2. Definimos tus campos manuales (hardcoded)
+    const hardcodedFields = [
+      {
+        key: 'contenido_tematico',
+        label: 'Contenido temático',
+        value: '', // Puedes dejarlo vacío o buscarlo en datosGenerales si existiera
+      },
+      {
+        key: 'criterios_de_evaluacion',
+        label: 'Criterios de evaluación',
+        value: '',
+      },
+    ]
+
+    // 3. Unimos ambos, filtrando duplicados por si acaso el backend ya los envía
+    const combined = [...dynamicFields]
+
+    hardcodedFields.forEach((hf) => {
+      if (!combined.some((f) => f.key === hf.key)) {
+        combined.push(hf)
+      }
+    })
+
+    return combined
   }, [datosGenerales])
 
   // --- PROCESAMIENTO DE MENSAJES ---
@@ -269,7 +299,7 @@ export function IAAsignaturaTab({
       }
 
       setInput('')
-      setSelectedFields([])
+      // setSelectedFields([])
 
       // Invalidamos la lista de conversaciones para que el nuevo chat aparezca en el historial (panel izquierdo)
       queryClient.invalidateQueries({
@@ -511,6 +541,7 @@ export function IAAsignaturaTab({
                     >
                       {/* Texto del mensaje principal */}
                       <div
+                        style={{ whiteSpace: 'pre-line' }}
                         className={cn(
                           'text-sm leading-relaxed',
                           msg.role === 'assistant' && 'p-4',
@@ -532,6 +563,18 @@ export function IAAsignaturaTab({
                                 key={sug.id}
                                 sug={sug}
                                 asignaturaId={asignaturaId}
+                                onApplied={(campoFinalizado) => {
+                                  // Filtramos el array para conservar todos MENOS el que se aplicó
+                                  console.log(campoFinalizado)
+                                  console.log('campos:', selectedFields)
+
+                                  setSelectedFields((prev) =>
+                                    prev.filter((fieldObj) => {
+                                      // Accedemos a .key porque fieldObj es { key: "...", label: "..." }
+                                      return fieldObj.key !== campoFinalizado
+                                    }),
+                                  )
+                                }}
                               />
                             ))}
                           </div>

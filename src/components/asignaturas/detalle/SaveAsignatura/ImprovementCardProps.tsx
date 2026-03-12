@@ -1,4 +1,4 @@
-import { Check, Loader2 } from 'lucide-react'
+import { Check, Loader2, BookOpen, Clock, ListChecks } from 'lucide-react'
 import { useState } from 'react'
 
 import type { IASugerencia } from '@/types/asignatura'
@@ -7,50 +7,65 @@ import { Button } from '@/components/ui/button'
 import {
   useUpdateAsignatura,
   useSubject,
-  useUpdateSubjectRecommendation, // Importamos tu nuevo hook
+  useUpdateSubjectRecommendation,
 } from '@/data'
+import { cn } from '@/lib/utils'
 
 interface ImprovementCardProps {
   sug: IASugerencia
   asignaturaId: string
+  onApplied: (campoKey: string) => void
 }
 
-export function ImprovementCard({ sug, asignaturaId }: ImprovementCardProps) {
+export function ImprovementCard({
+  sug,
+  asignaturaId,
+  onApplied,
+}: ImprovementCardProps) {
   const { data: asignatura } = useSubject(asignaturaId)
   const updateAsignatura = useUpdateAsignatura()
-
-  // Hook para marcar en la base de datos que la sugerencia fue aceptada
   const updateRecommendation = useUpdateSubjectRecommendation()
 
   const [isApplying, setIsApplying] = useState(false)
 
   const handleApply = async () => {
-    if (!asignatura?.datos) return
+    if (!asignatura) return
 
     setIsApplying(true)
     try {
-      // 1. Actualizar el contenido real de la asignatura (JSON datos)
-      const nuevosDatos = {
-        ...asignatura.datos,
-        [sug.campoKey]: sug.valorSugerido,
+      // 1. Identificar a qué columna debe ir el guardado
+      let patchData = {}
+
+      if (sug.campoKey === 'contenido_tematico') {
+        // Se guarda directamente en la columna contenido_tematico
+        patchData = { contenido_tematico: sug.valorSugerido }
+      } else if (sug.campoKey === 'criterios_de_evaluacion') {
+        // Se guarda directamente en la columna criterios_de_evaluacion
+        patchData = { criterios_de_evaluacion: sug.valorSugerido }
+      } else {
+        // Otros campos (ciclo, fines, etc.) se siguen guardando en el JSON de la columna 'datos'
+        patchData = {
+          datos: {
+            ...asignatura.datos,
+            [sug.campoKey]: sug.valorSugerido,
+          },
+        }
       }
 
+      // 2. Ejecutar la actualización con la estructura correcta
       await updateAsignatura.mutateAsync({
         asignaturaId: asignaturaId as any,
-        patch: {
-          datos: nuevosDatos,
-        } as any,
+        patch: patchData as any,
       })
 
-      // 2. Marcar la sugerencia como "aplicada: true" en la tabla de mensajes
-      // Usamos los datos que vienen en el objeto 'sug'
+      // 3. Marcar la recomendación como aplicada
       await updateRecommendation.mutateAsync({
         mensajeId: sug.messageId,
         campoAfectado: sug.campoKey,
       })
+      console.log(sug.campoKey)
 
-      // Al terminar, React Query invalidará 'subject-messages'
-      // y la card pasará automáticamente al estado "Aplicado" (gris)
+      onApplied(sug.campoKey)
     } catch (error) {
       console.error('Error al aplicar mejora:', error)
     } finally {
@@ -58,10 +73,89 @@ export function ImprovementCard({ sug, asignaturaId }: ImprovementCardProps) {
     }
   }
 
+  // --- FUNCIÓN PARA RENDERIZAR EL CONTENIDO DE FORMA SEGURA ---
+  const renderContenido = (valor: any) => {
+    // Si no es un array, es texto simple
+    if (!Array.isArray(valor)) {
+      return <p className="italic">"{String(valor)}"</p>
+    }
+
+    // --- CASO 1: CONTENIDO TEMÁTICO (Detectamos si el primer objeto tiene 'unidad') ---
+    if (valor[0]?.hasOwnProperty('unidad')) {
+      return (
+        <div className="space-y-3">
+          {valor.map((u: any, idx: number) => (
+            <div
+              key={idx}
+              className="rounded-md border border-teal-100 bg-white p-2 shadow-sm"
+            >
+              <div className="mb-1 flex items-center gap-2 border-b border-slate-50 pb-1 text-[11px] font-bold text-teal-800">
+                <BookOpen size={12} /> Unidad {u.unidad}: {u.titulo}
+              </div>
+              <ul className="space-y-1">
+                {u.temas?.map((t: any, tidx: number) => (
+                  <li
+                    key={tidx}
+                    className="flex items-start justify-between gap-2 text-[10px] text-slate-600"
+                  >
+                    <span className="leading-tight">• {t.nombre}</span>
+                    <span className="flex shrink-0 items-center gap-0.5 font-mono text-slate-400">
+                      <Clock size={10} /> {t.horasEstimadas}h
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      )
+    }
+
+    // --- CASO 2: CRITERIOS DE EVALUACIÓN (Detectamos si tiene 'criterio') ---
+    if (valor[0]?.hasOwnProperty('criterio')) {
+      return (
+        <div className="space-y-2">
+          <div className="mb-1 flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase">
+            <ListChecks size={12} /> Desglose de evaluación
+          </div>
+          {valor.map((c: any, idx: number) => (
+            <div
+              key={idx}
+              className="flex items-center justify-between gap-3 rounded-md border border-slate-100 bg-white p-2 shadow-sm"
+            >
+              <span className="text-[11px] leading-tight text-slate-700">
+                {c.criterio}
+              </span>
+              <div className="flex shrink-0 items-center gap-1 rounded-full border border-orange-100 bg-orange-50 px-2 py-0.5 text-[10px] font-bold text-orange-600">
+                {c.porcentaje}%
+              </div>
+            </div>
+          ))}
+          {/* Opcional: Suma total para verificar que de 100% */}
+          <div className="pt-1 text-right text-[9px] font-medium text-slate-400">
+            Total:{' '}
+            {valor.reduce(
+              (acc: number, curr: any) => acc + (curr.porcentaje || 0),
+              0,
+            )}
+            %
+          </div>
+        </div>
+      )
+    }
+
+    // Caso por defecto (Array genérico)
+    return (
+      <pre className="text-[10px]">
+        {/* JSON.stringify(valor, null, 2)*/ 'hola'}
+      </pre>
+    )
+  }
+
   // --- ESTADO APLICADO ---
   if (sug.aceptada) {
     return (
-      <div className="flex flex-col rounded-xl border border-slate-100 bg-white p-3 shadow-sm">
+      <div className="flex flex-col rounded-xl border border-slate-100 bg-white p-3 opacity-80 shadow-sm">
         <div className="mb-3 flex items-center justify-between gap-4">
           <span className="text-sm font-bold text-slate-800">
             {sug.campoNombre}
@@ -72,7 +166,7 @@ export function ImprovementCard({ sug, asignaturaId }: ImprovementCardProps) {
           </div>
         </div>
         <div className="rounded-lg border border-teal-100 bg-teal-50/30 p-3 text-xs leading-relaxed text-slate-500">
-          "{sug.valorSugerido}"
+          {renderContenido(sug.valorSugerido)}
         </div>
       </div>
     )
@@ -101,8 +195,13 @@ export function ImprovementCard({ sug, asignaturaId }: ImprovementCardProps) {
         </Button>
       </div>
 
-      <div className="line-clamp-4 rounded-lg border border-dashed border-slate-200 bg-slate-50/50 p-3 text-xs leading-relaxed text-slate-600 italic">
-        "{sug.valorSugerido}"
+      <div
+        className={cn(
+          'rounded-lg border border-dashed border-slate-200 bg-slate-50/50 p-3 text-xs leading-relaxed text-slate-600',
+          !Array.isArray(sug.valorSugerido) && 'line-clamp-4 italic',
+        )}
+      >
+        {renderContenido(sug.valorSugerido)}
       </div>
     </div>
   )
