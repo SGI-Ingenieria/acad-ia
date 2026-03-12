@@ -38,6 +38,7 @@ import {
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import {
   Select,
   SelectContent,
@@ -45,6 +46,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Separator } from '@/components/ui/separator'
 import { Textarea } from '@/components/ui/textarea'
 import {
   Tooltip,
@@ -56,6 +58,115 @@ import { WizardResponsiveHeader } from '@/components/wizard/WizardResponsiveHead
 import { buscar_bibliografia } from '@/data'
 import { useCreateBibliografia } from '@/data/hooks/useSubjects'
 import { cn } from '@/lib/utils'
+
+export function BookSelectionAccordion() {
+  // Estado inicial indefinido para que nada esté seleccionado por defecto
+  const [selectedBook, setSelectedBook] = useState<string | undefined>(
+    undefined,
+  )
+
+  return (
+    <>
+      {/* Un solo RadioGroup controla ambos lados */}
+      <RadioGroup
+        value={selectedBook}
+        onValueChange={setSelectedBook}
+        className="flex flex-col gap-6 md:flex-row"
+      >
+        {/* --- LADO IZQUIERDO: Sugerencia Online --- */}
+        <div className="flex-1 space-y-4">
+          <h4 className="text-muted-foreground text-sm font-medium">
+            Sugerencia Original (Open Library)
+          </h4>
+
+          <div
+            className={`relative flex items-start space-x-3 rounded-lg border p-4 transition-colors ${selectedBook === 'online-1' ? 'border-primary bg-primary/5' : 'hover:bg-muted/50'}`}
+          >
+            <RadioGroupItem value="online-1" id="online-1" className="mt-1" />
+            <Label
+              htmlFor="online-1"
+              className="flex flex-1 cursor-pointer flex-col"
+            >
+              <span className="font-semibold">
+                Inteligencia Artificial: Un Enfoque Moderno
+              </span>
+              <span className="text-muted-foreground text-sm">
+                Russell, Stuart; Norvig, Peter (2021)
+              </span>
+              <span className="text-muted-foreground mt-1 text-xs">
+                ISBN: 9788490355343
+              </span>
+            </Label>
+          </div>
+        </div>
+
+        {/* Separador vertical para escritorio, horizontal en móviles */}
+        <Separator orientation="vertical" className="hidden h-auto md:block" />
+        <Separator orientation="horizontal" className="md:hidden" />
+
+        {/* --- LADO DERECHO: Alternativas de Biblioteca --- */}
+        <div className="flex-1 space-y-4">
+          <h4 className="text-muted-foreground text-sm font-medium">
+            Disponibles en Biblioteca
+          </h4>
+
+          <div className="max-h-[300px] space-y-3 overflow-y-auto pr-2">
+            {/* Opcion 1: Coincidencia exacta */}
+            <div
+              className={`relative flex cursor-pointer items-start space-x-3 rounded-lg border p-4 transition-colors ${selectedBook === 'biblio-1' ? 'border-primary bg-primary/5' : 'hover:border-primary/30 hover:bg-accent/50'}`}
+            >
+              <RadioGroupItem
+                value="biblio-1"
+                id="biblio-1"
+                className="mt-1 cursor-pointer"
+              />
+              <Label
+                htmlFor="biblio-1"
+                className="flex flex-1 cursor-pointer flex-col"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold">
+                    Inteligencia Artificial: Un Enfoque Moderno
+                  </span>
+                  <Badge className="bg-green-600 hover:bg-green-700">
+                    Coincidencia ISBN
+                  </Badge>
+                </div>
+                <span className="text-muted-foreground text-sm">
+                  Russell, Stuart; Norvig, Peter (2021)
+                </span>
+                <span className="bg-muted mt-2 w-fit rounded px-1 font-mono text-xs">
+                  Estante: QA76.9 .R87 2021
+                </span>
+              </Label>
+            </div>
+
+            {/* Opcion 2: Edición anterior */}
+            <div
+              className={`relative flex items-start space-x-3 rounded-lg border p-4 transition-colors ${selectedBook === 'biblio-2' ? 'border-primary bg-primary/5' : 'hover:bg-muted/50'}`}
+            >
+              <RadioGroupItem value="biblio-2" id="biblio-2" className="mt-1" />
+              <Label
+                htmlFor="biblio-2"
+                className="flex flex-1 cursor-pointer flex-col"
+              >
+                <span className="font-semibold">
+                  Inteligencia Artificial: Un Enfoque Moderno (3ra Ed.)
+                </span>
+                <span className="text-muted-foreground text-sm">
+                  Russell, Stuart; Norvig, Peter (2010)
+                </span>
+                <span className="bg-muted mt-2 w-fit rounded px-1 font-mono text-xs">
+                  Estante: QA76.9 .R87 2010
+                </span>
+              </Label>
+            </div>
+          </div>
+        </div>
+      </RadioGroup>
+    </>
+  )
+}
 
 type MetodoBibliografia = 'MANUAL' | 'EN_LINEA' | null
 export type FormatoCita = 'apa' | 'ieee' | 'vancouver' | 'chicago'
@@ -1056,6 +1167,7 @@ function MetodoStep({
           </CardDescription>
         </CardHeader>
       </Card>
+      <BookSelectionAccordion />
     </div>
   )
 }
