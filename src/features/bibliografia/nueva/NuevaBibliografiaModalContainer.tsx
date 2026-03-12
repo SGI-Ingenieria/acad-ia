@@ -129,13 +129,9 @@ type CSLItem = {
 
 type BibliografiaAsignaturaInsert = TablesInsert<'bibliografia_asignatura'>
 type BibliografiaTipo = BibliografiaAsignaturaInsert['tipo']
-type BibliografiaTipoFuente = NonNullable<
-  BibliografiaAsignaturaInsert['tipo_fuente']
->
 
 type BibliografiaRef = {
   id: string
-  source: BibliografiaTipoFuente
   raw?: GoogleBooksVolume | OpenLibraryDoc
   title: string
   subtitle?: string
@@ -299,7 +295,6 @@ function endpointResultToRef(result: EndpointResult): BibliografiaRef {
 
     return {
       id: getEndpointResultId(result),
-      source: 'BIBLIOTECA',
       raw: volume,
       title,
       subtitle,
@@ -338,7 +333,6 @@ function endpointResultToRef(result: EndpointResult): BibliografiaRef {
 
   return {
     id: getEndpointResultId(result),
-    source: 'BIBLIOTECA',
     raw: doc,
     title,
     subtitle,
@@ -775,8 +769,8 @@ export function NuevaBibliografiaModalContainer({
             asignatura_id: asignaturaId,
             tipo: r.tipo,
             cita: map[r.id] ?? '',
-            tipo_fuente: r.source,
-            biblioteca_item_id: null,
+            // tipo_fuente: r.source,
+            // biblioteca_item_id: null,
           }),
         ),
       )
@@ -1478,7 +1472,6 @@ function DatosBasicosManualStep({
 
               const ref: BibliografiaRef = {
                 id: `manual-${randomUUID()}`,
-                source: 'MANUAL',
                 title,
                 authors: draft.authorsText
                   .split(/\r?\n/)

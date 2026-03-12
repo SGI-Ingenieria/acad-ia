@@ -232,7 +232,7 @@ export async function subjects_bibliografia_list(
   const { data, error } = await supabase
     .from('bibliografia_asignatura')
     .select(
-      'id,asignatura_id,tipo,cita,biblioteca_item_id,creado_por,creado_en,actualizado_en',
+      'id,asignatura_id,tipo,cita,referencia_biblioteca,referencia_en_linea,creado_por,creado_en,actualizado_en',
     )
     .eq('asignatura_id', subjectId)
     .order('tipo', { ascending: true })
