@@ -13,8 +13,8 @@ import {
   X,
   MessageSquarePlus,
   Archive,
-  RotateCcw,
   Loader2,
+  Sparkles,
 } from 'lucide-react'
 import { useState, useEffect, useRef, useMemo } from 'react'
 
@@ -22,10 +22,17 @@ import type { UploadedFile } from '@/components/planes/wizard/PasoDetallesPanel/
 
 import { ImprovementCard } from '@/components/planes/detalle/Ia/ImprovementCard'
 import ReferenciasParaIA from '@/components/planes/wizard/PasoDetallesPanel/ReferenciasParaIA'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Drawer, DrawerContent } from '@/components/ui/drawer'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Textarea } from '@/components/ui/textarea'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import {
   useAIPlanChat,
   useConversationByPlan,
@@ -507,76 +514,99 @@ function RouteComponent() {
                 <div
                   key={chat.id}
                   onClick={() => setActiveChatId(chat.id)}
-                  className={`group relative flex w-full cursor-pointer items-center gap-3 rounded-lg px-3 py-3 text-sm transition-colors ${
+                  className={`group relative flex w-full items-center justify-between overflow-hidden rounded-lg px-3 py-3 text-sm transition-colors ${
                     activeChatId === chat.id
                       ? 'bg-slate-100 font-medium text-slate-900'
                       : 'text-slate-600 hover:bg-slate-50'
                   }`}
                 >
-                  <FileText size={16} className="shrink-0 opacity-40" />
+                  {/* LADO IZQUIERDO: Icono + Texto con Tooltip */}
+                  <div className="flex min-w-0 flex-1 items-center gap-3">
+                    <FileText size={16} className="shrink-0 opacity-40" />
 
-                  <span
-                    ref={editingChatId === chat.id ? editableRef : null}
-                    contentEditable={editingChatId === chat.id}
-                    suppressContentEditableWarning={true}
-                    className={`truncate pr-14 transition-all outline-none ${
-                      editingChatId === chat.id
-                        ? 'min-w-[50px] cursor-text rounded bg-white px-1 ring-1 ring-teal-500'
-                        : 'cursor-pointer'
+                    <TooltipProvider delayDuration={400}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          {/* Este contenedor es el que obliga al span a truncarse */}
+                          <div className="max-w-[calc(100%-48px)] min-w-0 flex-1">
+                            <span
+                              ref={
+                                editingChatId === chat.id ? editableRef : null
+                              }
+                              contentEditable={editingChatId === chat.id}
+                              suppressContentEditableWarning={true}
+                              className={`block truncate outline-none ${
+                                editingChatId === chat.id
+                                  ? 'max-h-20 min-w-[100px] cursor-text overflow-y-auto rounded bg-white px-1 break-all shadow-sm ring-1 ring-teal-500'
+                                  : 'cursor-pointer'
+                              }`}
+                              onDoubleClick={(e) => {
+                                e.stopPropagation()
+                                setEditingChatId(chat.id)
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault()
+                                  e.currentTarget.blur()
+                                }
+                                if (e.key === 'Escape') {
+                                  setEditingChatId(null)
+                                  e.currentTarget.textContent =
+                                    chat.nombre || ''
+                                }
+                              }}
+                              onBlur={(e) => {
+                                if (editingChatId === chat.id) {
+                                  const newTitle =
+                                    e.currentTarget.textContent?.trim() || ''
+                                  if (newTitle && newTitle !== chat.nombre) {
+                                    updateTitleMutation({
+                                      id: chat.id,
+                                      nombre: newTitle,
+                                    })
+                                  }
+                                  setEditingChatId(null)
+                                }
+                              }}
+                            >
+                              {chat.nombre ||
+                                `Chat ${chat.creado_en.split('T')[0]}`}
+                            </span>
+                          </div>
+                        </TooltipTrigger>
+
+                        {/* Tooltip: Solo aparece si no estás editando y el texto es largo */}
+                        {editingChatId !== chat.id && (
+                          <TooltipContent
+                            side="right"
+                            className="max-w-[280px] break-all"
+                          >
+                            {chat.nombre || 'Conversación'}
+                          </TooltipContent>
+                        )}
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
+
+                  {/* LADO DERECHO: Acciones con shrink-0 para que no se muevan */}
+                  <div
+                    className={`flex shrink-0 items-center gap-1 pl-2 opacity-0 transition-opacity group-hover:opacity-100 ${
+                      activeChatId === chat.id ? 'bg-slate-100' : 'bg-slate-50'
                     }`}
-                    onDoubleClick={(e) => {
-                      e.stopPropagation()
-                      setEditingChatId(chat.id)
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault()
-                        const newTitle = e.currentTarget.textContent || ''
-                        updateTitleMutation(
-                          { id: chat.id, nombre: newTitle },
-                          {
-                            onSuccess: () => setEditingChatId(null),
-                          },
-                        )
-                      }
-                      if (e.key === 'Escape') {
-                        setEditingChatId(null)
-
-                        e.currentTarget.textContent = chat.nombre || ''
-                      }
-                    }}
-                    onBlur={(e) => {
-                      if (editingChatId === chat.id) {
-                        const newTitle = e.currentTarget.textContent || ''
-                        if (newTitle !== chat.nombre) {
-                          updateTitleMutation({ id: chat.id, nombre: newTitle })
-                        }
-                        setEditingChatId(null)
-                      }
-                    }}
-                    onClick={(e) => {
-                      if (editingChatId === chat.id) e.stopPropagation()
-                    }}
                   >
-                    {chat.nombre || `Chat ${chat.creado_en.split('T')[0]}`}
-                  </span>
-
-                  {/* ACCIONES */}
-                  <div className="absolute right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100">
                     <button
                       onClick={(e) => {
                         e.stopPropagation()
                         setEditingChatId(chat.id)
-                        // Pequeño timeout para asegurar que el DOM se actualice antes de enfocar
                         setTimeout(() => editableRef.current?.focus(), 50)
                       }}
-                      className="p-1 text-slate-400 hover:text-teal-600"
+                      className="rounded-md p-1 text-slate-400 transition-colors hover:text-teal-600"
                     >
                       <Send size={12} className="rotate-45" />
                     </button>
                     <button
                       onClick={(e) => archiveChat(e, chat.id)}
-                      className="p-1 text-slate-400 hover:text-amber-600"
+                      className="rounded-md p-1 text-slate-400 transition-colors hover:text-amber-600"
                     >
                       <Archive size={14} />
                     </button>
@@ -584,24 +614,26 @@ function RouteComponent() {
                 </div>
               ))
             ) : (
-              /* ... Resto del código de archivados (sin cambios) ... */
-              <div className="animate-in fade-in slide-in-from-left-2">
+              /* Sección de archivados */
+              <div className="animate-in fade-in slide-in-from-left-2 px-1">
                 <p className="mb-2 px-2 text-[10px] font-bold text-slate-400 uppercase">
                   Archivados
                 </p>
                 {archivedChats.map((chat) => (
                   <div
                     key={chat.id}
-                    className="group relative mb-1 flex w-full items-center gap-3 rounded-lg bg-slate-50/50 px-3 py-2 text-sm text-slate-400"
+                    className="group relative mb-1 flex w-full items-center justify-between overflow-hidden rounded-lg bg-slate-50/50 px-3 py-2 text-sm text-slate-400"
                   >
-                    <Archive size={14} className="shrink-0 opacity-30" />
-                    <span className="truncate pr-8">
-                      {chat.nombre ||
-                        `Archivado ${chat.creado_en.split('T')[0]}`}
-                    </span>
+                    <div className="flex min-w-0 flex-1 items-center gap-3">
+                      <Archive size={14} className="shrink-0 opacity-30" />
+                      <span className="block min-w-0 flex-1 truncate">
+                        {chat.nombre ||
+                          `Archivado ${chat.creado_en.split('T')[0]}`}
+                      </span>
+                    </div>
                     <button
                       onClick={(e) => unarchiveChat(e, chat.id)}
-                      className="absolute right-2 p-1 opacity-0 group-hover:opacity-100 hover:text-teal-600"
+                      className="ml-2 shrink-0 rounded bg-slate-50/80 p-1 opacity-0 transition-opacity group-hover:opacity-100 hover:text-teal-600"
                     >
                       <RotateCcw size={14} />
                     </button>
@@ -721,33 +753,24 @@ function RouteComponent() {
                     )
                   })}
 
-                  {(isSending || isSyncing) &&
-                    optimisticMessage &&
-                    !chatMessages.some(
-                      (m) => m.content === optimisticMessage,
-                    ) && (
-                      <div className="animate-in fade-in slide-in-from-right-2 ml-auto flex max-w-[85%] flex-col items-end">
-                        <div className="rounded-2xl rounded-tr-none bg-teal-600/70 p-3 text-sm whitespace-pre-wrap text-white shadow-sm">
-                          {optimisticMessage}
-                        </div>
-                      </div>
-                    )}
-
                   {(isSending || isSyncing) && (
-                    <div className="animate-in fade-in slide-in-from-left-2 flex flex-col items-start duration-300">
-                      <div className="rounded-2xl rounded-tl-none border border-slate-200 bg-white p-4 shadow-sm">
-                        <div className="flex items-center gap-2">
+                    <div className="animate-in fade-in slide-in-from-bottom-2 flex gap-4">
+                      <Avatar className="h-9 w-9 shrink-0 border bg-teal-600 text-white shadow-sm">
+                        <AvatarFallback>
+                          <Sparkles size={16} className="animate-pulse" />
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex flex-col items-start gap-2">
+                        <div className="rounded-2xl rounded-tl-none border border-slate-200 bg-white p-4 shadow-sm">
                           <div className="flex gap-1">
-                            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-teal-500 [animation-delay:-0.3s]" />
-                            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-teal-500 [animation-delay:-0.15s]" />
-                            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-teal-500" />
+                            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400 [animation-delay:-0.3s]"></span>
+                            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400 [animation-delay:-0.15s]"></span>
+                            <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400"></span>
                           </div>
-                          <span className="text-[10px] font-medium tracking-tight text-slate-400 uppercase">
-                            {isSyncing
-                              ? 'Actualizando historial...'
-                              : 'Esperando respuesta...'}
-                          </span>
                         </div>
+                        <span className="text-[10px] font-medium text-slate-400 italic">
+                          La IA está analizando tu solicitud...
+                        </span>
                       </div>
                     </div>
                   )}

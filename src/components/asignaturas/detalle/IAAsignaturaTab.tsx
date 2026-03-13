@@ -29,6 +29,12 @@ import { Drawer, DrawerContent } from '@/components/ui/drawer'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Textarea } from '@/components/ui/textarea'
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
+import {
   useAISubjectChat,
   useConversationBySubject,
   useMessagesBySubjectChat,
@@ -371,11 +377,8 @@ export function IAAsignaturaTab({
 
         <Button
           onClick={() => {
-            // 1. Limpiamos el ID
             setActiveChatId(undefined)
-            // 2. Marcamos que ya hubo una "interacción inicial" para que el useEffect no actúe
             hasInitialSelected.current = true
-            // 3. Limpiamos estados visuales
             setIsCreatingNewChat(true)
             setInput('')
             setSelectedFields([])
@@ -389,29 +392,34 @@ export function IAAsignaturaTab({
           <MessageSquarePlus size={18} /> Nuevo Chat
         </Button>
 
+        {/* PANEL IZQUIERDO - Cambios en ScrollArea y contenedor */}
         <ScrollArea className="flex-1">
-          <div className="space-y-1 pr-3">
-            {/* CORRECCIÓN: Mapear ambos casos */}
+          <div className="flex flex-col gap-1 pr-3">
+            {' '}
+            {/* Eliminado space-y-1 para mejor control con gap */}
             {(showArchived ? archivedChats : activeChats).map((chat: any) => (
               <div
                 key={chat.id}
                 className={cn(
-                  'group relative flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-all',
+                  // Agregamos 'overflow-hidden' para que nada salga de este cuadro
+                  'group relative flex w-full min-w-0 items-center justify-between gap-2 overflow-hidden rounded-lg px-3 py-2 text-sm transition-all',
                   activeChatId === chat.id
                     ? 'bg-teal-50 text-teal-900'
                     : 'text-slate-600 hover:bg-slate-100',
                 )}
+                onDoubleClick={() => {
+                  setEditingId(chat.id)
+                  setTempName(chat.nombre || chat.titulo || 'Conversacion')
+                }}
               >
-                <FileText size={14} className="shrink-0 opacity-50" />
-
                 {editingId === chat.id ? (
-                  <div className="flex flex-1 items-center gap-1">
+                  <div className="flex min-w-0 flex-1 items-center">
                     <input
                       autoFocus
-                      className="w-full rounded bg-white px-1 text-xs ring-1 ring-teal-400 outline-none"
+                      className="w-full rounded border-none bg-white px-1 text-xs ring-1 ring-teal-400 outline-none"
                       value={tempName}
                       onChange={(e) => setTempName(e.target.value)}
-                      onBlur={() => handleSaveName(chat.id)} // Guardar al hacer clic fuera
+                      onBlur={() => handleSaveName(chat.id)}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') handleSaveName(chat.id)
                         if (e.key === 'Escape') setEditingId(null)
@@ -420,54 +428,78 @@ export function IAAsignaturaTab({
                   </div>
                 ) : (
                   <>
+                    {/* CLAVE 2: 'truncate' y 'min-w-0' en el span para que ceda ante los botones */}
                     <span
                       onClick={() => setActiveChatId(chat.id)}
-                      className="flex-1 cursor-pointer truncate"
+                      className="block max-w-[140px] min-w-0 flex-1 cursor-pointer truncate pr-1"
+                      title={chat.nombre || chat.titulo}
                     >
-                      {/* CORRECCIÓN: Usar 'nombre' si así se llama en tu DB */}
                       {chat.nombre || chat.titulo || 'Conversación'}
                     </span>
 
-                    <div className="flex opacity-0 transition-opacity group-hover:opacity-100">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setEditingId(chat.id)
-                          setTempName(chat.nombre || chat.titulo || '')
-                        }}
-                        className="p-1 hover:text-teal-600"
-                      >
-                        <Edit2 size={12} />
-                      </button>
+                    {/* CLAVE 3: 'shrink-0' asegura que los botones NUNCA desaparezcan */}
+                    <div
+                      className={cn(
+                        'z-10 flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100',
+                        activeChatId === chat.id
+                          ? 'bg-teal-50'
+                          : 'bg-slate-100',
+                      )}
+                    >
+                      <TooltipProvider delayDuration={300}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setEditingId(chat.id)
+                                setTempName(chat.nombre || chat.titulo || '')
+                              }}
+                              className="rounded-md p-1 transition-colors hover:bg-slate-200 hover:text-teal-600"
+                            >
+                              <Edit2 size={14} />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="text-[10px]">
+                            Editar nombre
+                          </TooltipContent>
+                        </Tooltip>
 
-                      {/* Botón para Archivar/Desarchivar dinámico */}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          // Si el estado actual es ACTIVA, mandamos ARCHIVADA. Si no, viceversa.
-                          const nuevoEstado =
-                            chat.estado === 'ACTIVA' ? 'ARCHIVADA' : 'ACTIVA'
-                          updateStatus({ id: chat.id, estado: nuevoEstado })
-                        }}
-                        className={cn(
-                          'p-1 transition-colors',
-                          chat.estado === 'ACTIVA'
-                            ? 'hover:text-red-500'
-                            : 'hover:text-teal-600',
-                        )}
-                        title={
-                          chat.estado === 'ACTIVA'
-                            ? 'Archivar chat'
-                            : 'Desarchivar chat'
-                        }
-                      >
-                        {chat.estado === 'ACTIVA' ? (
-                          <Archive size={12} />
-                        ) : (
-                          /* Icono de Desarchivar */
-                          <History size={12} className="scale-x-[-1]" />
-                        )}
-                      </button>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                const nuevoEstado =
+                                  chat.estado === 'ACTIVA'
+                                    ? 'ARCHIVADA'
+                                    : 'ACTIVA'
+                                updateStatus({
+                                  id: chat.id,
+                                  estado: nuevoEstado,
+                                })
+                              }}
+                              className={cn(
+                                'rounded-md p-1 transition-colors hover:bg-slate-200',
+                                chat.estado === 'ACTIVA'
+                                  ? 'hover:text-red-500'
+                                  : 'hover:text-teal-600',
+                              )}
+                            >
+                              {chat.estado === 'ACTIVA' ? (
+                                <Archive size={14} />
+                              ) : (
+                                <History size={14} className="scale-x-[-1]" />
+                              )}
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="text-[10px]">
+                            {chat.estado === 'ACTIVA'
+                              ? 'Archivar'
+                              : 'Desarchivar'}
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                     </div>
                   </>
                 )}
