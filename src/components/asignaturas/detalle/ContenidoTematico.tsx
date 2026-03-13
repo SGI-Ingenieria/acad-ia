@@ -1,3 +1,5 @@
+import { DragDropProvider } from '@dnd-kit/react'
+import { isSortable, useSortable } from '@dnd-kit/react/sortable'
 import { useParams } from '@tanstack/react-router'
 import {
   Plus,
@@ -11,7 +13,7 @@ import {
 import { useEffect, useRef, useState } from 'react'
 
 import type { ContenidoApi, ContenidoTemaApi } from '@/data/api/subjects.api'
-import type { FocusEvent, KeyboardEvent } from 'react'
+import type { FocusEvent, KeyboardEvent, ReactNode } from 'react'
 
 import {
   AlertDialog,
@@ -48,6 +50,95 @@ export interface UnidadTematica {
   nombre: string
   numero: number
   temas: Array<Tema>
+}
+
+function createClientId(prefix: string) {
+  try {
+    const c = (globalThis as any).crypto
+    if (c && typeof c.randomUUID === 'function')
+      return `${prefix}-${c.randomUUID()}`
+  } catch {
+    // ignore
+  }
+  return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`
+}
+
+function arrayMove<T>(array: Array<T>, fromIndex: number, toIndex: number) {
+  const next = array.slice()
+  const startIndex = fromIndex < 0 ? next.length + fromIndex : fromIndex
+  if (startIndex < 0 || startIndex >= next.length) return next
+  const endIndex = toIndex < 0 ? next.length + toIndex : toIndex
+  const [item] = next.splice(startIndex, 1)
+  next.splice(endIndex, 0, item)
+  return next
+}
+
+function renumberUnidades(unidades: Array<UnidadTematica>) {
+  return unidades.map((u, idx) => ({ ...u, numero: idx + 1 }))
+}
+
+function InsertUnidadOverlay({
+  onInsert,
+  position,
+}: {
+  onInsert: () => void
+  position: 'top' | 'bottom'
+}) {
+  return (
+    <div
+      className={cn(
+        'pointer-events-auto absolute right-0 left-0 z-30 flex justify-center',
+        // Match the `space-y-4` gap so the hover target is *between* units.
+        position === 'top' ? '-top-4 h-4' : '-bottom-4 h-4',
+      )}
+    >
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="bg-background/95 border-border/60 hover:bg-background opacity-0 shadow-sm transition-opacity group-hover:opacity-100"
+        onClick={(e) => {
+          e.stopPropagation()
+          onInsert()
+        }}
+      >
+        <Plus className="mr-2 h-3 w-3" /> Nueva unidad
+      </Button>
+    </div>
+  )
+}
+
+function SortableUnidad({
+  id,
+  index,
+  registerContainer,
+  children,
+}: {
+  id: string
+  index: number
+  registerContainer: (el: HTMLDivElement | null) => void
+  children: (args: { handleRef: (el: HTMLElement | null) => void }) => ReactNode
+}) {
+  const { ref, handleRef, isDragSource, isDropTarget } = useSortable({
+    id,
+    index,
+  })
+
+  return (
+    <div
+      ref={(el) => {
+        ref(el)
+        registerContainer(el)
+      }}
+      className={cn(
+        'group relative',
+        isDragSource && 'opacity-80',
+        isDropTarget && 'ring-primary/20 ring-2',
+      )}
+    >
+      {children({ handleRef })}
+    </div>
+  )
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -100,20 +191,18 @@ function mapContenidoItem(value: unknown, index: number): ContenidoApi | null {
   if (Array.isArray(value.temas)) {
     temas = value.temas
       .map(mapTemaValue)
-      .filter((t): t is ContenidoTemaApi => t !== null)
-  } else if (typeof value.temas === 'string' && value.temas.trim()) {
-    temas = value.temas
-      .split(/\r?\n|,/)
-      .map((t) => t.trim())
-      .filter(Boolean)
+      .filter((x): x is ContenidoTemaApi => x !== null)
   }
 
-  return { unidad, titulo, temas }
+  return {
+    ...value,
+    unidad,
+    titulo,
+    temas,
+  }
 }
 
 function mapContenidoTematicoFromDb(value: unknown): Array<ContenidoApi> {
-  if (value == null) return []
-
   if (typeof value === 'string') {
     try {
       return mapContenidoTematicoFromDb(JSON.parse(value))
@@ -192,7 +281,16 @@ export function ContenidoTematico() {
   const [temaDraftHoras, setTemaDraftHoras] = useState('')
   const [temaOriginalHoras, setTemaOriginalHoras] = useState(0)
 
+  const didInitExpandedUnitsRef = useRef(false)
+
+  const unidadesRef = useRef<Array<UnidadTematica>>([])
+  useEffect(() => {
+    unidadesRef.current = unidades
+  }, [unidades])
+
   const persistUnidades = async (nextUnidades: Array<UnidadTematica>) => {
+    // A partir del primer guardado, ya respetamos lo que el usuario deje expandido.
+    didInitExpandedUnitsRef.current = true
     const payload = serializeUnidadesToApi(nextUnidades)
     await updateContenido.mutateAsync({
       subjectId: asignaturaId,
@@ -303,28 +401,107 @@ export function ContenidoTematico() {
       data ? data.contenido_tematico : undefined,
     )
 
-    const transformed = contenido.map((u, idx) => ({
-      id: `u-${u.unidad || idx + 1}`,
-      numero: u.unidad || idx + 1,
-      nombre: u.titulo || 'Sin título',
-      temas: Array.isArray(u.temas)
-        ? u.temas.map((t: any, tidx: number) => ({
-            id: `t-${u.unidad || idx + 1}-${tidx + 1}`,
-            nombre: typeof t === 'string' ? t : t?.nombre || 'Tema',
-            horasEstimadas: t?.horasEstimadas || 0,
-          }))
-        : [],
-    }))
+    // 1. EL ESCUDO: Comparamos si nuestro estado local ya tiene esta info exacta
+    // (Esto ocurre justo después de arrastrar, ya que actualizamos la UI antes que la BD)
+    const currentPayload = JSON.stringify(
+      serializeUnidadesToApi(unidadesRef.current),
+    )
+
+    // Normalizamos la data de la BD para que tenga exactamente la misma forma que el payload
+    const incomingPayload = JSON.stringify(
+      contenido.map((u, idx) => ({
+        unidad: u.unidad || idx + 1,
+        titulo: u.titulo || 'Sin título',
+        temas: Array.isArray(u.temas)
+          ? u.temas.map((t) => {
+              if (typeof t === 'string') {
+                return {
+                  nombre: t,
+                  horasEstimadas: 0,
+                  descripcion: undefined,
+                }
+              }
+
+              return {
+                nombre: t.nombre || 'Tema',
+                horasEstimadas: t.horasEstimadas ?? 0,
+                descripcion: t.descripcion,
+              }
+            })
+          : [],
+      })),
+    )
+
+    // Si los datos son idénticos, abortamos el useEffect.
+    // ¡Nuestros IDs locales se salvan y no hay parpadeos!
+    if (currentPayload === incomingPayload && unidadesRef.current.length > 0) {
+      return
+    }
+
+    // 2. Si llegamos aquí, es la carga inicial o alguien más editó la BD desde otro lado.
+    // Reciclamos IDs buscando por CONTENIDO (nombre), NUNCA POR ÍNDICE.
+    const prevUnidades = [...unidadesRef.current]
+
+    const transformed = contenido.map((u, idx) => {
+      const dbTitulo = u.titulo || 'Sin título'
+
+      // Buscamos si ya existe una unidad con este mismo título
+      const existingUnitIndex = prevUnidades.findIndex(
+        (prev) => prev.nombre === dbTitulo,
+      )
+      let unidadId
+      let existingUnit = null
+
+      if (existingUnitIndex !== -1) {
+        existingUnit = prevUnidades[existingUnitIndex]
+        unidadId = existingUnit.id
+        prevUnidades.splice(existingUnitIndex, 1) // Lo sacamos de la lista para no repetirlo
+      } else {
+        unidadId = createClientId(`u-${u.unidad || idx + 1}`)
+      }
+
+      return {
+        id: unidadId,
+        numero: u.unidad || idx + 1,
+        nombre: dbTitulo,
+        temas: Array.isArray(u.temas)
+          ? u.temas.map((t: any, tidx: number) => {
+              const dbTemaNombre =
+                typeof t === 'string' ? t : t?.nombre || 'Tema'
+
+              // Reciclamos subtemas por nombre también
+              const existingTema = existingUnit?.temas.find(
+                (prevT) => prevT.nombre === dbTemaNombre,
+              )
+              const temaId = existingTema
+                ? existingTema.id
+                : createClientId(`t-${u.unidad || idx + 1}-${tidx + 1}`)
+
+              return {
+                id: temaId,
+                nombre: dbTemaNombre,
+                horasEstimadas: t?.horasEstimadas || 0,
+              }
+            })
+          : [],
+      }
+    })
 
     setUnidades(transformed)
-    // Mantener las unidades ya expandidas si existen; si no, expandir la primera.
+
     setExpandedUnits((prev) => {
       const validIds = new Set(transformed.map((u) => u.id))
       const filtered = new Set(
         Array.from(prev).filter((id) => validIds.has(id)),
       )
-      if (filtered.size > 0) return filtered
-      return transformed.length > 0 ? new Set([transformed[0].id]) : new Set()
+
+      // Expandir la primera unidad solo una vez al llegar a la ruta.
+      // Luego, no auto-expandimos de nuevo (aunque `data` cambie).
+      if (!didInitExpandedUnitsRef.current && transformed.length > 0) {
+        return filtered.size > 0 ? filtered : new Set([transformed[0].id])
+      }
+
+      return filtered
     })
   }, [data])
 
@@ -364,16 +541,22 @@ export function ContenidoTematico() {
     setExpandedUnits(newExpanded)
   }
 
-  const addUnidad = () => {
-    const newNumero = unidades.length + 1
-    const newId = `u-${newNumero}`
+  const insertUnidadAt = (insertIndex: number) => {
+    const newId = createClientId('u')
     const newUnidad: UnidadTematica = {
       id: newId,
       nombre: 'Nueva Unidad',
-      numero: newNumero,
+      numero: 0,
       temas: [],
     }
-    const next = [...unidades, newUnidad]
+
+    const clampedIndex = Math.max(0, Math.min(insertIndex, unidades.length))
+    const next = renumberUnidades([
+      ...unidades.slice(0, clampedIndex),
+      newUnidad,
+      ...unidades.slice(clampedIndex),
+    ])
+
     setUnidades(next)
     setExpandedUnits((prev) => {
       const n = new Set(prev)
@@ -382,10 +565,40 @@ export function ContenidoTematico() {
     })
     setPendingScrollUnitId(newId)
 
-    // Abrir edición del título inmediatamente
     setEditingUnit(newId)
     setUnitDraftNombre(newUnidad.nombre)
     setUnitOriginalNombre(newUnidad.nombre)
+
+    void persistUnidades(next)
+  }
+
+  const handleReorderEnd = (event: any) => {
+    if (event?.canceled) return
+
+    const source = event?.operation?.source
+    if (!source) return
+
+    // Type-guard nativo de dnd-kit para asegurar que el elemento tiene metadata de orden
+    if (!isSortable(source)) return
+
+    // Extraemos las posiciones exactas calculadas por dnd-kit
+    const { initialIndex, index } = source.sortable
+
+    // Si lo soltó en la misma posición de la que salió, cancelamos
+    if (initialIndex === index) return
+
+    setUnidades((prev) => {
+      // Hacemos el movimiento usando los índices directos
+      const moved = arrayMove(prev, initialIndex, index)
+      const next = renumberUnidades(moved)
+
+      // Disparamos la persistencia hacia Supabase
+      void persistUnidades(next).catch((err) => {
+        console.error('No se pudo guardar el orden de unidades', err)
+      })
+
+      return next
+    })
   }
 
   // --- Lógica de Temas ---
@@ -451,158 +664,176 @@ export function ContenidoTematico() {
         </div>
       </div>
 
-      <div className="space-y-4">
-        {unidades.map((unidad) => (
-          <div
-            key={unidad.id}
-            ref={(el) => {
-              if (el) unitContainerRefs.current.set(unidad.id, el)
-              else unitContainerRefs.current.delete(unidad.id)
-            }}
-          >
-            <Card className="overflow-hidden border-slate-200 shadow-sm">
-              <Collapsible
-                open={expandedUnits.has(unidad.id)}
-                onOpenChange={() => toggleUnit(unidad.id)}
-              >
-                <CardHeader className="border-b border-slate-100 bg-slate-50/50 py-3">
-                  <div className="flex items-center gap-3">
-                    <GripVertical className="h-4 w-4 cursor-grab text-slate-300" />
-                    <CollapsibleTrigger asChild>
-                      <Button variant="ghost" size="sm" className="h-auto p-0">
-                        {expandedUnits.has(unidad.id) ? (
-                          <ChevronDown className="h-4 w-4" />
-                        ) : (
-                          <ChevronRight className="h-4 w-4" />
-                        )}
-                      </Button>
-                    </CollapsibleTrigger>
-                    <Badge className="bg-blue-600 font-mono">
-                      Unidad {unidad.numero}
-                    </Badge>
+      <DragDropProvider onDragEnd={handleReorderEnd}>
+        <div className="space-y-4">
+          {unidades.map((unidad, index) => (
+            <SortableUnidad
+              key={unidad.id}
+              id={unidad.id}
+              index={index}
+              registerContainer={(el) => {
+                if (el) unitContainerRefs.current.set(unidad.id, el)
+                else unitContainerRefs.current.delete(unidad.id)
+              }}
+            >
+              {({ handleRef }) => (
+                <>
+                  <InsertUnidadOverlay
+                    position="bottom"
+                    onInsert={() => insertUnidadAt(index + 1)}
+                  />
 
-                    {editingUnit === unidad.id ? (
-                      <Input
-                        ref={unitTitleInputRef}
-                        value={unitDraftNombre}
-                        onChange={(e) => setUnitDraftNombre(e.target.value)}
-                        onBlur={() => {
-                          if (cancelNextBlurRef.current) {
-                            cancelNextBlurRef.current = false
-                            return
-                          }
-                          commitEditUnit()
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault()
-                            e.currentTarget.blur()
-                            return
-                          }
-                          if (e.key === 'Escape') {
-                            e.preventDefault()
-                            cancelNextBlurRef.current = true
-                            cancelEditUnit()
-                            e.currentTarget.blur()
-                          }
-                        }}
-                        className="h-8 max-w-md bg-white"
-                      />
-                    ) : (
-                      <CardTitle
-                        className="cursor-pointer text-base font-semibold transition-colors hover:text-blue-600"
-                        onClick={() => beginEditUnit(unidad.id)}
-                      >
-                        {unidad.nombre}
-                      </CardTitle>
-                    )}
+                  <Card className="overflow-hidden border-slate-200 shadow-sm">
+                    <Collapsible
+                      open={expandedUnits.has(unidad.id)}
+                      onOpenChange={() => toggleUnit(unidad.id)}
+                    >
+                      <CardHeader className="border-b border-slate-100 bg-slate-50/50 py-3">
+                        <div className="flex items-center gap-3">
+                          <span
+                            ref={handleRef as any}
+                            className="inline-flex cursor-grab touch-none items-center text-slate-300"
+                            aria-label="Reordenar unidad"
+                          >
+                            <GripVertical className="h-4 w-4" />
+                          </span>
+                          <CollapsibleTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-auto p-0"
+                            >
+                              {expandedUnits.has(unidad.id) ? (
+                                <ChevronDown className="h-4 w-4" />
+                              ) : (
+                                <ChevronRight className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </CollapsibleTrigger>
+                          <Badge className="bg-blue-600 font-mono">
+                            Unidad {unidad.numero}
+                          </Badge>
 
-                    <div className="ml-auto flex items-center gap-3">
-                      <span className="flex items-center gap-1 text-xs font-medium text-slate-400">
-                        <Clock className="h-3 w-3" />{' '}
-                        {unidad.temas.reduce(
-                          (sum, t) => sum + (t.horasEstimadas || 0),
-                          0,
-                        )}
-                        h
-                      </span>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-slate-400 hover:text-red-500"
-                        onClick={() =>
-                          setDeleteDialog({ type: 'unidad', id: unidad.id })
-                        }
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CollapsibleContent>
-                  <CardContent className="bg-white pt-4">
-                    <div className="ml-10 space-y-1 border-l-2 border-slate-50 pl-4">
-                      {unidad.temas.map((tema, idx) => (
-                        <TemaRow
-                          key={tema.id}
-                          tema={tema}
-                          index={idx + 1}
-                          isEditing={
-                            !!editingTema &&
-                            editingTema.unitId === unidad.id &&
-                            editingTema.temaId === tema.id
-                          }
-                          draftNombre={temaDraftNombre}
-                          draftHoras={temaDraftHoras}
-                          onBeginEdit={() => beginEditTema(unidad.id, tema.id)}
-                          onDraftNombreChange={setTemaDraftNombre}
-                          onDraftHorasChange={setTemaDraftHoras}
-                          onEditorBlurCapture={handleTemaEditorBlurCapture}
-                          onEditorKeyDownCapture={
-                            handleTemaEditorKeyDownCapture
-                          }
-                          onNombreInputRef={(el) => {
-                            temaNombreInputElRef.current = el
-                          }}
-                          onDelete={() =>
-                            setDeleteDialog({
-                              type: 'tema',
-                              id: tema.id,
-                              parentId: unidad.id,
-                            })
-                          }
-                        />
-                      ))}
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="mt-2 w-full justify-start text-blue-600 hover:bg-blue-50 hover:text-blue-700"
-                        onClick={() => addTema(unidad.id)}
-                      >
-                        <Plus className="mr-2 h-3 w-3" /> Añadir subtema
-                      </Button>
-                    </div>
-                  </CardContent>
-                </CollapsibleContent>
-              </Collapsible>
-            </Card>
-          </div>
-        ))}
-      </div>
+                          {editingUnit === unidad.id ? (
+                            <Input
+                              ref={unitTitleInputRef}
+                              value={unitDraftNombre}
+                              onChange={(e) =>
+                                setUnitDraftNombre(e.target.value)
+                              }
+                              onBlur={() => {
+                                if (cancelNextBlurRef.current) {
+                                  cancelNextBlurRef.current = false
+                                  return
+                                }
+                                commitEditUnit()
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault()
+                                  e.currentTarget.blur()
+                                  return
+                                }
+                                if (e.key === 'Escape') {
+                                  e.preventDefault()
+                                  cancelNextBlurRef.current = true
+                                  cancelEditUnit()
+                                  e.currentTarget.blur()
+                                }
+                              }}
+                              className="h-8 max-w-md bg-white"
+                            />
+                          ) : (
+                            <CardTitle
+                              className="cursor-pointer text-base font-semibold transition-colors hover:text-blue-600"
+                              onClick={() => beginEditUnit(unidad.id)}
+                            >
+                              {unidad.nombre}
+                            </CardTitle>
+                          )}
 
-      <div className="flex justify-center pt-2">
-        <Button
-          variant="outline"
-          className="gap-2"
-          onClick={(e) => {
-            // Evita que Enter vuelva a disparar el click sobre el botón.
-            e.currentTarget.blur()
-            addUnidad()
-          }}
-        >
-          <Plus className="h-4 w-4" /> Nueva unidad
-        </Button>
-      </div>
+                          <div className="ml-auto flex items-center gap-3">
+                            <span className="flex items-center gap-1 text-xs font-medium text-slate-400">
+                              <Clock className="h-3 w-3" />{' '}
+                              {unidad.temas.reduce(
+                                (sum, t) => sum + (t.horasEstimadas || 0),
+                                0,
+                              )}
+                              h
+                            </span>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-slate-400 hover:text-red-500"
+                              onClick={() =>
+                                setDeleteDialog({
+                                  type: 'unidad',
+                                  id: unidad.id,
+                                })
+                              }
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CollapsibleContent>
+                        <CardContent className="bg-white pt-4">
+                          <div className="ml-10 space-y-1 border-l-2 border-slate-50 pl-4">
+                            {unidad.temas.map((tema, idx) => (
+                              <TemaRow
+                                key={tema.id}
+                                tema={tema}
+                                index={idx + 1}
+                                isEditing={
+                                  !!editingTema &&
+                                  editingTema.unitId === unidad.id &&
+                                  editingTema.temaId === tema.id
+                                }
+                                draftNombre={temaDraftNombre}
+                                draftHoras={temaDraftHoras}
+                                onBeginEdit={() =>
+                                  beginEditTema(unidad.id, tema.id)
+                                }
+                                onDraftNombreChange={setTemaDraftNombre}
+                                onDraftHorasChange={setTemaDraftHoras}
+                                onEditorBlurCapture={
+                                  handleTemaEditorBlurCapture
+                                }
+                                onEditorKeyDownCapture={
+                                  handleTemaEditorKeyDownCapture
+                                }
+                                onNombreInputRef={(el) => {
+                                  temaNombreInputElRef.current = el
+                                }}
+                                onDelete={() =>
+                                  setDeleteDialog({
+                                    type: 'tema',
+                                    id: tema.id,
+                                    parentId: unidad.id,
+                                  })
+                                }
+                              />
+                            ))}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="mt-2 w-full justify-start text-blue-600 hover:bg-blue-50 hover:text-blue-700"
+                              onClick={() => addTema(unidad.id)}
+                            >
+                              <Plus className="mr-2 h-3 w-3" /> Añadir subtema
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </CollapsibleContent>
+                    </Collapsible>
+                  </Card>
+                </>
+              )}
+            </SortableUnidad>
+          ))}
+        </div>
+      </DragDropProvider>
 
       <DeleteConfirmDialog
         dialog={deleteDialog}
