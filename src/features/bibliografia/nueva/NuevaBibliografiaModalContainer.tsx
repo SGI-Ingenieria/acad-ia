@@ -1237,6 +1237,15 @@ export function NuevaBibliografiaModalContainer({
                           const ok =
                             formatoStepRef.current?.validateBeforeNext() ?? true
                           if (!ok) return
+                          if (wizard.metodo === 'EN_LINEA' && wizard.formato) {
+                            void generateCitasForFormato(
+                              wizard.formato,
+                              wizard.refs,
+                              {
+                                force: true,
+                              },
+                            )
+                          }
                         }
                         methods.next()
                       }}
