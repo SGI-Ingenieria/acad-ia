@@ -76,7 +76,7 @@ const mapAsignaturasToAsignaturas = (
       // Mapeo directo de los nuevos campos de la API
       hd: asig.horas_academicas ?? 0,
       hi: asig.horas_independientes ?? 0,
-      prerrequisitos: [],
+      prerrequisito_asignatura_id: asig.prerrequisito_asignatura_id ?? null,
     }
   })
 }
@@ -336,6 +336,7 @@ function MapaCurricularPage() {
       horas_independientes?: TablesUpdate<'asignaturas'>['horas_independientes']
       numero_ciclo?: TablesUpdate<'asignaturas'>['numero_ciclo']
       linea_plan_id?: TablesUpdate<'asignaturas'>['linea_plan_id']
+      prerrequisito_asignatura_id?: string | null
     }
     const patch: Partial<AsignaturaPatch> = {
       nombre: editingData.nombre,
@@ -345,6 +346,7 @@ function MapaCurricularPage() {
       horas_independientes: editingData.hi,
       numero_ciclo: editingData.ciclo,
       linea_plan_id: editingData.lineaCurricularId,
+      prerrequisito_asignatura_id: editingData.prerrequisito_asignatura_id,
       tipo: editingData.tipo.toUpperCase() as TipoAsignatura, // Asegurar que coincida con el ENUM (OBLIGATORIA/OPTATIVA)
     }
 
@@ -490,7 +492,7 @@ function MapaCurricularPage() {
     e: React.FocusEvent<HTMLSpanElement>,
     id: string,
   ) => {
-    const nuevoNombre = e.currentTarget.textContent?.trim() || ''
+    const nuevoNombre = e.currentTarget.textContent.trim() || ''
 
     // Buscamos la línea original para comparar
     const lineaOriginal = lineas.find((l) => l.id === id)
@@ -935,65 +937,55 @@ function MapaCurricularPage() {
               {/* Fila 4: Seriación (Prerrequisitos) */}
               <div className="space-y-2">
                 <label className="text-xs font-bold text-slate-500 uppercase">
-                  Seriación (Prerrequisitos)
+                  Seriación (Prerrequisito)
                 </label>
                 <Select
-                  value={seriacionValue}
+                  // Cambiamos a manejo de valor único basado en el ID de la columna
+                  value={editingData.prerrequisito_asignatura_id || undefined}
                   onValueChange={(val) => {
-                    if (val === 'none') {
-                      setSeriacionValue('')
-                      return
-                    }
-                    if (!editingData.prerrequisitos.includes(val)) {
-                      setEditingData({
-                        ...editingData,
-                        prerrequisitos: [...editingData.prerrequisitos, val],
-                      })
-                    }
-                    setSeriacionValue('')
+                    console.log(editingData)
+
+                    setEditingData({
+                      ...editingData,
+                      prerrequisito_asignatura_id: val === 'none' ? null : val,
+                    })
                   }}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full bg-white">
                     <SelectValue placeholder="Seleccionar asignatura..." />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">-- Sin Seriación --</SelectItem>
 
                     {asignaturas
-                      .filter((m) => m.id !== editingData.id)
-                      .map((m) => (
-                        <SelectItem key={m.id} value={m.id}>
-                          {m.nombre} ({m.clave})
+                      .filter((asig) => {
+                        // 1. No es la misma materia
+                        const noEsMisma = asig.id !== editingData.id
+                        // 2. El ciclo debe ser estrictamente MENOR
+                        const esCicloMenor =
+                          asig.ciclo !== null &&
+                          editingData.ciclo !== null &&
+                          asig.ciclo < editingData.ciclo
+
+                        return noEsMisma && esCicloMenor
+                      })
+                      .sort(
+                        (a, b) =>
+                          (a.ciclo || 0) - (b.ciclo || 0) ||
+                          a.nombre.localeCompare(b.nombre),
+                      )
+                      .map((asig) => (
+                        <SelectItem key={asig.id} value={asig.id}>
+                          <span className="font-bold text-teal-600">
+                            [C{asig.ciclo}]
+                          </span>{' '}
+                          {asig.nombre}
                         </SelectItem>
                       ))}
                   </SelectContent>
                 </Select>
 
-                {/* Visualización de los prerrequisitos seleccionados */}
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {editingData.prerrequisitos.map((pre) => (
-                    <Badge
-                      key={pre}
-                      variant="secondary"
-                      className="bg-slate-100 text-slate-600"
-                    >
-                      {pre}
-                      <button
-                        className="ml-1 hover:text-red-500"
-                        onClick={() => {
-                          setEditingData({
-                            ...editingData,
-                            prerrequisitos: editingData.prerrequisitos.filter(
-                              (p) => p !== pre,
-                            ),
-                          })
-                        }}
-                      >
-                        ×
-                      </button>
-                    </Badge>
-                  ))}
-                </div>
+                {/* Visualización del Prerrequisito con el Nombre */}
               </div>
 
               {/* Fila 5: Tipo */}

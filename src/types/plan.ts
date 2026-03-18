@@ -50,7 +50,7 @@ export interface Asignatura {
   orden?: number
   hd: number // <--- Añadir
   hi: number // <--- Añadir
-  prerrequisitos: Array<string>
+  prerrequisito_asignatura_id: string | null
 }
 
 export interface Plan {

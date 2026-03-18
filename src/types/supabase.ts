@@ -156,6 +156,7 @@ export type Database = {
           plan_estudio_id: string
           tipo: Database['public']['Enums']['tipo_asignatura']
           tipo_origen: Database['public']['Enums']['tipo_origen'] | null
+          prerrequisito_asignatura_id?: string
         }
         Insert: {
           actualizado_en?: string
