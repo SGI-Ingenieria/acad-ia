@@ -25,7 +25,7 @@ jobs:
         env:
           VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
-        run: bun run build
+        run: bunx --bun vite build
 
       # No hace falta instalar el CLI globalmente, usamos bunx
       - name: Deploy to Azure Static Web Apps
