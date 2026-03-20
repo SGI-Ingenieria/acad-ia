@@ -8,7 +8,7 @@ import {
   Clock,
   FileJson,
 } from 'lucide-react'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -21,18 +21,23 @@ export const Route = createFileRoute('/planes/$planId/_detalle/documento')({
 function RouteComponent() {
   const { planId } = useParams({ from: '/planes/$planId/_detalle/documento' })
   const [pdfUrl, setPdfUrl] = useState<string | null>(null)
+  const pdfUrlRef = useRef<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
   const loadPdfPreview = useCallback(async () => {
     try {
       setIsLoading(true)
-      const pdfBlob = await fetchPlanPdf({ plan_estudio_id: planId })
+      const pdfBlob = await fetchPlanPdf({
+        plan_estudio_id: planId,
+        convertTo: 'pdf',
+      })
       const url = window.URL.createObjectURL(pdfBlob)
 
-      // Limpiar URL anterior si existe para evitar fugas de memoria
-      if (pdfUrl) window.URL.revokeObjectURL(pdfUrl)
-
-      setPdfUrl(url)
+      setPdfUrl((prev) => {
+        if (prev) window.URL.revokeObjectURL(prev)
+        pdfUrlRef.current = url
+        return url
+      })
     } catch (error) {
       console.error('Error cargando preview:', error)
     } finally {
@@ -43,7 +48,7 @@ function RouteComponent() {
   useEffect(() => {
     loadPdfPreview()
     return () => {
-      if (pdfUrl) window.URL.revokeObjectURL(pdfUrl)
+      if (pdfUrlRef.current) window.URL.revokeObjectURL(pdfUrlRef.current)
     }
   }, [loadPdfPreview])
 
@@ -51,6 +56,7 @@ function RouteComponent() {
     try {
       const pdfBlob = await fetchPlanPdf({
         plan_estudio_id: planId,
+        convertTo: 'pdf',
       })
 
       const url = window.URL.createObjectURL(pdfBlob)
@@ -65,6 +71,27 @@ function RouteComponent() {
     } catch (error) {
       console.error(error)
       alert('No se pudo generar el PDF')
+    }
+  }
+
+  const handleDownloadWord = async () => {
+    try {
+      const docBlob = await fetchPlanPdf({
+        plan_estudio_id: planId,
+      })
+
+      const url = window.URL.createObjectURL(docBlob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = 'plan_estudios.docx'
+      document.body.appendChild(link)
+      link.click()
+
+      link.remove()
+      setTimeout(() => window.URL.revokeObjectURL(url), 1000)
+    } catch (error) {
+      console.error(error)
+      alert('No se pudo generar el Word')
     }
   }
   return (
@@ -88,12 +115,17 @@ function RouteComponent() {
           >
             <RefreshCcw size={16} /> Regenerar
           </Button>
-          <Button variant="outline" size="sm" className="gap-2">
-            <Download size={16} /> Descargar Word
-          </Button>
           <Button
             size="sm"
             className="gap-2 bg-teal-700 hover:bg-teal-800"
+            onClick={handleDownloadWord}
+          >
+            <Download size={16} /> Descargar Word
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2"
             onClick={handleDownloadPdf}
           >
             <Download size={16} /> Descargar PDF
@@ -139,7 +171,7 @@ function RouteComponent() {
           )}
         </div>
 
-        <CardContent className="flex min-h-[800px] justify-center bg-slate-500 p-0">
+        <CardContent className="flex min-h-200 justify-center bg-slate-500 p-0">
           {isLoading ? (
             <div className="flex flex-col items-center justify-center gap-4 text-white">
               <RefreshCcw size={40} className="animate-spin opacity-50" />
@@ -149,7 +181,7 @@ function RouteComponent() {
             /* 3. VISOR DE PDF REAL */
             <iframe
               src={`${pdfUrl}#toolbar=0&navpanes=0`}
-              className="h-[1000px] w-full max-w-[1000px] border-none shadow-2xl"
+              className="h-250 w-full max-w-250 border-none shadow-2xl"
               title="PDF Preview"
             />
           ) : (
