@@ -154,9 +154,9 @@ export type Database = {
           numero_ciclo: number | null
           orden_celda: number | null
           plan_estudio_id: string
+          prerrequisito_asignatura_id: string | null
           tipo: Database['public']['Enums']['tipo_asignatura']
           tipo_origen: Database['public']['Enums']['tipo_origen'] | null
-          prerrequisito_asignatura_id?: string
         }
         Insert: {
           actualizado_en?: string
@@ -180,6 +180,7 @@ export type Database = {
           numero_ciclo?: number | null
           orden_celda?: number | null
           plan_estudio_id: string
+          prerrequisito_asignatura_id?: string | null
           tipo?: Database['public']['Enums']['tipo_asignatura']
           tipo_origen?: Database['public']['Enums']['tipo_origen'] | null
         }
@@ -205,6 +206,7 @@ export type Database = {
           numero_ciclo?: number | null
           orden_celda?: number | null
           plan_estudio_id?: string
+          prerrequisito_asignatura_id?: string | null
           tipo?: Database['public']['Enums']['tipo_asignatura']
           tipo_origen?: Database['public']['Enums']['tipo_origen'] | null
         }
@@ -257,6 +259,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: 'plantilla_plan'
             referencedColumns: ['plan_estudio_id']
+          },
+          {
+            foreignKeyName: 'asignaturas_prerrequisito_asignatura_id_fkey'
+            columns: ['prerrequisito_asignatura_id']
+            isOneToOne: false
+            referencedRelation: 'asignaturas'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'asignaturas_prerrequisito_asignatura_id_fkey'
+            columns: ['prerrequisito_asignatura_id']
+            isOneToOne: false
+            referencedRelation: 'plantilla_asignatura'
+            referencedColumns: ['asignatura_id']
           },
         ]
       }
@@ -1377,6 +1393,7 @@ export type Database = {
         Args: { p_append: Json; p_id: string }
         Returns: undefined
       }
+      suma_porcentajes: { Args: { '': Json }; Returns: number }
       unaccent: { Args: { '': string }; Returns: string }
       unaccent_immutable: { Args: { '': string }; Returns: string }
     }

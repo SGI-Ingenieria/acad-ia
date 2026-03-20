@@ -24,6 +24,7 @@ export async function fetchPlanPdf({
     {
       action: 'downloadReport',
       plan_estudio_id,
+      body: { convertTo: 'pdf' },
     },
     {
       headers: {
