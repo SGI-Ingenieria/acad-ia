@@ -18,7 +18,8 @@ import { Card } from '@/components/ui/card'
 interface DocumentoSEPTabProps {
   pdfUrl: string | null
   isLoading: boolean
-  onDownload: () => void
+  onDownloadPdf: () => void
+  onDownloadWord: () => void
   onRegenerate: () => void
   isRegenerating: boolean
 }
@@ -26,7 +27,8 @@ interface DocumentoSEPTabProps {
 export function DocumentoSEPTab({
   pdfUrl,
   isLoading,
-  onDownload,
+  onDownloadPdf,
+  onDownloadWord,
   onRegenerate,
   isRegenerating,
 }: DocumentoSEPTabProps) {
@@ -52,25 +54,23 @@ export function DocumentoSEPTab({
         </div>
 
         <div className="flex items-center gap-2">
-          {pdfUrl && !isLoading && (
-            <Button variant="outline" onClick={onDownload}>
-              <Download className="mr-2 h-4 w-4" />
-              Descargar
-            </Button>
-          )}
-
           <AlertDialog
             open={showConfirmDialog}
             onOpenChange={setShowConfirmDialog}
           >
             <AlertDialogTrigger asChild>
-              <Button disabled={isRegenerating}>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                disabled={isRegenerating}
+              >
                 {isRegenerating ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
-                  <RefreshCw className="mr-2 h-4 w-4" />
+                  <RefreshCw className="h-4 w-4" />
                 )}
-                {isRegenerating ? 'Generando...' : 'Regenerar documento'}
+                {isRegenerating ? 'Generando...' : 'Regenerar'}
               </Button>
             </AlertDialogTrigger>
 
@@ -91,11 +91,31 @@ export function DocumentoSEPTab({
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
+
+          {pdfUrl && !isLoading && (
+            <>
+              <Button
+                size="sm"
+                className="gap-2 bg-teal-700 hover:bg-teal-800"
+                onClick={onDownloadWord}
+              >
+                <Download className="h-4 w-4" /> Descargar Word
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                onClick={onDownloadPdf}
+              >
+                <Download className="h-4 w-4" /> Descargar PDF
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
       {/* PDF Preview */}
-      <Card className="h-[800px] overflow-hidden">
+      <Card className="h-200 overflow-hidden">
         {isLoading ? (
           <div className="flex h-full items-center justify-center">
             <Loader2 className="h-10 w-10 animate-spin" />

@@ -1,52 +1,86 @@
 // document.api.ts
 
-const DOCUMENT_PDF_URL =
-  'https://n8n.app.lci.ulsa.mx/webhook/62ca84ec-0adb-4006-aba1-32282d27d434'
+import { supabaseBrowser } from '../supabase/client'
+import { invokeEdge } from '../supabase/invokeEdge'
 
-const DOCUMENT_PDF_ASIGNATURA_URL =
-  'https://n8n.app.lci.ulsa.mx/webhook/041a68be-7568-46d0-bc08-09ded12d017d'
+import { requireData, throwIfError } from './_helpers'
+
+import type { Tables } from '@/types/supabase'
+
+const EDGE = {
+  carbone_io_wrapper: 'carbone-io-wrapper',
+} as const
 
 interface GeneratePdfParams {
   plan_estudio_id: string
+  convertTo?: 'pdf'
 }
 interface GeneratePdfParamsAsignatura {
   asignatura_id: string
+  convertTo?: 'pdf'
 }
 
 export async function fetchPlanPdf({
   plan_estudio_id,
+  convertTo,
 }: GeneratePdfParams): Promise<Blob> {
-  const response = await fetch(DOCUMENT_PDF_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
+  return await invokeEdge<Blob>(
+    EDGE.carbone_io_wrapper,
+    {
+      action: 'downloadReport',
+      plan_estudio_id,
+      body: convertTo ? { convertTo } : {},
     },
-    body: JSON.stringify({ plan_estudio_id }),
-  })
-
-  if (!response.ok) {
-    throw new Error('Error al generar el PDF')
-  }
-
-  // n8n devuelve el archivo → lo tratamos como blob
-  return await response.blob()
+    {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      responseType: 'blob',
+    },
+  )
 }
 
 export async function fetchAsignaturaPdf({
   asignatura_id,
+  convertTo,
 }: GeneratePdfParamsAsignatura): Promise<Blob> {
-  const response = await fetch(DOCUMENT_PDF_ASIGNATURA_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ asignatura_id }),
-  })
+  const supabase = supabaseBrowser()
 
-  if (!response.ok) {
-    throw new Error('Error al generar el PDF')
+  const { data, error } = await supabase
+    .from('asignaturas')
+    .select('*')
+    .eq('id', asignatura_id)
+    .single()
+
+  throwIfError(error)
+
+  const row = requireData(
+    data as Pick<
+      Tables<'asignaturas'>,
+      'datos' | 'contenido_tematico' | 'criterios_de_evaluacion'
+    >,
+    'Asignatura no encontrada',
+  )
+
+  const body: Record<string, unknown> = {
+    data: row,
   }
+  if (convertTo) body.convertTo = convertTo
 
-  // n8n devuelve el archivo → lo tratamos como blob
-  return await response.blob()
+  return await invokeEdge<Blob>(
+    EDGE.carbone_io_wrapper,
+    {
+      action: 'downloadReport',
+      asignatura_id,
+      body: {
+        ...body,
+      },
+    },
+    {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      responseType: 'blob',
+    },
+  )
 }
