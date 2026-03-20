@@ -12,6 +12,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import { usePlan } from '@/data'
 import { fetchPlanPdf } from '@/data/api/document.api'
 
 export const Route = createFileRoute('/planes/$planId/_detalle/documento')({
@@ -20,34 +21,40 @@ export const Route = createFileRoute('/planes/$planId/_detalle/documento')({
 
 function RouteComponent() {
   const { planId } = useParams({ from: '/planes/$planId/_detalle/documento' })
+  const { data: plan } = usePlan(planId)
   const [pdfUrl, setPdfUrl] = useState<string | null>(null)
   const pdfUrlRef = useRef<string | null>(null)
+  const isMountedRef = useRef<boolean>(false)
   const [isLoading, setIsLoading] = useState(true)
+
+  const planFileBaseName = sanitizeFileBaseName(plan?.nombre ?? 'plan_estudios')
 
   const loadPdfPreview = useCallback(async () => {
     try {
-      setIsLoading(true)
+      if (isMountedRef.current) setIsLoading(true)
       const pdfBlob = await fetchPlanPdf({
         plan_estudio_id: planId,
         convertTo: 'pdf',
       })
+
+      if (!isMountedRef.current) return
       const url = window.URL.createObjectURL(pdfBlob)
 
-      setPdfUrl((prev) => {
-        if (prev) window.URL.revokeObjectURL(prev)
-        pdfUrlRef.current = url
-        return url
-      })
+      if (pdfUrlRef.current) window.URL.revokeObjectURL(pdfUrlRef.current)
+      pdfUrlRef.current = url
+      setPdfUrl(url)
     } catch (error) {
       console.error('Error cargando preview:', error)
     } finally {
-      setIsLoading(false)
+      if (isMountedRef.current) setIsLoading(false)
     }
   }, [planId])
 
   useEffect(() => {
+    isMountedRef.current = true
     loadPdfPreview()
     return () => {
+      isMountedRef.current = false
       if (pdfUrlRef.current) window.URL.revokeObjectURL(pdfUrlRef.current)
     }
   }, [loadPdfPreview])
@@ -62,7 +69,7 @@ function RouteComponent() {
       const url = window.URL.createObjectURL(pdfBlob)
       const link = document.createElement('a')
       link.href = url
-      link.download = 'plan_estudios.pdf'
+      link.download = `${planFileBaseName}.pdf`
       document.body.appendChild(link)
       link.click()
 
@@ -83,7 +90,7 @@ function RouteComponent() {
       const url = window.URL.createObjectURL(docBlob)
       const link = document.createElement('a')
       link.href = url
-      link.download = 'plan_estudios.docx'
+      link.download = `${planFileBaseName}.docx`
       document.body.appendChild(link)
       link.click()
 
@@ -193,6 +200,24 @@ function RouteComponent() {
       </Card>
     </div>
   )
+}
+
+function sanitizeFileBaseName(input: string): string {
+  const text = String(input)
+  const withoutControlChars = Array.from(text)
+    .filter((ch) => {
+      const code = ch.charCodeAt(0)
+      return code >= 32 && code !== 127
+    })
+    .join('')
+
+  const cleaned = withoutControlChars
+    .replace(/[<>:"/\\|?*]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/[. ]+$/g, '')
+
+  return (cleaned || 'documento').slice(0, 150)
 }
 
 // Componente pequeño para las tarjetas de estado superior

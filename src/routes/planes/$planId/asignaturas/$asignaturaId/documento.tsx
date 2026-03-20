@@ -2,6 +2,7 @@ import { createFileRoute, useParams } from '@tanstack/react-router'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { DocumentoSEPTab } from '@/components/asignaturas/detalle/DocumentoSEPTab'
+import { useSubject } from '@/data'
 import { fetchAsignaturaPdf } from '@/data/api/document.api'
 
 export const Route = createFileRoute(
@@ -15,38 +16,46 @@ function RouteComponent() {
     from: '/planes/$planId/asignaturas/$asignaturaId/documento',
   })
 
+  const { data: asignatura } = useSubject(asignaturaId)
+  const asignaturaFileBaseName = sanitizeFileBaseName(
+    asignatura?.nombre ?? 'documento_sep',
+  )
+
   const [pdfUrl, setPdfUrl] = useState<string | null>(null)
   const pdfUrlRef = useRef<string | null>(null)
+  const isMountedRef = useRef<boolean>(false)
   const [isLoading, setIsLoading] = useState(true)
   const [isRegenerating, setIsRegenerating] = useState(false)
 
   const loadPdfPreview = useCallback(async () => {
     try {
-      setIsLoading(true)
+      if (isMountedRef.current) setIsLoading(true)
 
       const pdfBlob = await fetchAsignaturaPdf({
         asignatura_id: asignaturaId,
         convertTo: 'pdf',
       })
 
+      if (!isMountedRef.current) return
+
       const url = window.URL.createObjectURL(pdfBlob)
 
-      setPdfUrl((prev) => {
-        if (prev) window.URL.revokeObjectURL(prev)
-        pdfUrlRef.current = url
-        return url
-      })
+      if (pdfUrlRef.current) window.URL.revokeObjectURL(pdfUrlRef.current)
+      pdfUrlRef.current = url
+      setPdfUrl(url)
     } catch (error) {
       console.error('Error cargando PDF:', error)
     } finally {
-      setIsLoading(false)
+      if (isMountedRef.current) setIsLoading(false)
     }
   }, [asignaturaId])
 
   useEffect(() => {
+    isMountedRef.current = true
     loadPdfPreview()
 
     return () => {
+      isMountedRef.current = false
       if (pdfUrlRef.current) window.URL.revokeObjectURL(pdfUrlRef.current)
     }
   }, [loadPdfPreview])
@@ -60,7 +69,7 @@ function RouteComponent() {
     const url = window.URL.createObjectURL(pdfBlob)
     const link = document.createElement('a')
     link.href = url
-    link.download = 'documento_sep.pdf'
+    link.download = `${asignaturaFileBaseName}.pdf`
     document.body.appendChild(link)
     link.click()
     link.remove()
@@ -75,7 +84,7 @@ function RouteComponent() {
     const url = window.URL.createObjectURL(docBlob)
     const link = document.createElement('a')
     link.href = url
-    link.download = 'documento_sep.docx'
+    link.download = `${asignaturaFileBaseName}.docx`
     document.body.appendChild(link)
     link.click()
     link.remove()
@@ -102,4 +111,22 @@ function RouteComponent() {
       isRegenerating={isRegenerating}
     />
   )
+}
+
+function sanitizeFileBaseName(input: string): string {
+  const text = String(input)
+  const withoutControlChars = Array.from(text)
+    .filter((ch) => {
+      const code = ch.charCodeAt(0)
+      return code >= 32 && code !== 127
+    })
+    .join('')
+
+  const cleaned = withoutControlChars
+    .replace(/[<>:"/\\|?*]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/[. ]+$/g, '')
+
+  return (cleaned || 'documento').slice(0, 150)
 }
