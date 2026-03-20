@@ -213,7 +213,7 @@ function AsignaturaCardItem({
               'group relative h-[200px] w-[272px] shrink-0 overflow-hidden rounded-[22px] border text-left',
               'transition-all duration-300 ease-out',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30',
-              'active:cursor-grabbing',
+              'active:cursor-grabbing cursor-grab',
               isDragging
                 ? 'scale-[0.985] opacity-45 shadow-none'
                 : 'hover:-translate-y-1 hover:shadow-lg',
