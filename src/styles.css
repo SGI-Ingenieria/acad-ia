@@ -141,6 +141,8 @@ b,
 .font-bold {
   font-family: 'Indivisa Sans', serif;
   font-weight: 900;
+  /* Inter letter space */
+  letter-spacing: -0.025em;
 }
 
 :root {
