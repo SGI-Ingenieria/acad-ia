@@ -191,7 +191,7 @@ function AsignaturaCardItem({
   isDragging: boolean
   onClick: () => void
 }) {
-  const estado = estadoConfig[asignatura.estado] ?? estadoConfig.borrador
+  const estado = estadoConfig[asignatura.estado]
   const EstadoIcon = estado.icon
 
   return (
@@ -203,7 +203,7 @@ function AsignaturaCardItem({
             onDragStart={(e) => onDragStart(e, asignatura.id)}
             onClick={onClick}
             className={[
-              'group relative h-50 w-50 shrink-0 overflow-hidden rounded-[22px] border text-left',
+              'group relative h-50 w-40 shrink-0 overflow-hidden rounded-[22px] border text-left',
               'transition-all duration-300 ease-out',
               'focus-visible:ring-ring/30 focus-visible:ring-2 focus-visible:outline-none',
               'cursor-grab active:cursor-grabbing',
