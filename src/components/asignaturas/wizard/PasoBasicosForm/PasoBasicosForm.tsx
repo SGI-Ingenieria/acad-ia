@@ -1,3 +1,4 @@
+import * as Icons from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import PasoSugerenciasForm from './PasoSugerenciasForm'
@@ -21,9 +22,11 @@ import { cn } from '@/lib/utils'
 export function PasoBasicosForm({
   wizard,
   onChange,
+  estructuraFuenteId,
 }: {
   wizard: NewSubjectWizardState
   onChange: React.Dispatch<React.SetStateAction<NewSubjectWizardState>>
+  estructuraFuenteId?: string | null
 }) {
   const { data: estructuras } = useSubjectEstructuras()
 
@@ -258,6 +261,17 @@ export function PasoBasicosForm({
               )}
             </SelectContent>
           </Select>
+          {estructuraFuenteId &&
+          wizard.datosBasicos.estructuraId &&
+          wizard.datosBasicos.estructuraId !== estructuraFuenteId ? (
+            <div className="border-destructive/40 bg-destructive/5 text-destructive flex items-start gap-2 rounded-md border p-2 text-xs">
+              <Icons.AlertTriangle className="mt-0.5 h-4 w-4 flex-none" />
+              <span>
+                Es posible que se pierdan datos generales al seleccionar otra
+                estructura.
+              </span>
+            </div>
+          ) : null}
           <p className="text-muted-foreground text-xs">
             Define los campos requeridos (ej. Objetivos, Temario, Evaluación).
           </p>

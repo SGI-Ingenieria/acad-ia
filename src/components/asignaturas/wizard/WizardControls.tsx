@@ -15,6 +15,7 @@ import {
   qk,
   useCreateSubjectManual,
   subjects_get_maybe,
+  subjects_get,
 } from '@/data'
 
 export function WizardControls({
@@ -201,6 +202,85 @@ export function WizardControls({
     let startedWaiting = false
 
     try {
+      if (wizard.tipoOrigen === 'CLONADO_INTERNO') {
+        if (!wizard.plan_estudio_id) {
+          throw new Error('Plan de estudio inválido.')
+        }
+
+        const asignaturaOrigenId = wizard.clonInterno?.asignaturaOrigenId
+        if (!asignaturaOrigenId) {
+          throw new Error('Selecciona una asignatura fuente.')
+        }
+
+        if (!wizard.datosBasicos.estructuraId) {
+          throw new Error('Estructura inválida.')
+        }
+        if (!wizard.datosBasicos.nombre.trim()) {
+          throw new Error('Nombre inválido.')
+        }
+        if (wizard.datosBasicos.tipo == null) {
+          throw new Error('Tipo inválido.')
+        }
+        if (wizard.datosBasicos.creditos == null) {
+          throw new Error('Créditos inválidos.')
+        }
+
+        const fuente = await subjects_get(asignaturaOrigenId as any)
+
+        const supabase = supabaseBrowser()
+
+        const codigo = (wizard.datosBasicos.codigo ?? '').trim()
+
+        const payload: TablesInsert<'asignaturas'> = {
+          plan_estudio_id: wizard.plan_estudio_id,
+          estructura_id: wizard.datosBasicos.estructuraId,
+          codigo: codigo ? codigo : null,
+          nombre: wizard.datosBasicos.nombre,
+          tipo: wizard.datosBasicos.tipo,
+          creditos: wizard.datosBasicos.creditos,
+          datos: (fuente as any).datos,
+          contenido_tematico: (fuente as any).contenido_tematico,
+          criterios_de_evaluacion: (fuente as any).criterios_de_evaluacion,
+          tipo_origen: 'CLONADO_INTERNO',
+          meta_origen: {
+            ...(fuente as any).meta_origen,
+            asignatura_origen_id: fuente.id,
+            plan_origen_id: (fuente as any).plan_estudio_id,
+          },
+          horas_academicas:
+            wizard.datosBasicos.horasAcademicas ??
+            (fuente as any).horas_academicas ??
+            null,
+          horas_independientes:
+            wizard.datosBasicos.horasIndependientes ??
+            (fuente as any).horas_independientes ??
+            null,
+        }
+
+        const { data: inserted, error: insertError } = await supabase
+          .from('asignaturas')
+          .insert(payload)
+          .select('id,plan_estudio_id')
+          .single()
+
+        if (insertError) throw new Error(insertError.message)
+
+        qc.invalidateQueries({
+          queryKey: qk.planAsignaturas(wizard.plan_estudio_id),
+        })
+        qc.invalidateQueries({
+          queryKey: qk.planHistorial(wizard.plan_estudio_id),
+        })
+
+        navigate({
+          to: `/planes/${inserted.plan_estudio_id}/asignaturas/${inserted.id}`,
+          state: { showConfetti: true },
+          resetScroll: false,
+        })
+
+        return
+      }
+
       if (wizard.tipoOrigen === 'IA_SIMPLE') {
         if (!wizard.plan_estudio_id) {
           throw new Error('Plan de estudio inválido.')

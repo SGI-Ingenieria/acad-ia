@@ -50,10 +50,12 @@ export type NewSubjectWizardState = {
   }
   sugerencias: Array<AsignaturaSugerida>
   clonInterno?: {
-    facultadId?: string
-    carreraId?: string
-    planOrigenId?: string
+    facultadId?: string | null
+    carreraId?: string | null
+    planOrigenId?: string | null
     asignaturaOrigenId?: string | null
+    search?: string
+    page?: number
   }
   clonTradicional?: {
     archivoWordAsignaturaId: string | null

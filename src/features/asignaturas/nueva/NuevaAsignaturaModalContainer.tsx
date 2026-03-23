@@ -3,8 +3,10 @@ import * as Icons from 'lucide-react'
 
 import { useNuevaAsignaturaWizard } from './hooks/useNuevaAsignaturaWizard'
 
+import { PasoBasicosClonadoInterno } from '@/components/asignaturas/wizard/PasoBasicosClonadoInterno.tsx'
 import { PasoBasicosForm } from '@/components/asignaturas/wizard/PasoBasicosForm/PasoBasicosForm'
 import { PasoDetallesPanel } from '@/components/asignaturas/wizard/PasoDetallesPanel'
+import { PasoFuenteClonadoInterno } from '@/components/asignaturas/wizard/PasoFuenteClonadoInterno.tsx'
 import { PasoMetodoCardGroup } from '@/components/asignaturas/wizard/PasoMetodoCardGroup'
 import { PasoResumenCard } from '@/components/asignaturas/wizard/PasoResumenCard'
 import { WizardControls } from '@/components/asignaturas/wizard/WizardControls'
@@ -63,7 +65,12 @@ export function NuevaAsignaturaModalContainer({ planId }: { planId: string }) {
           basicos: 'Sugerencias',
           detalles: 'Estructura',
         }
-      : undefined
+      : wizard.tipoOrigen === 'CLONADO_INTERNO'
+        ? {
+            basicos: 'Fuente',
+            detalles: 'Datos básicos',
+          }
+        : undefined
 
   const handleClose = () => {
     navigate({ to: `/planes/${planId}/asignaturas`, resetScroll: false })
@@ -99,6 +106,21 @@ export function NuevaAsignaturaModalContainer({ planId }: { planId: string }) {
     >
       {({ methods }) => {
         const idx = Wizard.utils.getIndex(methods.current.id)
+        const stepId = methods.current.id
+
+        const disableNext =
+          wizard.isLoading ||
+          (stepId === 'metodo'
+            ? !canContinueDesdeMetodo
+            : stepId === 'basicos'
+              ? wizard.tipoOrigen === 'CLONADO_INTERNO'
+                ? !canContinueDesdeDetalles
+                : !canContinueDesdeBasicos
+              : stepId === 'detalles'
+                ? wizard.tipoOrigen === 'CLONADO_INTERNO'
+                  ? !canContinueDesdeBasicos
+                  : !canContinueDesdeDetalles
+                : false)
 
         return (
           <WizardLayout
@@ -118,12 +140,7 @@ export function NuevaAsignaturaModalContainer({ planId }: { planId: string }) {
                   onPrev={() => methods.prev()}
                   onNext={() => methods.next()}
                   disablePrev={idx === 0 || wizard.isLoading}
-                  disableNext={
-                    wizard.isLoading ||
-                    (idx === 0 && !canContinueDesdeMetodo) ||
-                    (idx === 1 && !canContinueDesdeBasicos) ||
-                    (idx === 2 && !canContinueDesdeDetalles)
-                  }
+                  disableNext={disableNext}
                   disableCreate={wizard.isLoading}
                   isLastStep={idx >= Wizard.steps.length - 1}
                   wizard={wizard}
@@ -141,13 +158,27 @@ export function NuevaAsignaturaModalContainer({ planId }: { planId: string }) {
 
               {idx === 1 && (
                 <Wizard.Stepper.Panel>
-                  <PasoBasicosForm wizard={wizard} onChange={setWizard} />
+                  {wizard.tipoOrigen === 'CLONADO_INTERNO' ? (
+                    <PasoFuenteClonadoInterno
+                      wizard={wizard}
+                      onChange={setWizard}
+                    />
+                  ) : (
+                    <PasoBasicosForm wizard={wizard} onChange={setWizard} />
+                  )}
                 </Wizard.Stepper.Panel>
               )}
 
               {idx === 2 && (
                 <Wizard.Stepper.Panel>
-                  <PasoDetallesPanel wizard={wizard} onChange={setWizard} />
+                  {wizard.tipoOrigen === 'CLONADO_INTERNO' ? (
+                    <PasoBasicosClonadoInterno
+                      wizard={wizard}
+                      onChange={setWizard}
+                    />
+                  ) : (
+                    <PasoDetallesPanel wizard={wizard} onChange={setWizard} />
+                  )}
                 </Wizard.Stepper.Panel>
               )}
 
