@@ -139,6 +139,10 @@ function RouteComponent() {
     null,
   )
   const [filterQuery, setFilterQuery] = useState('')
+
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false)
+  const [isActionsOpen, setIsActionsOpen] = useState(false)
+
   const availableFields = useMemo(() => {
     const definicion = data?.estructuras_plan
       ?.definicion as EstructuraDefinicion
@@ -206,7 +210,7 @@ function RouteComponent() {
       return messages
     })
   }, [mensajesDelChat, activeChatId, availableFields])
-  const scrollToBottom = (behavior = 'smooth') => {
+  const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
     if (scrollRef.current) {
       const scrollContainer = scrollRef.current.querySelector(
         '[data-radix-scroll-area-viewport]',
@@ -214,7 +218,7 @@ function RouteComponent() {
       if (scrollContainer) {
         scrollContainer.scrollTo({
           top: scrollContainer.scrollHeight,
-          behavior: behavior, // 'instant' para carga inicial, 'smooth' para mensajes nuevos
+          behavior,
         })
       }
     }
@@ -478,37 +482,38 @@ function RouteComponent() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-160px)] max-h-[calc(100vh-160px)] w-full gap-6 overflow-hidden p-4">
-      {/* --- PANEL IZQUIERDO: HISTORIAL --- */}
-      <div className="flex w-64 flex-col border-r pr-4">
-        <div className="mb-4">
-          <div className="mb-4 flex items-center justify-between px-2">
-            <h2 className="text-xs font-bold tracking-wider text-slate-500 uppercase">
-              Chats
-            </h2>
-            {/* Botón de toggle archivados movido aquí arriba */}
-            <button
-              onClick={() => setShowArchived(!showArchived)}
-              className={`rounded-md p-1.5 transition-colors ${
-                showArchived
-                  ? 'bg-teal-50 text-teal-600'
-                  : 'text-slate-400 hover:bg-slate-100'
-              }`}
-              title={showArchived ? 'Ver chats activos' : 'Ver archivados'}
-            >
-              <Archive size={16} />
-            </button>
-          </div>
+    <div className="flex h-[calc(100vh-160px)] max-h-[calc(100vh-160px)] w-full flex-col gap-6 overflow-hidden p-4 md:flex-row">
+      {/* --- HEADER MÓVIL (Solo visible en < md) --- */}
+      <div className="flex items-center justify-between rounded-lg border bg-white p-2 md:hidden">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setIsHistoryOpen(true)}
+        >
+          <Archive size={18} className="mr-2" /> Historial
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setIsActionsOpen(true)}
+        >
+          <Lightbulb size={18} className="mr-2 text-orange-500" /> Acciones
+        </Button>
+      </div>
 
-          <Button
-            onClick={createNewChat}
-            variant="outline"
-            className="mb-4 w-full justify-start gap-2 border-slate-200 hover:bg-teal-50 hover:text-teal-700"
-          >
-            <MessageSquarePlus size={18} /> Nuevo chat
-          </Button>
-        </div>
-
+      {/* --- PANEL IZQUIERDO: HISTORIAL (Escritorio) --- */}
+      <div className="hidden w-64 flex-col border-r pr-4 md:flex">
+        {/* ... (Tu código actual del historial de chats) ... */}
+        <h2 className="text-xs font-bold tracking-wider text-slate-500 uppercase">
+          Chats
+        </h2>
+        <Button
+          onClick={createNewChat}
+          variant="outline"
+          className="mt-2 mb-4 w-full justify-start gap-2"
+        >
+          <MessageSquarePlus size={18} /> Nuevo chat
+        </Button>
         <ScrollArea className="flex-1">
           <div className="space-y-1 pr-2">
             {' '}
@@ -571,7 +576,7 @@ function RouteComponent() {
                               onBlur={(e) => {
                                 if (editingChatId === chat.id) {
                                   const newTitle =
-                                    e.currentTarget.textContent?.trim() || ''
+                                    e.currentTarget.textContent.trim() || ''
                                   if (newTitle && newTitle !== chat.nombre) {
                                     updateTitleMutation({
                                       id: chat.id,
@@ -655,8 +660,9 @@ function RouteComponent() {
           </div>
         </ScrollArea>
       </div>
-      {/* PANEL DE CHAT PRINCIPAL */}
-      <div className="relative flex min-w-0 flex-[3] flex-col overflow-hidden rounded-xl border border-slate-200 bg-slate-50/50 shadow-sm">
+
+      {/* --- PANEL DE CHAT PRINCIPAL (Centro) --- */}
+      <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200 bg-slate-50/50 shadow-sm md:flex-[3]">
         {/* NUEVO: Barra superior de campos seleccionados */}
         <div className="shrink-0 border-b bg-white p-3">
           <div className="flex items-center justify-between">
@@ -931,8 +937,9 @@ function RouteComponent() {
           </div>
         </div>
       </div>
-      {/* PANEL LATERAL */}
-      <div className="flex flex-[1] flex-col gap-4 overflow-y-auto pr-2">
+
+      {/* --- PANEL LATERAL: ACCIONES RÁPIDAS (Escritorio) --- */}
+      <div className="hidden flex-[1] flex-col gap-4 overflow-y-auto pr-2 md:flex">
         <h4 className="flex items-center gap-2 text-left text-sm font-bold text-slate-800">
           <Lightbulb size={18} className="text-orange-500" /> Acciones rápidas
         </h4>
@@ -953,6 +960,65 @@ function RouteComponent() {
           ))}
         </div>
       </div>
+
+      {/* --- DRAWER: HISTORIAL (Móvil) --- */}
+      <Drawer open={isHistoryOpen} onOpenChange={setIsHistoryOpen}>
+        <DrawerContent className="h-[80vh] p-4">
+          <Button
+            onClick={() => {
+              createNewChat()
+              setIsHistoryOpen(false)
+            }}
+            className="mb-4 w-full bg-teal-600 text-white"
+          >
+            <MessageSquarePlus size={18} className="mr-2" /> Nuevo Chat
+          </Button>
+          <ScrollArea className="flex-1">
+            {/* Reutiliza aquí el mapeo de chats que tienes en el panel izquierdo */}
+            <p className="mb-4 text-xs font-bold text-slate-400 uppercase">
+              Historial Reciente
+            </p>
+            {activeChats.map((chat) => (
+              <div
+                key={chat.id}
+                onClick={() => {
+                  setActiveChatId(chat.id)
+                  setIsHistoryOpen(false)
+                }}
+                className="border-b p-3 text-sm"
+              >
+                {chat.nombre || 'Chat sin nombre'}
+              </div>
+            ))}
+          </ScrollArea>
+        </DrawerContent>
+      </Drawer>
+
+      {/* --- DRAWER: ACCIONES RÁPIDAS (Móvil) --- */}
+      <Drawer open={isActionsOpen} onOpenChange={setIsActionsOpen}>
+        <DrawerContent className="h-[60vh] p-4">
+          <h4 className="mb-4 flex items-center gap-2 font-bold">
+            <Lightbulb size={18} className="text-orange-500" /> Acciones rápidas
+          </h4>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {PRESETS.map((preset) => (
+              <button
+                key={preset.id}
+                onClick={() => {
+                  handleSend(preset.prompt)
+                  setIsActionsOpen(false)
+                }}
+                className="flex items-center gap-3 rounded-xl border p-4 text-left text-sm"
+              >
+                <preset.icon size={16} />
+                <span>{preset.label}</span>
+              </button>
+            ))}
+          </div>
+        </DrawerContent>
+      </Drawer>
+
+      {/* Tu Drawer de Referencias IA se queda igual */}
       <Drawer open={openIA} onOpenChange={setOpenIA}>
         <DrawerContent className="fixed inset-x-0 bottom-0 mx-auto mb-4 flex h-[80vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border bg-white shadow-2xl">
           {/* Cabecera más compacta */}

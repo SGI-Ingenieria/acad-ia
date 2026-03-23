@@ -20,12 +20,15 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 
 import { ImprovementCard } from './SaveAsignatura/ImprovementCardProps'
 
-import type { IASugerencia } from '@/types/asignatura'
-
 import ReferenciasParaIA from '@/components/planes/wizard/PasoDetallesPanel/ReferenciasParaIA'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
-import { Drawer, DrawerContent } from '@/components/ui/drawer'
+import {
+  Drawer,
+  DrawerContent,
+  DrawerOverlay,
+  DrawerPortal,
+} from '@/components/ui/drawer'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Textarea } from '@/components/ui/textarea'
 import {
@@ -50,16 +53,7 @@ interface SelectedField {
   value: string
 }
 
-interface IAAsignaturaTabProps {
-  asignatura?: Record<string, any>
-  onAcceptSuggestion: (sugerencia: IASugerencia) => void
-  onRejectSuggestion: (messageId: string) => void
-}
-
-export function IAAsignaturaTab({
-  onAcceptSuggestion,
-  onRejectSuggestion,
-}: IAAsignaturaTabProps) {
+export function IAAsignaturaTab() {
   const queryClient = useQueryClient()
   const { asignaturaId } = useParams({
     from: '/planes/$planId/asignaturas/$asignaturaId',
@@ -75,6 +69,7 @@ export function IAAsignaturaTab({
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [isSending, setIsSending] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
 
   // --- DATA QUERIES ---
   const { data: datosGenerales } = useSubject(asignaturaId)
@@ -141,7 +136,7 @@ export function IAAsignaturaTab({
     const dynamicFields = datosGenerales?.datos
       ? Object.keys(datosGenerales.datos).map((key) => {
           const estructuraProps =
-            datosGenerales?.estructuras_asignatura?.definicion?.properties || {}
+            datosGenerales.estructuras_asignatura?.definicion?.properties || {}
           return {
             key,
             label:
@@ -355,10 +350,35 @@ export function IAAsignaturaTab({
   ]
 
   return (
-    <div className="flex h-[calc(100vh-160px)] w-full gap-6 overflow-hidden p-4">
-      {/* PANEL IZQUIERDO */}
-      <div className="flex w-64 flex-col border-r pr-4">
-        <div className="mb-4 flex items-center justify-between px-2">
+    <div className="flex h-full w-full overflow-hidden bg-white">
+      <div className="fixed top-0 z-40 flex w-full items-center justify-between border-b bg-white/80 p-2 backdrop-blur-md">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="text-slate-600"
+          onClick={() => setIsSidebarOpen(true)}
+        >
+          <History size={18} className="mr-2" /> Historial
+        </Button>
+
+        <div className="flex flex-col items-center">
+          <span className="text-[9px] font-bold tracking-wider text-teal-600 uppercase">
+            Asistente
+          </span>
+        </div>
+
+        <Button
+          variant="ghost"
+          size="sm"
+          className="text-slate-600"
+          onClick={() => setOpenIA(true)} // O el drawer de acciones/referencias
+        >
+          <FileText size={18} className="mr-2 text-teal-600" /> Referencias
+        </Button>
+      </div>
+      {/* 1. PANEL IZQUIERDO (HISTORIAL) - Desktop */}
+      <aside className="hidden h-full w-64 shrink-0 flex-col border-r bg-white pr-4 md:flex">
+        <div className="mb-4 flex items-center justify-between px-2 pt-4">
           <h2 className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase">
             <History size={14} /> Historial
           </h2>
@@ -378,25 +398,19 @@ export function IAAsignaturaTab({
         <Button
           onClick={() => {
             setActiveChatId(undefined)
-            hasInitialSelected.current = true
             setIsCreatingNewChat(true)
             setInput('')
             setSelectedFields([])
-
-            // 4. Opcional: Limpiar el caché de mensajes actual para que la pantalla se vea vacía al instante
             queryClient.setQueryData(['subject-messages', undefined], [])
           }}
           variant="outline"
-          className="mb-4 w-full justify-start gap-2 border-dashed border-slate-300 hover:border-teal-500"
+          className="mb-4 w-full justify-start gap-2 border-dashed border-slate-300 text-slate-600 hover:border-teal-500 hover:bg-teal-50/50"
         >
           <MessageSquarePlus size={18} /> Nuevo Chat
         </Button>
 
-        {/* PANEL IZQUIERDO - Cambios en ScrollArea y contenedor */}
         <ScrollArea className="flex-1">
           <div className="flex flex-col gap-1 pr-3">
-            {' '}
-            {/* Eliminado space-y-1 para mejor control con gap */}
             {(showArchived ? archivedChats : activeChats).map((chat: any) => (
               <div
                 key={chat.id}
@@ -507,31 +521,51 @@ export function IAAsignaturaTab({
             ))}
           </div>
         </ScrollArea>
-      </div>
+      </aside>
 
-      {/* PANEL CENTRAL */}
-      <div className="relative flex min-w-0 flex-[3] flex-col overflow-hidden rounded-xl border border-slate-200 bg-slate-50/50 shadow-sm">
+      {/* 2. PANEL CENTRAL (CHAT) - EL RECUADRO ESTILIZADO */}
+      <main className="relative flex min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200 bg-slate-50/50 shadow-sm md:m-2">
+        {/* Header Interno del Recuadro */}
         <div className="flex shrink-0 items-center justify-between border-b bg-white p-3">
-          <span className="text-[10px] font-bold tracking-wider text-slate-400 uppercase">
-            Asistente IA
-          </span>
-          <button
-            onClick={() => setOpenIA(true)}
-            className="flex items-center gap-2 rounded-md bg-slate-100 px-3 py-1.5 text-xs font-medium transition hover:bg-slate-200"
-          >
-            <FileText size={14} className="text-slate-500" />
-            Referencias
-            {totalReferencias > 0 && (
-              <span className="animate-in zoom-in flex h-4 min-w-[16px] items-center justify-center rounded-full bg-teal-600 px-1 text-[10px] text-white">
-                {totalReferencias}
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="md:hidden"
+              onClick={() => setIsSidebarOpen(true)}
+            >
+              <History size={20} className="text-slate-500" />
+            </Button>
+            <div className="flex flex-col">
+              <span className="text-[10px] font-bold tracking-wider text-teal-600 uppercase">
+                Asistente Académico
               </span>
-            )}
-          </button>
+              <span className="text-[11px] text-slate-400">
+                Personalizado para tu asignatura
+              </span>
+            </div>
+          </div>
+
+          <div className="flex gap-2">
+            <button
+              onClick={() => setOpenIA(true)}
+              className="flex items-center gap-2 rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-200"
+            >
+              <FileText size={14} />
+              <span className="xs:inline hidden">Referencias</span>
+              {totalReferencias > 0 && (
+                <span className="flex h-4 min-w-[16px] items-center justify-center rounded-full bg-teal-600 px-1 text-[10px] text-white">
+                  {totalReferencias}
+                </span>
+              )}
+            </button>
+          </div>
         </div>
 
+        {/* Área de Mensajes */}
         <div className="relative min-h-0 flex-1">
           <ScrollArea ref={scrollRef} className="h-full w-full">
-            <div className="mx-auto max-w-3xl space-y-8 p-6">
+            <div className="mx-auto max-w-3xl space-y-6 p-3 md:p-6">
               {messages.map((msg) => (
                 <div
                   key={msg.id}
@@ -642,120 +676,126 @@ export function IAAsignaturaTab({
           </ScrollArea>
         </div>
 
-        {/* INPUT */}
-        <div className="shrink-0 border-t bg-white p-4">
-          <div className="relative mx-auto max-w-4xl">
-            {showSuggestions && (
-              <div className="animate-in fade-in slide-in-from-bottom-2 absolute bottom-full left-0 z-50 mb-2 w-72 overflow-hidden rounded-xl border bg-white shadow-2xl">
-                <div className="flex justify-between border-b bg-slate-50 px-3 py-2 text-[10px] font-bold text-slate-500 uppercase">
-                  <span>Filtrando campos...</span>
-                  <span className="rounded bg-slate-200 px-1 text-[9px] text-slate-400">
-                    ESC para cerrar
-                  </span>
-                </div>
-                <div className="max-h-60 overflow-y-auto p-1">
-                  {filteredFields.length > 0 ? (
-                    filteredFields.map((field) => (
-                      <button
-                        key={field.key}
-                        onClick={() => handleSelectField(field)}
-                        className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm transition-colors hover:bg-teal-50"
-                      >
-                        <div className="flex flex-col">
-                          <span className="font-medium text-slate-700">
-                            {field.label}
-                          </span>
-                        </div>
-                        {selectedFields.find((f) => f.key === field.key) && (
-                          <Check size={14} className="text-teal-600" />
-                        )}
-                      </button>
-                    ))
-                  ) : (
-                    <div className="p-4 text-center text-xs text-slate-400 italic">
-                      No se encontraron coincidencias
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            <div className="flex flex-col gap-2 rounded-xl border bg-slate-50 p-2 transition-all focus-within:bg-white focus-within:ring-1 focus-within:ring-teal-500">
-              {selectedFields.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 px-2 pt-1">
-                  {selectedFields.map((field) => (
-                    <div
-                      key={field.key}
-                      className="animate-in zoom-in-95 flex items-center gap-1 rounded-md border border-teal-200 bg-teal-50 px-2 py-0.5 text-[11px] font-bold text-teal-700 shadow-sm"
-                    >
-                      <Target size={10} />
-                      {field.label}
-                      <button
-                        onClick={() => toggleField(field)}
-                        className="ml-1 rounded-full p-0.5 transition-colors hover:bg-teal-200/50"
-                      >
-                        <X size={10} />
-                      </button>
-                    </div>
-                  ))}
+        {/* Input de Chat */}
+        <footer className="shrink-0 border-t bg-white p-3 md:p-4">
+          <div className="shrink-0 border-t bg-white p-2 md:p-4">
+            <div className="relative mx-auto max-w-4xl">
+              {showSuggestions && (
+                <div className="animate-in fade-in slide-in-from-bottom-2 absolute bottom-full left-0 z-50 mb-2 w-72 overflow-hidden rounded-xl border bg-white shadow-2xl">
+                  <div className="flex justify-between border-b bg-slate-50 px-3 py-2 text-[10px] font-bold text-slate-500 uppercase">
+                    <span>Filtrando campos...</span>
+                    <span className="rounded bg-slate-200 px-1 text-[9px] text-slate-400">
+                      ESC para cerrar
+                    </span>
+                  </div>
+                  <div className="max-h-60 overflow-y-auto p-1">
+                    {filteredFields.length > 0 ? (
+                      filteredFields.map((field) => (
+                        <button
+                          key={field.key}
+                          onClick={() => handleSelectField(field)}
+                          className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm transition-colors hover:bg-teal-50"
+                        >
+                          <div className="flex flex-col">
+                            <span className="font-medium text-slate-700">
+                              {field.label}
+                            </span>
+                          </div>
+                          {selectedFields.find((f) => f.key === field.key) && (
+                            <Check size={14} className="text-teal-600" />
+                          )}
+                        </button>
+                      ))
+                    ) : (
+                      <div className="p-4 text-center text-xs text-slate-400 italic">
+                        No se encontraron coincidencias
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
 
-              <div className="flex items-end gap-2">
-                <Textarea
-                  value={input}
-                  onChange={(e) => {
-                    setInput(e.target.value)
-                    if (e.target.value.endsWith(':')) setShowSuggestions(true)
-                    else if (showSuggestions && !e.target.value.includes(':'))
-                      setShowSuggestions(false)
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault()
-                      handleSend()
+              <div className="flex flex-col gap-2 rounded-xl border bg-slate-50 p-2 transition-all focus-within:bg-white focus-within:ring-1 focus-within:ring-teal-500">
+                {selectedFields.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 px-2 pt-1">
+                    {selectedFields.map((field) => (
+                      <div
+                        key={field.key}
+                        className="animate-in zoom-in-95 flex items-center gap-1 rounded-md border border-teal-200 bg-teal-50 px-2 py-0.5 text-[11px] font-bold text-teal-700 shadow-sm"
+                      >
+                        <Target size={10} />
+                        {field.label}
+                        <button
+                          onClick={() => toggleField(field)}
+                          className="ml-1 rounded-full p-0.5 transition-colors hover:bg-teal-200/50"
+                        >
+                          <X size={10} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="flex items-end gap-2">
+                  <Textarea
+                    value={input}
+                    onChange={(e) => {
+                      setInput(e.target.value)
+                      if (e.target.value.endsWith(':')) setShowSuggestions(true)
+                      else if (showSuggestions && !e.target.value.includes(':'))
+                        setShowSuggestions(false)
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault()
+                        handleSend()
+                      }
+                    }}
+                    placeholder='Escribe ":" para referenciar un campo...'
+                    className="max-h-[120px] min-h-[40px] flex-1 resize-none border-none bg-transparent text-sm shadow-none focus-visible:ring-0"
+                  />
+                  <Button
+                    onClick={() => handleSend()}
+                    disabled={
+                      (!input.trim() && selectedFields.length === 0) ||
+                      isSending
                     }
-                  }}
-                  placeholder='Escribe ":" para referenciar un campo...'
-                  className="max-h-[120px] min-h-[40px] flex-1 resize-none border-none bg-transparent text-sm shadow-none focus-visible:ring-0"
-                />
-                <Button
-                  onClick={() => handleSend()}
-                  disabled={
-                    (!input.trim() && selectedFields.length === 0) || isSending
-                  }
-                  size="icon"
-                  className="h-9 w-9 bg-teal-600 hover:bg-teal-700"
-                >
-                  <Send size={16} className="text-white" />
-                </Button>
+                    size="icon"
+                    className="h-9 w-9 bg-teal-600 hover:bg-teal-700"
+                  >
+                    <Send size={16} className="text-white" />
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      </div>
+        </footer>
+      </main>
 
-      {/* PANEL DERECHO ACCIONES */}
-      <div className="flex flex-[1] flex-col gap-4 overflow-y-auto pr-2">
+      {/* 3. PANEL DERECHO (ATAJOS) */}
+      <aside className="hidden w-64 shrink-0 flex-col gap-4 overflow-y-auto p-4 lg:flex">
         <h4 className="flex items-center gap-2 text-sm font-bold text-slate-800">
-          <Lightbulb size={18} className="text-orange-500" /> Atajos
+          <Lightbulb size={18} className="text-orange-500" /> Atajos Rápidos
         </h4>
         <div className="space-y-2">
           {PRESETS.map((preset) => (
             <button
               key={preset.id}
               onClick={() => handleSend(preset.prompt)}
-              className="group flex w-full items-center gap-3 rounded-xl border bg-white p-3 text-left text-sm transition-all hover:border-teal-500 hover:bg-teal-50"
+              className="group flex w-full items-center gap-3 rounded-xl border border-slate-100 bg-white p-3 text-left text-sm transition-all hover:border-teal-500 hover:shadow-sm"
             >
-              <div className="rounded-lg bg-slate-100 p-2 group-hover:bg-teal-100 group-hover:text-teal-600">
+              <div className="rounded-lg bg-slate-50 p-2 group-hover:bg-teal-50 group-hover:text-teal-600">
                 <preset.icon size={16} />
               </div>
-              <span className="font-medium text-slate-700">{preset.label}</span>
+              <span className="font-medium text-slate-600 group-hover:text-slate-900">
+                {preset.label}
+              </span>
             </button>
           ))}
         </div>
-      </div>
-      {/* --- DRAWER DE REFERENCIAS --- */}
+      </aside>
+
+      {/* DRAWERS (Referencias e Historial Móvil) */}
       <Drawer open={openIA} onOpenChange={setOpenIA}>
         <DrawerContent className="fixed inset-x-0 bottom-0 mx-auto mb-4 flex h-[80vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border bg-white shadow-2xl">
           <div className="flex items-center justify-between border-b bg-slate-50/50 px-4 py-3">
@@ -789,6 +829,140 @@ export function IAAsignaturaTab({
             />
           </div>
         </DrawerContent>
+      </Drawer>
+
+      <Drawer open={isSidebarOpen} onOpenChange={setIsSidebarOpen}>
+        <DrawerPortal>
+          <DrawerOverlay className="fixed inset-0 bg-black/40" />
+          <DrawerContent className="fixed right-0 bottom-0 left-0 h-[70vh] p-4 outline-none">
+            <div className="flex h-full flex-col overflow-hidden">
+              {/* Reutiliza aquí el componente de la lista de chats */}
+              <Button
+                onClick={() => {
+                  setActiveChatId(undefined)
+                  setIsCreatingNewChat(true)
+                  setInput('')
+                  setSelectedFields([])
+                  queryClient.setQueryData(['subject-messages', undefined], [])
+                  setIsSidebarOpen(false) // Cierra el drawer al crear nuevo
+                }}
+                variant="outline"
+                className="mb-6 w-full justify-center gap-2 border-dashed border-teal-500 bg-teal-50/50 text-teal-700 hover:bg-teal-100"
+              >
+                <MessageSquarePlus size={18} /> Nuevo Chat
+              </Button>
+              <h2 className="mb-4 font-bold">Historial de Chats</h2>
+              {(showArchived ? archivedChats : activeChats).map((chat: any) => (
+                <div
+                  key={chat.id}
+                  className={cn(
+                    // Agregamos 'overflow-hidden' para que nada salga de este cuadro
+                    'group relative flex w-full min-w-0 items-center justify-between gap-2 overflow-hidden rounded-lg px-3 py-2 text-sm transition-all',
+                    activeChatId === chat.id
+                      ? 'bg-teal-50 text-teal-900'
+                      : 'text-slate-600 hover:bg-slate-100',
+                  )}
+                  onDoubleClick={() => {
+                    setEditingId(chat.id)
+                    setTempName(chat.nombre || chat.titulo || 'Conversacion')
+                  }}
+                >
+                  {editingId === chat.id ? (
+                    <div className="flex min-w-0 flex-1 items-center">
+                      <input
+                        autoFocus
+                        className="w-full rounded border-none bg-white px-1 text-xs ring-1 ring-teal-400 outline-none"
+                        value={tempName}
+                        onChange={(e) => setTempName(e.target.value)}
+                        onBlur={() => handleSaveName(chat.id)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleSaveName(chat.id)
+                          if (e.key === 'Escape') setEditingId(null)
+                        }}
+                      />
+                    </div>
+                  ) : (
+                    <>
+                      {/* CLAVE 2: 'truncate' y 'min-w-0' en el span para que ceda ante los botones */}
+                      <span
+                        onClick={() => setActiveChatId(chat.id)}
+                        className="block max-w-[140px] min-w-0 flex-1 cursor-pointer truncate pr-1"
+                        title={chat.nombre || chat.titulo}
+                      >
+                        {chat.nombre || chat.titulo || 'Conversación'}
+                      </span>
+
+                      {/* CLAVE 3: 'shrink-0' asegura que los botones NUNCA desaparezcan */}
+                      <div
+                        className={cn(
+                          'z-10 flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100',
+                          activeChatId === chat.id
+                            ? 'bg-teal-50'
+                            : 'bg-slate-100',
+                        )}
+                      >
+                        <TooltipProvider delayDuration={300}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setEditingId(chat.id)
+                                  setTempName(chat.nombre || chat.titulo || '')
+                                }}
+                                className="rounded-md p-1 transition-colors hover:bg-slate-200 hover:text-teal-600"
+                              >
+                                <Edit2 size={14} />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="text-[10px]">
+                              Editar nombre
+                            </TooltipContent>
+                          </Tooltip>
+
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  const nuevoEstado =
+                                    chat.estado === 'ACTIVA'
+                                      ? 'ARCHIVADA'
+                                      : 'ACTIVA'
+                                  updateStatus({
+                                    id: chat.id,
+                                    estado: nuevoEstado,
+                                  })
+                                }}
+                                className={cn(
+                                  'rounded-md p-1 transition-colors hover:bg-slate-200',
+                                  chat.estado === 'ACTIVA'
+                                    ? 'hover:text-red-500'
+                                    : 'hover:text-teal-600',
+                                )}
+                              >
+                                {chat.estado === 'ACTIVA' ? (
+                                  <Archive size={14} />
+                                ) : (
+                                  <History size={14} className="scale-x-[-1]" />
+                                )}
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="text-[10px]">
+                              {chat.estado === 'ACTIVA'
+                                ? 'Archivar'
+                                : 'Desarchivar'}
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+          </DrawerContent>
+        </DrawerPortal>
       </Drawer>
     </div>
   )
