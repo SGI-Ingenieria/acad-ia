@@ -218,26 +218,30 @@ function AsignaturasPage() {
         <Table>
           <TableHeader>
             <TableRow className="bg-slate-50/50">
-              <TableHead className="w-30">Clave</TableHead>
-              <TableHead>Nombre</TableHead>
-              <TableHead className="text-center">Créditos</TableHead>
-              <TableHead className="text-center">Ciclo</TableHead>
-              <TableHead>Línea Curricular</TableHead>
-              <TableHead>Tipo</TableHead>
-              <TableHead>Estado</TableHead>
-              <TableHead className="w-12.5"></TableHead>
+              <TableHead className="w-30 px-6 py-4">Clave</TableHead>
+              <TableHead className="px-6 py-4">Nombre</TableHead>
+              <TableHead className="px-6 py-4 text-center">Créditos</TableHead>
+              <TableHead className="px-6 py-4 text-center">Ciclo</TableHead>
+              <TableHead className="px-6 py-4">Línea Curricular</TableHead>
+              <TableHead className="px-6 py-4">Tipo</TableHead>
+              <TableHead className="px-6 py-4">Estado</TableHead>
+              <TableHead className="w-12.5 px-6 py-4"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filteredAsignaturas.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="h-40 text-center">
-                  <div className="text-muted-foreground flex flex-col items-center justify-center">
-                    <BookOpen className="mb-2 h-10 w-10 opacity-20" />
-                    <p className="font-medium">No se encontraron asignaturas</p>
-                    <p className="text-xs">
-                      Intenta cambiar los filtros de búsqueda
-                    </p>
+                <TableCell colSpan={8} className="h-40 px-6 py-8 text-center">
+                  <div className="text-muted-foreground flex flex-col items-center justify-center gap-3">
+                    <BookOpen className="h-10 w-10 opacity-20" />
+                    <div>
+                      <p className="font-medium">
+                        No se encontraron asignaturas
+                      </p>
+                      <p className="mt-1 text-xs">
+                        Intenta cambiar los filtros de búsqueda
+                      </p>
+                    </div>
                   </div>
                 </TableCell>
               </TableRow>
@@ -251,25 +255,25 @@ function AsignaturasPage() {
                       to: '/planes/$planId/asignaturas/$asignaturaId',
                       params: {
                         planId,
-                        asignaturaId: asignatura.id, // 👈 puede ser índice, consecutivo o slug
+                        asignaturaId: asignatura.id,
                       },
                       state: {
-                        realId: asignatura.id, // 👈 ID largo oculto
+                        realId: asignatura.id,
                         asignaturaId: asignatura.id,
                       } as any,
                     })
                   }
                 >
-                  <TableCell className="font-mono text-xs font-bold text-slate-400">
+                  <TableCell className="px-6 py-4 font-mono text-xs font-bold text-slate-400">
                     {asignatura.clave}
                   </TableCell>
-                  <TableCell className="font-semibold text-slate-700">
+                  <TableCell className="px-6 py-4 font-semibold text-slate-700">
                     {asignatura.nombre}
                   </TableCell>
-                  <TableCell className="text-center font-medium">
+                  <TableCell className="px-6 py-4 text-center font-medium">
                     {asignatura.creditos}
                   </TableCell>
-                  <TableCell className="text-center">
+                  <TableCell className="px-6 py-4 text-center">
                     {asignatura.ciclo ? (
                       <Badge variant="outline" className="font-normal">
                         Ciclo {asignatura.ciclo}
@@ -278,10 +282,10 @@ function AsignaturasPage() {
                       <span className="text-slate-300">—</span>
                     )}
                   </TableCell>
-                  <TableCell className="text-sm text-slate-600">
+                  <TableCell className="px-6 py-4 text-sm text-slate-600">
                     {getLineaNombre(asignatura.lineaCurricularId)}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="px-6 py-4">
                     <Badge
                       variant="outline"
                       className={`capitalize shadow-sm ${tipoConfig[asignatura.tipo].className}`}
@@ -289,7 +293,7 @@ function AsignaturasPage() {
                       {tipoConfig[asignatura.tipo].label}
                     </Badge>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="px-6 py-4">
                     <Badge
                       variant="outline"
                       className={`capitalize shadow-sm ${statusConfig[asignatura.estado].className}`}
@@ -297,7 +301,7 @@ function AsignaturasPage() {
                       {statusConfig[asignatura.estado].label}
                     </Badge>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="px-6 py-4">
                     <div className="opacity-0 transition-opacity group-hover:opacity-100">
                       <ChevronRight className="h-5 w-5 text-slate-400" />
                     </div>
