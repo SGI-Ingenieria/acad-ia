@@ -229,12 +229,38 @@ export function IAAsignaturaTab() {
     }
   }, [activeChats, loadingConv])
 
-  const filteredFields = useMemo(() => {
-    if (!showSuggestions) return availableFields
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const value = e.target.value
+    const selectionStart = e.target.selectionStart // Posición del cursor
+    setInput(value)
 
-    // Extraemos lo que hay después del último ':' para filtrar
+    // Buscamos si el carácter anterior al cursor es ':'
+    const lastChar = value.slice(selectionStart - 1, selectionStart)
+
+    if (lastChar === ':') {
+      setShowSuggestions(true)
+    } else if (!value.includes(':')) {
+      // Si borran todos los dos puntos, cerramos
+      setShowSuggestions(false)
+    }
+  }
+
+  const filteredFields = useMemo(() => {
+    if (!showSuggestions || !input) return availableFields
+
+    // 1. Encontrar el ":" más cercano a la IZQUIERDA del cursor
+    // Usamos una posición de referencia (si no tienes ref, usaremos el final del string,
+    // pero para mayor precisión lo ideal es usar e.target.selectionStart en el onChange)
+
     const lastColonIndex = input.lastIndexOf(':')
-    const query = input.slice(lastColonIndex + 1).toLowerCase()
+    if (lastColonIndex === -1) return availableFields
+
+    // 2. Extraer solo el fragmento de "búsqueda"
+    // Cortamos desde el ":" hasta el final, y luego tomamos solo la primera palabra
+    const textAfterColon = input.slice(lastColonIndex + 1)
+    const query = textAfterColon.split(/\s/)[0].toLowerCase() // Se detiene al encontrar un espacio
+
+    if (!query) return availableFields
 
     return availableFields.filter(
       (f) =>
@@ -254,24 +280,28 @@ export function IAAsignaturaTab() {
 
   // 3. Función para insertar el campo y limpiar el prompt
   const handleSelectField = (field: SelectedField) => {
-    // 1. Agregamos al array de objetos (para tu lógica de API)
     if (!selectedFields.find((f) => f.key === field.key)) {
       setSelectedFields((prev) => [...prev, field])
     }
 
-    // 2. Lógica de autocompletado en el texto
     const lastColonIndex = input.lastIndexOf(':')
     if (lastColonIndex !== -1) {
-      // Tomamos lo que había antes del ":" + el Nombre del Campo + un espacio
-      const nuevoTexto = input.slice(0, lastColonIndex) + `${field.label} `
+      const parteAntesDelColon = input.slice(0, lastColonIndex)
+
+      // Buscamos si hay texto después de la palabra que estamos escribiendo
+      const textoDespuesDelColon = input.slice(lastColonIndex + 1)
+      const espacioIndex = textoDespuesDelColon.indexOf(' ')
+
+      // Si hay un espacio, guardamos lo que sigue. Si no, es el final del texto.
+      const parteRestante =
+        espacioIndex !== -1 ? textoDespuesDelColon.slice(espacioIndex) : ''
+
+      // Reconstruimos: [Antes] + [Label] + [Lo que ya estaba después]
+      const nuevoTexto = `${parteAntesDelColon}${field.label}${parteRestante}`
       setInput(nuevoTexto)
     }
 
-    // 3. Cerramos el buscador y devolvemos el foco al textarea
     setShowSuggestions(false)
-
-    // Opcional: Si tienes una ref del textarea, puedes hacer:
-    // textareaRef.current?.focus()
   }
 
   const handleSaveName = (id: string) => {
@@ -740,10 +770,28 @@ export function IAAsignaturaTab() {
                   <Textarea
                     value={input}
                     onChange={(e) => {
-                      setInput(e.target.value)
-                      if (e.target.value.endsWith(':')) setShowSuggestions(true)
-                      else if (showSuggestions && !e.target.value.includes(':'))
+                      const val = e.target.value
+                      const cursor = e.target.selectionStart
+                      setInput(val)
+
+                      const textBeforeCursor = val.slice(0, cursor)
+                      const lastColonIndex = textBeforeCursor.lastIndexOf(':')
+
+                      if (lastColonIndex !== -1) {
+                        const textSinceColon = textBeforeCursor.slice(
+                          lastColonIndex + 1,
+                        )
+
+                        // Si hay un espacio después del ":", cerramos sugerencias (ya no es un comando)
+                        // Si no hay espacio, activamos
+                        if (!textSinceColon.includes(' ')) {
+                          setShowSuggestions(true)
+                        } else {
+                          setShowSuggestions(false)
+                        }
+                      } else {
                         setShowSuggestions(false)
+                      }
                     }}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' && !e.shiftKey) {
