@@ -482,7 +482,7 @@ function RouteComponent() {
   }
 
   return (
-    <div className="flex min-h-[calc(100vh-80px)] w-full flex-col gap-4 p-4 md:h-[calc(100vh-160px)] md:max-h-[calc(100vh-160px)] md:flex-row md:overflow-hidden">
+    <div className="flex h-[calc(100vh-80px)] w-full flex-col gap-4 p-4 md:h-[calc(100vh-160px)] md:max-h-[calc(100vh-160px)] md:flex-row md:overflow-hidden">
       {/* --- HEADER MÓVIL (Solo visible en < md) --- */}
       <div className="flex shrink-0 items-center justify-between rounded-lg border bg-white p-2 shadow-sm md:hidden">
         <Button
@@ -662,9 +662,9 @@ function RouteComponent() {
       </div>
 
       {/* --- PANEL DE CHAT PRINCIPAL (Centro) --- */}
-      <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200 bg-slate-50/50 shadow-sm md:flex-[3]">
+      <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200 bg-slate-50/50 shadow-sm md:h-full md:flex-[3]">
         {/* NUEVO: Barra superior de campos seleccionados */}
-        <div className="shrink-0 border-b bg-white p-3">
+        <div className="z-10 shrink-0 border-b bg-white p-3">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-bold text-slate-400 uppercase">
               Mejorar con IA
@@ -685,9 +685,9 @@ function RouteComponent() {
         </div>
 
         {/* CONTENIDO DEL CHAT */}
-        <div className="relative min-h-0 flex-1">
+        <div className="relative flex min-h-0 flex-1 flex-col">
           <ScrollArea ref={scrollRef} className="h-full w-full">
-            <div className="mx-auto max-w-3xl space-y-6 p-6">
+            <div className="mx-auto flex max-w-3xl flex-col gap-6 p-6">
               {!activeChatId &&
               chatMessages.length === 0 &&
               !optimisticMessage ? (

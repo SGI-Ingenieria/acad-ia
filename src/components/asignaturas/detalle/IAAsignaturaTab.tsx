@@ -554,7 +554,13 @@ export function IAAsignaturaTab() {
       </aside>
 
       {/* 2. PANEL CENTRAL (CHAT) - EL RECUADRO ESTILIZADO */}
-      <main className="relative flex min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200 bg-slate-50/50 shadow-sm md:m-2">
+      <main
+        className={cn(
+          'relative flex min-w-0 flex-1 flex-col overflow-hidden bg-slate-50/50 shadow-sm',
+          'mt-[50px] h-[calc(100svh-50px)]', // 50px es la altura aproximada de tu header fixed
+          'md:m-2 md:mt-0 md:h-[calc(100vh-160px)] md:rounded-xl md:border md:border-slate-200',
+        )}
+      >
         {/* Header Interno del Recuadro */}
         <div className="flex shrink-0 items-center justify-between border-b bg-white p-3">
           <div className="flex items-center gap-2">
@@ -593,7 +599,7 @@ export function IAAsignaturaTab() {
         </div>
 
         {/* Área de Mensajes */}
-        <div className="relative min-h-0 flex-1">
+        <div className="relative min-h-0 w-full flex-1 overflow-hidden">
           <ScrollArea ref={scrollRef} className="h-full w-full">
             <div className="mx-auto max-w-3xl space-y-6 p-3 md:p-6">
               {messages.map((msg) => (
