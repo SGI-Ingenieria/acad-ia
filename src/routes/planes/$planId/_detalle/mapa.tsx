@@ -1,7 +1,6 @@
-/* eslint-disable jsx-a11y/no-static-element-interactions */
 /* eslint-disable jsx-a11y/label-has-associated-control */
 import { createFileRoute } from '@tanstack/react-router'
-import { Plus, ChevronDown, AlertTriangle, Trash2, Pencil } from 'lucide-react'
+import { Plus, AlertTriangle, Trash2, Download } from 'lucide-react'
 import * as Icons from 'lucide-react'
 import { useMemo, useState, useEffect, Fragment } from 'react'
 
@@ -17,12 +16,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import {
   Select,
@@ -92,19 +85,6 @@ const mapAsignaturasToAsignaturas = (
   })
 }
 
-const lineColors = [
-  'bg-blue-50 border-blue-200 text-blue-700',
-  'bg-purple-50 border-purple-200 text-purple-700',
-  'bg-orange-50 border-orange-200 text-orange-700',
-  'bg-emerald-50 border-emerald-200 text-emerald-700',
-]
-
-const statusBadge: Record<string, string> = {
-  borrador: 'bg-slate-100 text-slate-600',
-  revisada: 'bg-amber-100 text-amber-700',
-  aprobada: 'bg-emerald-100 text-emerald-700',
-}
-
 // --- Subcomponentes ---
 function StatItem({
   label,
@@ -116,14 +96,16 @@ function StatItem({
   total?: number
 }) {
   return (
-    <div className="flex items-baseline gap-1.5">
-      <span className="text-[10px] font-bold tracking-wider text-slate-400 uppercase">
-        {label}:
+    <div className="border-border/70 bg-background/75 rounded-xl border p-3">
+      <span className="text-muted-foreground block text-[11px] font-semibold tracking-wide uppercase">
+        {label}
       </span>
-      <span className="text-sm font-bold text-slate-700">
+      <span className="text-foreground mt-1 block text-lg leading-none font-bold">
         {value}
         {total ? (
-          <span className="font-normal text-slate-400">/{total}</span>
+          <span className="text-muted-foreground ml-1 text-sm font-medium">
+            /{total}
+          </span>
         ) : (
           ''
         )}
@@ -255,7 +237,7 @@ function AsignaturaCardItem({
                       <EstadoIcon className="text-foreground/65 h-3.5 w-3.5" />
                     </div>
                   </TooltipTrigger>
-                  <TooltipContent side="left">
+                  <TooltipContent side="right">
                     <span className="text-xs font-semibold">
                       {estado.label}
                     </span>
@@ -266,7 +248,7 @@ function AsignaturaCardItem({
               {/* titulo */}
               <div className="mt-4 min-h-18">
                 <h3
-                  className="text-foreground text-md overflow-hidden leading-[1.08] font-bold"
+                  className="text-foreground text-md overflow-hidden leading-[1.08]"
                   style={{
                     display: '-webkit-box',
                     WebkitLineClamp: 3,
@@ -348,9 +330,8 @@ export const Route = createFileRoute('/planes/$planId/_detalle/mapa')({
 function MapaCurricularPage() {
   const { planId } = Route.useParams() // Idealmente usa el ID de la ruta
   const { data } = usePlan(planId)
-  const [ciclo, setCiclo] = useState(0)
+  const [totalCiclos, setTotalCiclos] = useState(0)
   const [editingLineaId, setEditingLineaId] = useState<string | null>(null)
-  const [tempNombreLinea, setTempNombreLinea] = useState('')
   const { mutate: createLinea } = useCreateLinea()
   const { mutate: updateLineaApi } = useUpdateLinea()
   const { mutate: deleteLineaApi } = useDeleteLinea()
@@ -365,11 +346,10 @@ function MapaCurricularPage() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [nombreNuevaLinea, setNombreNuevaLinea] = useState('') // Para el input de nombre personalizado
   const { mutate: updateAsignatura } = useUpdateAsignatura()
-  const [seriacionValue, setSeriacionValue] = useState<string>('')
 
   useEffect(() => {
     if (data?.numero_ciclos) {
-      setCiclo(data.numero_ciclos)
+      setTotalCiclos(data.numero_ciclos)
     }
   }, [data])
 
@@ -415,11 +395,8 @@ function MapaCurricularPage() {
       },
     )
   }
-  const guardarEdicionLinea = (id: string, nuevoNombre?: string) => {
-    // Usamos el nombre que viene por parámetro o el del estado como fallback
-    const nombreAFijar = (
-      nuevoNombre !== undefined ? nuevoNombre : tempNombreLinea
-    ).trim()
+  const guardarEdicionLinea = (id: string, nuevoNombre: string) => {
+    const nombreAFijar = nuevoNombre.trim()
 
     if (!nombreAFijar) {
       setEditingLineaId(null)
@@ -439,7 +416,6 @@ function MapaCurricularPage() {
             ),
           )
           setEditingLineaId(null)
-          setTempNombreLinea('')
         },
         onError: (err) => {
           console.error('Error al actualizar linea:', err)
@@ -465,7 +441,7 @@ function MapaCurricularPage() {
     if (lineasApi) setLineas(mapLineasToLineaCurricular(lineasApi))
   }, [lineasApi])
 
-  const ciclosTotales = Number(ciclo)
+  const ciclosTotales = Number(totalCiclos)
   const ciclosArray = Array.from({ length: ciclosTotales }, (_, i) => i + 1)
   const [editingData, setEditingData] = useState<Asignatura | null>(null)
   const handleIntegerChange = (value: string) => {
@@ -538,6 +514,7 @@ function MapaCurricularPage() {
   const unassignedAsignaturas = asignaturas.filter(
     (m) => m.ciclo === null || m.lineaCurricularId === null,
   )
+  const unassignedCount = unassignedAsignaturas.length
 
   const borrarLinea = (id: string) => {
     if (
@@ -568,9 +545,9 @@ function MapaCurricularPage() {
   }
 
   // --- Selectores/Cálculos ---
-  const getTotalesCiclo = (ciclo: number) => {
+  const getTotalesCiclo = (cicloNumero: number) => {
     return asignaturas
-      .filter((m) => m.ciclo === ciclo)
+      .filter((m) => m.ciclo === cicloNumero)
       .reduce(
         (acc, m) => ({
           cr: acc.cr + (m.creditos || 0),
@@ -601,7 +578,7 @@ function MapaCurricularPage() {
   const handleDragOver = (e: React.DragEvent) => e.preventDefault()
   const handleDrop = (
     e: React.DragEvent,
-    ciclo: number | null,
+    cicloDestino: number | null,
     lineaId: string | null,
   ) => {
     e.preventDefault()
@@ -610,12 +587,12 @@ function MapaCurricularPage() {
       setAsignaturas((prev) =>
         prev.map((m) =>
           m.id === draggedAsignatura
-            ? { ...m, ciclo, lineaCurricularId: lineaId }
+            ? { ...m, ciclo: cicloDestino, lineaCurricularId: lineaId }
             : m,
         ),
       )
       const patch = {
-        numero_ciclo: ciclo,
+        numero_ciclo: cicloDestino,
         linea_plan_id: lineaId,
       }
 
@@ -649,109 +626,98 @@ function MapaCurricularPage() {
     [asignaturas],
   )
 
-  const handleKeyDownLinea = (
-    e: React.KeyboardEvent<HTMLSpanElement>,
-    id: string,
-  ) => {
-    if (e.key === 'Enter') {
-      e.preventDefault()
-      e.currentTarget.blur()
-    }
-  }
-
-  const handleBlurLinea = (
-    e: React.FocusEvent<HTMLSpanElement>,
-    id: string,
-  ) => {
-    const nuevoNombre = e.currentTarget.textContent.trim() || ''
-
-    // Buscamos la línea original para comparar
+  const confirmarEdicionLinea = (id: string, nuevoNombreRaw: string) => {
+    const nuevoNombre = nuevoNombreRaw.trim()
     const lineaOriginal = lineas.find((l) => l.id === id)
 
-    if (nuevoNombre !== lineaOriginal?.nombre) {
-      // IMPORTANTE: Pasamos nuevoNombre directamente
-      guardarEdicionLinea(id, nuevoNombre)
-    } else {
+    if (!nuevoNombre) {
       setEditingLineaId(null)
+      return
     }
+
+    if (nuevoNombre !== lineaOriginal?.nombre) {
+      guardarEdicionLinea(id, nuevoNombre)
+      return
+    }
+
+    setEditingLineaId(null)
   }
 
   if (loadingAsig || loadingLineas)
     return <div className="p-10 text-center">Cargando mapa curricular...</div>
 
   return (
-    <div className="container">
+    <div className="space-y-6">
       {/* Header */}
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-bold">Mapa Curricular</h2>
-          <p className="text-sm text-slate-500">
-            Organiza las asignaturas de la petición por línea y ciclo
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <Button className="bg-teal-700 text-white hover:bg-teal-800">
-            <Plus size={16} className="mr-2" /> Exportar{' '}
-          </Button>
-          {asignaturas.filter((m) => !m.ciclo || !m.lineaCurricularId).length >
-            0 && (
-            <Badge className="border-amber-100 bg-amber-50 text-amber-600 hover:bg-amber-50">
-              <AlertTriangle size={14} className="mr-1" />{' '}
-              {
-                asignaturas.filter((m) => !m.ciclo || !m.lineaCurricularId)
-                  .length
-              }{' '}
-              sin asignar
-            </Badge>
-          )}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button className="bg-teal-700 text-white hover:bg-teal-800">
-                <Plus size={16} className="mr-2" /> Agregar{' '}
-                <ChevronDown size={14} className="ml-2" />
+      <div className="border-border bg-card/70 rounded-2xl border p-4 shadow-sm">
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
+          <div className="space-y-1.5">
+            <h2 className="text-2xl font-bold">Mapa Curricular</h2>
+            <p className="text-muted-foreground text-sm">
+              Organiza las asignaturas de la petición por línea y ciclo
+            </p>
+
+            {unassignedCount > 0 && (
+              <Badge className="border-border bg-accent/50 text-accent-foreground hover:bg-accent/50 mt-2 inline-flex">
+                <AlertTriangle size={14} className="mr-1" />
+                {unassignedCount} sin asignar
+              </Badge>
+            )}
+          </div>
+
+          <div className="flex items-center justify-start gap-2 lg:justify-end">
+            <Button variant="outline" className="gap-2">
+              <Download size={16} /> Exportar
+            </Button>
+            {!tieneAreaComun && (
+              <Button
+                variant="outline"
+                className="text-primary border-primary/30 hover:bg-primary/8"
+                onClick={() => manejarAgregarLinea('Área Común')}
+              >
+                + Área Común
               </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              {!tieneAreaComun && (
-                <>
-                  <DropdownMenuItem
-                    onClick={() => manejarAgregarLinea('Área Común')}
-                    className="font-bold text-teal-700"
-                  >
-                    + Agregar Área Común
-                  </DropdownMenuItem>
-                  <div className="my-1 border-t border-slate-100" />
-                </>
-              )}
-              {/* Input para nombre personalizado */}
-              <div className="p-2">
-                <label className="text-[10px] font-bold text-slate-400 uppercase">
-                  Nombre de Línea
+            )}
+          </div>
+
+          <div className="border-border/70 bg-background/70 rounded-xl border p-3 lg:col-span-2">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+              <div className="space-y-1">
+                <label className="text-muted-foreground text-[11px] font-semibold tracking-wide uppercase">
+                  Nueva Línea Curricular
                 </label>
-                <div className="mt-1 flex gap-1">
-                  <Input
-                    value={nombreNuevaLinea}
-                    onChange={(e) => setNombreNuevaLinea(e.target.value)}
-                    placeholder="Ej: Optativas"
-                    className="h-8 text-xs"
-                  />
-                  <Button
-                    size="sm"
-                    className="h-8 px-2"
-                    onClick={() => manejarAgregarLinea(nombreNuevaLinea)}
-                    disabled={!nombreNuevaLinea.trim()}
-                  >
-                    <Plus size={14} />
-                  </Button>
-                </div>
+                <p className="text-muted-foreground text-xs">
+                  Crea una línea personalizada sin abrir menús adicionales.
+                </p>
               </div>
-            </DropdownMenuContent>
-          </DropdownMenu>
+
+              <div className="flex w-full gap-2 sm:w-auto sm:min-w-90">
+                <Input
+                  value={nombreNuevaLinea}
+                  onChange={(e) => setNombreNuevaLinea(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && nombreNuevaLinea.trim()) {
+                      manejarAgregarLinea(nombreNuevaLinea)
+                    }
+                  }}
+                  placeholder="Ej: Optativas"
+                  className="h-9"
+                />
+                <Button
+                  className="h-9 gap-1.5"
+                  onClick={() => manejarAgregarLinea(nombreNuevaLinea)}
+                  disabled={!nombreNuevaLinea.trim()}
+                >
+                  <Plus size={14} /> Agregar
+                </Button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
       {/* Barra Totales */}
-      <div className="mb-8 flex gap-10 rounded-xl border border-slate-200 bg-slate-50/80 p-4">
+      <div className="border-border bg-card/60 mb-8 grid grid-cols-2 gap-3 rounded-2xl border p-3 shadow-sm md:grid-cols-4">
         <StatItem label="Total Créditos" value={stats.cr} total={320} />
         <StatItem label="Total HD" value={stats.hd} />
         <StatItem label="Total HI" value={stats.hi} />
@@ -760,87 +726,109 @@ function MapaCurricularPage() {
 
       <div className="overflow-x-auto pb-6">
         <div
-          className="grid gap-2"
+          className="grid gap-3"
           style={{
             gridTemplateColumns: `140px repeat(${ciclosTotales}, minmax(auto, 1fr)) 120px`,
           }}
         >
-          <div className="self-end px-2 text-xs font-bold text-slate-400">
+          <div className="text-muted-foreground self-end px-2 text-xs font-bold">
             LÍNEA CURRICULAR
           </div>
 
           {ciclosArray.map((n) => (
             <div
               key={`header-${n}`}
-              className="rounded-lg bg-slate-100 p-2 text-center text-sm font-bold text-slate-600"
+              className="bg-muted/70 text-muted-foreground border-border/70 rounded-xl border p-2 text-center text-sm font-bold"
             >
               Ciclo {n}
             </div>
           ))}
 
-          <div className="self-end text-center text-xs font-bold text-slate-400">
+          <div className="text-muted-foreground self-end text-center text-xs font-bold">
             SUBTOTAL
           </div>
 
-          {lineas.map((linea, idx) => {
+          {lineas.map((linea) => {
             const sub = getSubtotalLinea(linea.id)
 
             return (
               <Fragment key={linea.id}>
                 <div
-                  className={`group relative flex items-center justify-between rounded-xl border-l-4 p-3 transition-all ${
-                    lineColors[idx % lineColors.length]
-                  } ${editingLineaId === linea.id ? 'bg-white ring-2 ring-teal-500/20' : ''}`}
+                  className={`group relative flex items-start justify-between gap-2 rounded-xl border p-3 transition-all ${editingLineaId === linea.id ? 'ring-primary/30 ring-2' : 'cursor-text'}`}
+                  style={{
+                    borderColor: hexToRgba(linea.color || '#1976d2', 0.24),
+                    backgroundColor:
+                      editingLineaId === linea.id
+                        ? hexToRgba(linea.color || '#1976d2', 0.12)
+                        : hexToRgba(linea.color || '#1976d2', 0.08),
+                  }}
                 >
-                  <div className="min-w-0 flex-1 overflow-hidden">
-                    <span
-                      contentEditable={editingLineaId === linea.id}
-                      suppressContentEditableWarning
-                      spellCheck={false}
-                      onKeyDown={(e) => handleKeyDownLinea(e, linea.id)}
-                      onBlur={(e) => handleBlurLinea(e, linea.id)}
-                      onClick={() => {
-                        if (editingLineaId !== linea.id) {
-                          setEditingLineaId(linea.id)
-                          setTempNombreLinea(linea.nombre)
-                        }
-                      }}
-                      className={`block w-full truncate text-xs font-bold break-words outline-none ${
-                        editingLineaId === linea.id
-                          ? 'cursor-text border-b border-teal-500/50 pb-1'
-                          : 'cursor-pointer'
-                      }`}
-                    >
-                      {linea.nombre}
-                    </span>
+                  <div className="min-w-0 flex-1">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span
+                          contentEditable
+                          role="textbox"
+                          tabIndex={0}
+                          aria-label={`Nombre de línea ${linea.nombre}`}
+                          suppressContentEditableWarning
+                          spellCheck={false}
+                          onFocus={() => setEditingLineaId(linea.id)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault()
+                              e.currentTarget.blur()
+                            }
+                            if (e.key === 'Escape') {
+                              e.preventDefault()
+                              e.currentTarget.textContent = linea.nombre
+                              e.currentTarget.blur()
+                            }
+                          }}
+                          onBlur={(e) =>
+                            confirmarEdicionLinea(
+                              linea.id,
+                              e.currentTarget.textContent,
+                            )
+                          }
+                          className="text-foreground hover:text-foreground/85 block w-full cursor-text text-sm leading-snug wrap-break-word transition-colors outline-none"
+                        >
+                          {linea.nombre}
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-xs text-sm">
+                        {linea.nombre}
+                      </TooltipContent>
+                    </Tooltip>
                   </div>
-                  <div className="ml-2 flex flex-shrink-0 items-center gap-1">
+                  <div className="ml-1 flex shrink-0 items-center gap-1">
                     <button
-                      onClick={() => setEditingLineaId(linea.id)}
-                      className="..."
-                    >
-                      {' '}
-                      <Pencil size={12} />{' '}
-                    </button>
-                    <Trash2
+                      type="button"
+                      aria-label="Eliminar línea"
                       onClick={() => borrarLinea(linea.id)}
-                      className="..."
-                      size={14}
-                    />
+                      className="text-destructive/80 hover:text-destructive hover:bg-destructive/10 inline-flex h-8 w-8 items-center justify-center rounded-md transition-colors"
+                    >
+                      <Trash2 size={14} />
+                    </button>
                   </div>
                 </div>
 
-                {ciclosArray.map((ciclo) => (
+                {ciclosArray.map((cicloNumero) => (
                   <div
-                    key={`${linea.id}-${ciclo}`}
+                    key={`${linea.id}-${cicloNumero}`}
                     onDragOver={handleDragOver}
-                    onDrop={(e) => handleDrop(e, ciclo, linea.id)}
-                    className="min-h-35 space-y-2 rounded-xl border-2 border-dashed border-slate-100 bg-slate-50/20"
+                    onDrop={(e) => handleDrop(e, cicloNumero, linea.id)}
+                    className={`min-h-35 space-y-2 rounded-xl border border-dashed p-1.5 transition-colors ${
+                      draggedAsignatura
+                        ? 'border-primary/35 bg-primary/6'
+                        : 'border-border/70 bg-muted/15'
+                    }`}
                   >
                     {asignaturas
                       .filter(
                         (m) =>
-                          m.ciclo === ciclo && m.lineaCurricularId === linea.id,
+                          m.ciclo === cicloNumero &&
+                          m.lineaCurricularId === linea.id,
                       )
                       .map((m) => (
                         <AsignaturaCardItem
@@ -860,21 +848,21 @@ function MapaCurricularPage() {
                 ))}
 
                 <div
-                  className={`flex flex-col justify-center rounded-xl border p-4 text-[10px] font-medium ${
+                  className={`flex flex-col justify-center rounded-xl border p-4 text-[11px] font-medium ${
                     sub.cr === 0 && sub.hd === 0 && sub.hi === 0
-                      ? 'border-slate-100 bg-slate-50/50 text-slate-300'
-                      : 'border-slate-200 bg-slate-50 text-slate-600'
+                      ? 'border-border/50 bg-muted/20 text-muted-foreground/70'
+                      : 'border-border bg-card text-muted-foreground'
                   }`}
                 >
                   {sub.cr === 0 && sub.hd === 0 && sub.hi === 0 ? (
-                    <div className="text-slate-400">—</div>
+                    <div className="text-muted-foreground">—</div>
                   ) : (
                     <>
                       <div className="space-y-1">
-                        <div className="font-bold text-slate-700">
+                        <div className="text-foreground font-bold">
                           Cr: {sub.cr}
                         </div>
-                        <div className="text-slate-600">
+                        <div>
                           HD: {sub.hd} • HI: {sub.hi}
                         </div>
                       </div>
@@ -885,28 +873,30 @@ function MapaCurricularPage() {
             )
           })}
 
-          <div className="col-span-full my-2 border-t border-slate-200"></div>
+          <div className="border-border col-span-full my-2 border-t"></div>
 
-          <div className="self-center p-2 font-bold text-slate-600">
+          <div className="text-foreground self-center p-2 font-bold">
             Totales por Ciclo
           </div>
 
-          {ciclosArray.map((ciclo) => {
-            const t = getTotalesCiclo(ciclo)
+          {ciclosArray.map((cicloNumero) => {
+            const t = getTotalesCiclo(cicloNumero)
             const isEmpty = t.cr === 0 && t.hd === 0 && t.hi === 0
 
             return (
               <div
-                key={`footer-${ciclo}`}
-                className={`rounded-lg p-2 text-center text-[10px] ${
-                  isEmpty ? 'bg-slate-100/50 text-slate-400' : 'bg-slate-50'
+                key={`footer-${cicloNumero}`}
+                className={`rounded-xl border p-2 text-center text-[11px] ${
+                  isEmpty
+                    ? 'border-border/50 bg-muted/30 text-muted-foreground'
+                    : 'border-border bg-card'
                 }`}
               >
                 {isEmpty ? (
-                  <div className="py-1 text-xs text-slate-400">—</div>
+                  <div className="text-muted-foreground py-1 text-xs">—</div>
                 ) : (
                   <>
-                    <div className="font-bold text-slate-700">Cr: {t.cr}</div>
+                    <div className="text-foreground font-bold">Cr: {t.cr}</div>
                     <div>
                       HD: {t.hd} • HI: {t.hi}
                     </div>
@@ -916,7 +906,7 @@ function MapaCurricularPage() {
             )
           })}
 
-          <div className="flex flex-col justify-center rounded-lg bg-teal-50 p-2 text-center text-xs font-bold text-teal-800">
+          <div className="text-primary-foreground border-primary/40 bg-primary flex flex-col justify-center rounded-xl border p-2 text-center text-xs font-bold shadow-sm">
             <div>{stats.cr} Cr</div>
             <div>{stats.hd + stats.hi} Hrs</div>
           </div>
@@ -960,8 +950,8 @@ function MapaCurricularPage() {
           onDragOver={handleDragOver}
           onDrop={(e) => handleDrop(e, null, null)}
           className={[
-            'rounded-[24px] border-2 border-dashed p-4 transition-all duration-300',
-            'min-h-[220px]',
+            'rounded-3xl border-2 border-dashed p-4 transition-all duration-300',
+            'min-h-55',
             draggedAsignatura
               ? 'border-primary/35 bg-primary/6 shadow-inner'
               : 'border-border bg-muted/20',
@@ -970,7 +960,7 @@ function MapaCurricularPage() {
           {unassignedAsignaturas.length > 0 ? (
             <div className="flex flex-wrap gap-4">
               {unassignedAsignaturas.map((m) => (
-                <div key={m.id} className="w-[272px] shrink-0">
+                <div key={m.id} className="w-fit shrink-0">
                   <AsignaturaCardItem
                     asignatura={m}
                     lineaColor="#94A3B8"
@@ -986,7 +976,7 @@ function MapaCurricularPage() {
               ))}
             </div>
           ) : (
-            <div className="border-border/70 bg-background/70 flex min-h-[188px] flex-col items-center justify-center rounded-[20px] border px-6 text-center">
+            <div className="border-border/70 bg-background/70 flex min-h-47 flex-col items-center justify-center rounded-[20px] border px-6 text-center">
               <div className="bg-muted text-muted-foreground mb-3 flex h-12 w-12 items-center justify-center rounded-2xl">
                 <Icons.CheckCheck className="h-5 w-5" />
               </div>
@@ -1007,11 +997,11 @@ function MapaCurricularPage() {
       {/* Modal de Edición */}
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
         <DialogContent
-          className="sm:max-w-[550px]"
+          className="sm:max-w-137.5"
           onInteractOutside={(e) => e.preventDefault()}
         >
           <DialogHeader>
-            <DialogTitle className="font-bold text-slate-700">
+            <DialogTitle className="text-foreground font-bold">
               Editar Asignatura
             </DialogTitle>
           </DialogHeader>
@@ -1209,7 +1199,7 @@ function MapaCurricularPage() {
                       )
                       .map((asig) => (
                         <SelectItem key={asig.id} value={asig.id}>
-                          <span className="font-bold text-teal-600">
+                          <span className="text-primary font-bold">
                             [C{asig.ciclo}]
                           </span>{' '}
                           {asig.nombre}
@@ -1249,12 +1239,7 @@ function MapaCurricularPage() {
                 >
                   Cancelar
                 </Button>
-                <Button
-                  className="bg-teal-700 text-white"
-                  onClick={handleSaveChanges}
-                >
-                  Guardar
-                </Button>
+                <Button onClick={handleSaveChanges}>Guardar</Button>
               </div>
             </div>
           ) : (
