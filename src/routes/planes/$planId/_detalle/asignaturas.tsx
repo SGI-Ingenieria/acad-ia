@@ -73,7 +73,7 @@ const mapAsignaturas = (
     estado: asig.estado,
     hd: asig.horas_academicas ?? 0,
     hi: asig.horas_independientes ?? 0,
-    prerrequisitos: [],
+    prerrequisito_asignatura_id: asig.prerrequisito_asignatura_id ?? null,
   }))
 }
 
