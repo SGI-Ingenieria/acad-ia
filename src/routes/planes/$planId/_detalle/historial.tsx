@@ -139,13 +139,16 @@ function RouteComponent() {
       </div>
 
       <div className="relative space-y-0">
-        <div className="absolute top-0 bottom-0 left-9 w-px bg-slate-200" />
+        <div className="absolute top-0 bottom-0 left-6 w-px bg-slate-200 md:left-9" />
         {historyEvents.length === 0 ? (
           <div className="ml-20 py-10 text-slate-500">No hay registros.</div>
         ) : (
           historyEvents.map((event) => (
-            <div key={event.id} className="group relative flex gap-6 pb-8">
-              <div className="relative z-10 flex h-18 flex-col items-center">
+            <div
+              key={event.id}
+              className="group relative flex gap-3 pb-8 md:gap-6"
+            >
+              <div className="relative z-10 flex flex-col items-center">
                 <div className="flex h-[42px] w-[42px] items-center justify-center rounded-full border-4 border-white bg-slate-100 text-slate-600 shadow-sm transition-colors group-hover:bg-teal-50 group-hover:text-teal-600">
                   {event.icon}
                 </div>
@@ -153,10 +156,10 @@ function RouteComponent() {
 
               <Card className="flex-1 border-slate-200 shadow-none transition-colors hover:border-teal-200">
                 <CardContent className="p-4">
-                  <div className="flex flex-col gap-1">
+                  <div className="flex flex-col gap-2">
                     {/* LÍNEA SUPERIOR: Título a la izquierda --- Usuario, Botón y Fecha a la derecha */}
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
+                    <div className="flex flex-col justify-between gap-2 md:flex-row md:items-center">
+                      <div className="flex flex-wrap items-center gap-2">
                         <span className="text-sm font-bold text-slate-800">
                           {event.type}
                         </span>
@@ -172,9 +175,9 @@ function RouteComponent() {
                       </div>
 
                       {/* Grupo de elementos alineados a la derecha */}
-                      <div className="flex items-center gap-4 text-slate-500">
+                      <div className="flex flex-wrap items-center gap-3 text-slate-500 md:gap-4">
                         {/* Usuario e Icono */}
-                        <div className="flex items-center gap-2 text-xs">
+                        <div className="flex items-center gap-1.5 text-xs">
                           <User className="h-3.5 w-3.5" />
                           <span className="text-muted-foreground">
                             {event.user}
@@ -184,14 +187,14 @@ function RouteComponent() {
                         {/* Botón Ver Cambios */}
                         <button
                           onClick={() => openCompareModal(event)}
-                          className="group/btn flex items-center gap-1.5 text-xs transition-colors hover:text-teal-600"
+                          className="group/btn flex items-center gap-1.5 text-xs font-medium text-teal-600 md:text-slate-500 md:hover:text-teal-600"
                         >
                           <Eye className="h-4 w-4 text-slate-400 group-hover/btn:text-teal-600" />
                           <span>Ver cambios</span>
                         </button>
 
                         {/* Fecha exacta (Solo visible en desktop para no amontonar) */}
-                        <span className="hidden text-[11px] text-slate-400 md:block">
+                        <span className="hidden text-[11px] text-slate-400 lg:block">
                           {format(event.date, 'yyyy-MM-dd HH:mm')}
                         </span>
                       </div>

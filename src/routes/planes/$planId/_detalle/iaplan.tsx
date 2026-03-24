@@ -482,9 +482,9 @@ function RouteComponent() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-160px)] max-h-[calc(100vh-160px)] w-full flex-col gap-6 overflow-hidden p-4 md:flex-row">
+    <div className="flex min-h-[calc(100vh-80px)] w-full flex-col gap-4 p-4 md:h-[calc(100vh-160px)] md:max-h-[calc(100vh-160px)] md:flex-row md:overflow-hidden">
       {/* --- HEADER MÓVIL (Solo visible en < md) --- */}
-      <div className="flex items-center justify-between rounded-lg border bg-white p-2 md:hidden">
+      <div className="flex shrink-0 items-center justify-between rounded-lg border bg-white p-2 shadow-sm md:hidden">
         <Button
           variant="ghost"
           size="sm"

@@ -215,9 +215,14 @@ function AsignaturaLayout() {
 
       {/* TABS */}
 
-      <nav className="border-b bg-white">
+      <nav className="sticky top-0 z-20 border-b bg-white">
         <div className="mx-auto max-w-7xl px-6">
-          <div className="flex justify-center gap-8">
+          {/* CAMBIOS CLAVE:
+        1. overflow-x-auto: Permite scroll horizontal.
+        2. scrollbar-hide: (Opcional) para que no se vea la barra fea.
+        3. justify-start md:justify-center: Alineado a la izquierda en móvil para que el scroll funcione, centrado en desktop.
+    */}
+          <div className="no-scrollbar flex items-center justify-start gap-8 overflow-x-auto whitespace-nowrap md:justify-center">
             {[
               { label: 'Datos', to: '' },
               { label: 'Contenido', to: 'contenido' },
@@ -241,7 +246,7 @@ function AsignaturaLayout() {
                   }
                   from="/planes/$planId/asignaturas/$asignaturaId"
                   params={{ planId, asignaturaId }}
-                  className={`border-b-2 py-3 text-sm font-medium ${
+                  className={`shrink-0 border-b-2 py-4 text-sm font-medium transition-colors ${
                     isActive
                       ? 'border-blue-600 text-blue-600'
                       : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700'

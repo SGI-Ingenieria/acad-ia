@@ -323,7 +323,12 @@ function DatosGenerales({
               initialContent={pre}
               // Pasamos las materias del plan para el Select (excluyendo la actual)
               availableSubjects={
-                availableSubjects?.filter((a) => a.id !== asignaturaId) || []
+                availableSubjects?.filter(
+                  (a) =>
+                    a.id !== asignaturaId &&
+                    a.numero_ciclo < data?.numero_ciclo &&
+                    a.numero_ciclo,
+                ) || []
               }
               onPersist={({ value }) => {
                 updateAsignatura.mutate({
@@ -628,8 +633,14 @@ function InfoCard({
                     Materia de Seriación
                   </label>
                   <Select
-                    value={tempText?.[0]?.id || 'none'}
+                    value={
+                      Array.isArray(tempText) && tempText.length > 0
+                        ? tempText[0].id
+                        : 'none'
+                    }
                     onValueChange={(val) => {
+                      console.log(availableSubjects)
+
                       const selected = availableSubjects?.find(
                         (s) => s.id === val,
                       )
@@ -651,16 +662,24 @@ function InfoCard({
                       }
                     }}
                   >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecciona una materia" />
+                    <SelectTrigger className="w-full">
+                      <div className="flex-1 truncate text-left">
+                        <SelectValue placeholder="Selecciona una materia" />
+                      </div>
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">
                         Ninguna (Sin seriación)
                       </SelectItem>
                       {availableSubjects?.map((asig) => (
-                        <SelectItem key={asig.id} value={asig.id}>
-                          {asig.codigo} - {asig.nombre}
+                        <SelectItem
+                          key={asig.id}
+                          value={asig.id}
+                          className="max-w-[300px] sm:max-w-[500px]"
+                        >
+                          <span className="block truncate">
+                            {asig.codigo} - {asig.nombre}
+                          </span>
                         </SelectItem>
                       ))}
                     </SelectContent>

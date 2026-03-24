@@ -883,7 +883,7 @@ export function IAAsignaturaTab() {
         <DrawerPortal>
           <DrawerOverlay className="fixed inset-0 bg-black/40" />
           <DrawerContent className="fixed right-0 bottom-0 left-0 h-[70vh] p-4 outline-none">
-            <div className="flex h-full flex-col overflow-hidden">
+            <div className="flex h-full flex-col overflow-hidden pt-8">
               {/* Reutiliza aquí el componente de la lista de chats */}
               <Button
                 onClick={() => {
