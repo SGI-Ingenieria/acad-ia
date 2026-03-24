@@ -126,7 +126,7 @@ export function BibliographyItem() {
 
   return (
     <div className="animate-in fade-in mx-auto max-w-5xl space-y-8 py-10 duration-500">
-      <div className="flex items-center justify-between border-b pb-4">
+      <div className="flex flex-col gap-4 border-b pb-4 md:flex-row md:items-center md:justify-between">
         <div>
           <h2 className="text-2xl font-bold tracking-tight text-slate-900">
             Bibliografía

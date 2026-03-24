@@ -236,7 +236,7 @@ function RouteComponent() {
           ))
         )}
         {historyEvents.length > 0 && (
-          <div className="mt-10 ml-20 flex items-center justify-between border-t pt-4">
+          <div className="mt-10 ml-12 flex flex-col gap-3 border-t pt-4 md:ml-20 md:flex-row md:items-center md:justify-between">
             <p className="text-xs text-slate-500">
               Mostrando {rawData.length} de {totalRecords} cambios
             </p>
