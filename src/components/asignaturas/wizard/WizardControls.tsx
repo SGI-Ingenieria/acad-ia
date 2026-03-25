@@ -257,6 +257,8 @@ export function WizardControls({
             null,
         }
 
+        console.log('payload:', payload)
+
         const { data: inserted, error: insertError } = await supabase
           .from('asignaturas')
           .insert(payload)

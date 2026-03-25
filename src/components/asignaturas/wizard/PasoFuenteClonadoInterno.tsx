@@ -4,6 +4,7 @@ import { useEffect, useMemo } from 'react'
 import { useDebounce } from 'use-debounce'
 
 import type { NewSubjectWizardState } from '@/features/asignaturas/nueva/types'
+import type { Database } from '@/types/supabase'
 
 import Pagination03 from '@/components/shadcn-studio/pagination/pagination-03'
 import { Button } from '@/components/ui/button'
@@ -28,12 +29,13 @@ type SourceSubjectRow = {
   tipo: any
   plan_estudio_id: string
   estructura_id: string | null
+  rank?: number
 }
 
 const ALL = '__all__'
 
-const normalizeLikeTerm = (term: string) =>
-  term.trim().replace(/[(),]/g, ' ').replace(/\s+/g, ' ')
+type SearchAsignaturasRow =
+  Database['public']['Functions']['search_asignaturas']['Returns'][number]
 
 export function PasoFuenteClonadoInterno({
   wizard,
@@ -95,41 +97,146 @@ export function PasoFuenteClonadoInterno({
       const from = (page - 1) * pageSize
       const to = from + pageSize - 1
 
-      let q = supabase
-        .from('asignaturas')
-        .select(
-          'id,nombre,codigo,creditos,tipo,plan_estudio_id,estructura_id',
-          {
-            count: 'exact',
-          },
-        )
-        .order('nombre', { ascending: true })
+      const term = debouncedSearch.trim()
 
-      if (planOrigenId) {
-        q = q.eq('plan_estudio_id', planOrigenId)
-      } else if (needPlansForFilter) {
-        const planIds = plansForFilter.map((p) => p.id)
-        if (!planIds.length) {
-          return { data: [] as Array<SourceSubjectRow>, count: 0 }
-        }
-        q = q.in('plan_estudio_id', planIds)
-      }
-
-      const term = normalizeLikeTerm(debouncedSearch)
+      // Full text search (tsvector) para el campo Buscar.
+      // Si no hay término, conservamos el listado base por nombre.
       if (term) {
-        // PostgREST OR syntax
-        q = q.or(`nombre.ilike.%${term}%,codigo.ilike.%${term}%`)
+        const mapRow = (r: SearchAsignaturasRow): SourceSubjectRow => ({
+          id: r.id,
+          nombre: r.nombre,
+          codigo: r.codigo,
+          creditos: Number(r.creditos),
+          tipo: r.tipo,
+          plan_estudio_id: r.plan_estudio_id,
+          estructura_id: null,
+          rank: r.rank,
+        })
+
+        if (planOrigenId) {
+          const args: Database['public']['Functions']['search_asignaturas']['Args'] =
+            {
+              p_search: term,
+              p_plan_estudio_id: planOrigenId,
+              p_limit: pageSize,
+              p_offset: from,
+            }
+
+          const { data, error, count } = await supabase.rpc(
+            'search_asignaturas',
+            args,
+            { count: 'exact' },
+          )
+          if (error) throw new Error(error.message)
+
+          return {
+            data: data.map(mapRow),
+            count: count ?? 0,
+          }
+        }
+
+        if (needPlansForFilter) {
+          const planIds = plansForFilter.map((p) => p.id)
+          if (!planIds.length) {
+            return { data: [] as Array<SourceSubjectRow>, count: 0 }
+          }
+
+          const perPlanLimit = pageSize * page
+
+          const perPlan = await Promise.all(
+            planIds.map(async (planId) => {
+              const args: Database['public']['Functions']['search_asignaturas']['Args'] =
+                {
+                  p_search: term,
+                  p_plan_estudio_id: planId,
+                  p_limit: perPlanLimit,
+                  p_offset: 0,
+                }
+
+              const { data, error, count } = await supabase.rpc(
+                'search_asignaturas',
+                args,
+                { count: 'exact' },
+              )
+              if (error) throw new Error(error.message)
+
+              return {
+                data,
+                count: count ?? 0,
+              }
+            }),
+          )
+
+          const merged = perPlan
+            .flatMap((p) => p.data)
+            .map(mapRow)
+            .sort((a, b) => {
+              const ar = a.rank ?? 0
+              const br = b.rank ?? 0
+              if (br !== ar) return br - ar
+              const byName = a.nombre.localeCompare(b.nombre, 'es')
+              if (byName !== 0) return byName
+              return String(a.id).localeCompare(String(b.id))
+            })
+
+          const pageData = merged.slice(from, to + 1)
+          const totalCount = perPlan.reduce((acc, p) => acc + p.count, 0)
+
+          return {
+            data: pageData,
+            count: totalCount,
+          }
+        }
+
+        const args: Database['public']['Functions']['search_asignaturas']['Args'] =
+          {
+            p_search: term,
+            p_limit: pageSize,
+            p_offset: from,
+          }
+
+        const { data, error, count } = await supabase.rpc(
+          'search_asignaturas',
+          args,
+          { count: 'exact' },
+        )
+        if (error) throw new Error(error.message)
+
+        return {
+          data: data.map(mapRow),
+          count: count ?? 0,
+        }
       }
 
-      q = q.range(from, to)
+      // let q = supabase
+      //   .from('asignaturas')
+      //   .select(
+      //     'id,nombre,codigo,creditos,tipo,plan_estudio_id,estructura_id',
+      //     {
+      //       count: 'exact',
+      //     },
+      //   )
+      //   .order('nombre', { ascending: true })
 
-      const { data, error, count } = await q
-      if (error) throw new Error(error.message)
+      // if (planOrigenId) {
+      //   q = q.eq('plan_estudio_id', planOrigenId)
+      // } else if (needPlansForFilter) {
+      //   const planIds = plansForFilter.map((p) => p.id)
+      //   if (!planIds.length) {
+      //     return { data: [] as Array<SourceSubjectRow>, count: 0 }
+      //   }
+      //   q = q.in('plan_estudio_id', planIds)
+      // }
 
-      return {
-        data: data as unknown as Array<SourceSubjectRow>,
-        count: count ?? 0,
-      }
+      // q = q.range(from, to)
+
+      // const { data, error, count } = await q
+      // if (error) throw new Error(error.message)
+
+      // return {
+      //   data: data as unknown as Array<SourceSubjectRow>,
+      //   count: count ?? 0,
+      // }
     },
   })
 
@@ -188,7 +295,7 @@ export function PasoFuenteClonadoInterno({
                   resetSelection()
                 }}
               >
-                <SelectTrigger>
+                <SelectTrigger className="w-full min-w-0 [&>span]:block! [&>span]:truncate!">
                   <SelectValue placeholder="Todas" />
                 </SelectTrigger>
                 <SelectContent>
@@ -217,7 +324,7 @@ export function PasoFuenteClonadoInterno({
                 }}
                 disabled={!facultadId}
               >
-                <SelectTrigger>
+                <SelectTrigger className="w-full min-w-0 [&>span]:block! [&>span]:truncate!">
                   <SelectValue
                     placeholder={facultadId ? 'Todas' : 'Selecciona facultad'}
                   />
@@ -243,7 +350,10 @@ export function PasoFuenteClonadoInterno({
                   resetSelection()
                 }}
               >
-                <SelectTrigger>
+                <SelectTrigger
+                  className="w-full min-w-0 [&>span]:block! [&>span]:truncate!"
+                  disabled={!carreraId && !facultadId}
+                >
                   <SelectValue placeholder="Todos" />
                 </SelectTrigger>
                 <SelectContent>

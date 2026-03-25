@@ -155,6 +155,7 @@ export type Database = {
           orden_celda: number | null
           plan_estudio_id: string
           prerrequisito_asignatura_id: string | null
+          search_vector: unknown
           tipo: Database['public']['Enums']['tipo_asignatura']
           tipo_origen: Database['public']['Enums']['tipo_origen'] | null
         }
@@ -181,6 +182,7 @@ export type Database = {
           orden_celda?: number | null
           plan_estudio_id: string
           prerrequisito_asignatura_id?: string | null
+          search_vector?: unknown
           tipo?: Database['public']['Enums']['tipo_asignatura']
           tipo_origen?: Database['public']['Enums']['tipo_origen'] | null
         }
@@ -207,6 +209,7 @@ export type Database = {
           orden_celda?: number | null
           plan_estudio_id?: string
           prerrequisito_asignatura_id?: string | null
+          search_vector?: unknown
           tipo?: Database['public']['Enums']['tipo_asignatura']
           tipo_origen?: Database['public']['Enums']['tipo_origen'] | null
         }
@@ -1392,6 +1395,31 @@ export type Database = {
       append_conversacion_plan: {
         Args: { p_append: Json; p_id: string }
         Returns: undefined
+      }
+      build_asignaturas_prefix_tsquery: {
+        Args: { p_search: string }
+        Returns: unknown
+      }
+      search_asignaturas: {
+        Args: {
+          p_limit?: number
+          p_offset?: number
+          p_plan_estudio_id?: string
+          p_search: string
+        }
+        Returns: Array<{
+          codigo: string
+          contenido_tematico: Json
+          creditos: number
+          datos: Json
+          estado: Database['public']['Enums']['estado_asignatura']
+          id: string
+          nombre: string
+          numero_ciclo: number
+          plan_estudio_id: string
+          rank: number
+          tipo: Database['public']['Enums']['tipo_asignatura']
+        }>
       }
       suma_porcentajes: { Args: { '': Json }; Returns: number }
       unaccent: { Args: { '': string }; Returns: string }
