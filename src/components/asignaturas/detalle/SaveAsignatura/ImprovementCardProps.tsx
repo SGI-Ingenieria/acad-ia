@@ -15,6 +15,7 @@ interface ImprovementCardProps {
   sug: IASugerencia
   asignaturaId: string
   onApplied: (campoKey: string) => void
+  isSelected?: boolean
 }
 
 export function ImprovementCard({
