@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { useParams } from '@tanstack/react-router'
+import { useLocation, useParams } from '@tanstack/react-router'
 import {
   Sparkles,
   Send,
@@ -58,7 +58,7 @@ export function IAAsignaturaTab() {
   const { asignaturaId } = useParams({
     from: '/planes/$planId/asignaturas/$asignaturaId',
   })
-
+  const location = useLocation()
   // --- ESTADOS ---
   const [activeChatId, setActiveChatId] = useState<string | undefined>(
     undefined,
@@ -269,6 +269,30 @@ export function IAAsignaturaTab() {
     )
   }, [availableFields, input, showSuggestions])
 
+  useEffect(() => {
+    const state = location.state as any
+
+    // Verificamos si existe el timestamp (_ts) para saber que es una acción nueva
+    if (state?.activeTab === 'ia' && state?._ts) {
+      // Si el campo no está ya seleccionado, lo agregamos
+      if (state.prefillCampo) {
+        const fieldToSelect = availableFields.find(
+          (f) => f.key === state.prefillCampo,
+        )
+
+        if (fieldToSelect) {
+          setSelectedFields([fieldToSelect]) // Reemplaza o añade según prefieras
+
+          // Generamos un prompt inicial automático
+          const autoPrompt = `Mejora el contenido de: ${fieldToSelect.label}`
+          setInput(autoPrompt)
+
+          // Opcional: Si quieres que dispare la IA inmediatamente al llegar:
+          // handleSend(autoPrompt)
+        }
+      }
+    }
+  }, [location.state, availableFields])
   // 2. Efecto para cerrar con ESC
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

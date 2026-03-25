@@ -318,6 +318,7 @@ function DatosGenerales({
           <div className="space-y-6">
             {/* Tarjeta de Requisitos */}
             <InfoCard
+              asignaturaId={asignaturaId}
               title="Requisitos y Seriación"
               type="requirements"
               initialContent={pre}
@@ -342,6 +343,7 @@ function DatosGenerales({
 
             {/* Tarjeta de Evaluación */}
             <InfoCard
+              asignaturaId={asignaturaId}
               title="Sistema de Evaluación"
               type="evaluation"
               initialContent={criteriosEvaluacion}
@@ -517,16 +519,25 @@ function InfoCard({
   }
 
   const handleIARequest = (campoClave: string) => {
-    console.log(placeholder)
+    console.log(campoClave)
 
-    // Añadimos un timestamp a la state para forzar que la navegación
-    // genere una nueva ubicación incluso si la ruta y los params son iguales.
+    let targetClave = campoClave
+    if (type === 'evaluation' && !targetClave) {
+      targetClave = 'criterios_de_evaluacion'
+    }
+
+    if (targetClave === 'contenido') {
+      targetClave = 'contenido_tematico'
+    }
+    console.log(targetClave)
+    console.log(asignaturaId)
+
     navigate({
       to: '/planes/$planId/asignaturas/$asignaturaId/iaasignatura',
       params: { planId, asignaturaId: asignaturaId! },
       state: {
         activeTab: 'ia',
-        prefillCampo: campoClave,
+        prefillCampo: targetClave,
         prefillContenido: data,
         _ts: Date.now(),
       } as any,
@@ -581,19 +592,21 @@ function InfoCard({
 
               {!isEditing && (
                 <div className="flex gap-1">
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-blue-500 hover:bg-blue-100"
-                        onClick={() => clave && handleIARequest(clave)}
-                      >
-                        <Sparkles className="h-4 w-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Mejorar con IA</TooltipContent>
-                  </Tooltip>
+                  {type !== 'requirements' && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-blue-500 hover:bg-blue-100"
+                          onClick={() => handleIARequest(clave)}
+                        >
+                          <Sparkles className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Mejorar con IA</TooltipContent>
+                    </Tooltip>
+                  )}
 
                   <Tooltip>
                     <TooltipTrigger asChild>
