@@ -40,6 +40,8 @@ import {
   useMessagesByChat,
   useUpdateConversationStatus,
   useUpdateConversationTitle,
+  useUpdatePlanFields,
+  useUpdateRecommendationApplied,
 } from '@/data'
 import { usePlan } from '@/data/hooks/usePlans'
 
@@ -143,6 +145,12 @@ function RouteComponent() {
   const [isHistoryOpen, setIsHistoryOpen] = useState(false)
   const [isActionsOpen, setIsActionsOpen] = useState(false)
 
+  const [selectedImprovements, setSelectedImprovements] = useState<
+    Array<string>
+  >([])
+  const updatePlan = useUpdatePlanFields()
+  const updateAppliedStatus = useUpdateRecommendationApplied()
+
   const availableFields = useMemo(() => {
     const definicion = data?.estructuras_plan
       ?.definicion as EstructuraDefinicion
@@ -210,6 +218,96 @@ function RouteComponent() {
       return messages
     })
   }, [mensajesDelChat, activeChatId, availableFields])
+
+  // En tu componente principal (el padre)
+
+  const handleApplyMultiple = async (
+    sugerencias: Array<any>,
+    dbMessageId: string,
+  ) => {
+    if (!planId || !data?.datos || sugerencias.length === 0) return
+
+    setIsSending(true)
+    try {
+      const datosActualizados = { ...data.datos }
+
+      for (const sug of sugerencias) {
+        const key = sug.key
+        const newValue = sug.newValue
+        const currentValue = datosActualizados[key]
+
+        if (
+          typeof currentValue === 'object' &&
+          currentValue !== null &&
+          'description' in currentValue
+        ) {
+          datosActualizados[key] = { ...currentValue, description: newValue }
+        } else {
+          datosActualizados[key] = newValue
+        }
+      }
+
+      await updatePlan.mutateAsync({
+        planId: planId as any,
+        patch: { datos: datosActualizados },
+      })
+
+      for (const sug of sugerencias) {
+        try {
+          await updateAppliedStatus.mutateAsync({
+            conversacionId: dbMessageId,
+            campoAfectado: sug.key,
+          })
+          console.log(sug.key)
+
+          removeSelectedField(sug.key)
+        } catch (err) {
+          console.error(
+            `Error al marcar aplicada la sugerencia: ${sug.key}`,
+            err,
+          )
+          // Si una falla, el bucle sigue con las demás
+        }
+      }
+
+      setSelectedImprovements([])
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['plan', planId] }),
+        queryClient.invalidateQueries({ queryKey: ['conversation-messages'] }),
+      ])
+    } catch (error) {
+      console.error('Error crítico en aplicación masiva:', error)
+    } finally {
+      setIsSending(false)
+    }
+  }
+
+  const toggleImprovementSelection = (sugKey: string) => {
+    setSelectedImprovements((prev) =>
+      prev.includes(sugKey)
+        ? prev.filter((key) => key !== sugKey)
+        : [...prev, sugKey],
+    )
+  }
+
+  const toggleAllFromMessage = (suggestions: Array<any>) => {
+    const pending = suggestions.filter((s) => !s.applied)
+    const allKeys = pending.map((s) => s.key)
+    const allSelected = allKeys.every((key) =>
+      selectedImprovements.includes(key),
+    )
+
+    if (allSelected) {
+      setSelectedImprovements((prev) =>
+        prev.filter((key) => !allKeys.includes(key)),
+      )
+    } else {
+      setSelectedImprovements((prev) =>
+        Array.from(new Set([...prev, ...allKeys])),
+      )
+    }
+  }
+
   const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
     if (scrollRef.current) {
       const scrollContainer = scrollRef.current.querySelector(
@@ -478,6 +576,7 @@ function RouteComponent() {
   }, [selectedArchivoIds, selectedRepositorioIds, uploadedFiles])
 
   const removeSelectedField = (fieldKey: string) => {
+    console.log(fieldKey)
     setSelectedFields((prev) => prev.filter((f) => f.key !== fieldKey))
   }
 
@@ -752,17 +851,98 @@ function RouteComponent() {
 
                           {/* Recomendaciones */}
                           {isAI && msg.suggestions?.length > 0 && (
-                            <div className="mt-4">
-                              <ImprovementCard
-                                suggestions={msg.suggestions} // Usamos el nombre normalizado en el flatMap
-                                dbMessageId={msg.dbMessageId}
-                                planId={planId}
-                                currentDatos={data?.datos}
-                                activeChatId={activeChatId}
-                                onApplySuccess={(key) =>
-                                  removeSelectedField(key)
-                                }
-                              />
+                            <div className="mt-4 w-full space-y-3 rounded-xl border border-slate-100 bg-slate-50/50 p-3">
+                              <div className="flex items-center justify-between px-1">
+                                <span className="text-[10px] font-bold text-slate-400 uppercase">
+                                  Sugerencias de mejora
+                                </span>
+                                {/* Botón Seleccionar Todo */}
+                                {msg.suggestions.some(
+                                  (s: any) => !s.applied,
+                                ) && (
+                                  <Button
+                                    variant="ghost"
+                                    className="h-6 px-2 text-[10px] text-teal-600 hover:bg-teal-100"
+                                    onClick={() =>
+                                      toggleAllFromMessage(msg.suggestions)
+                                    }
+                                  >
+                                    {msg.suggestions
+                                      .filter((s: any) => !s.applied)
+                                      .every((s: any) =>
+                                        selectedImprovements.includes(s.key),
+                                      )
+                                      ? 'Desmarcar todo'
+                                      : 'Seleccionar todo'}
+                                  </Button>
+                                )}
+                              </div>
+
+                              {msg.suggestions.map((sug: any) => (
+                                <div key={sug.key} className="flex gap-2">
+                                  {!sug.applied && (
+                                    <input
+                                      type="checkbox"
+                                      className="mt-4 h-4 w-4 shrink-0 rounded border-slate-300 accent-teal-600"
+                                      checked={selectedImprovements.includes(
+                                        sug.key,
+                                      )}
+                                      onChange={() =>
+                                        toggleImprovementSelection(sug.key)
+                                      }
+                                    />
+                                  )}
+                                  <div className="flex-1">
+                                    <ImprovementCard
+                                      suggestions={[sug]} // Pasamos solo una para que la card actúe individualmente
+                                      dbMessageId={msg.dbMessageId}
+                                      planId={planId}
+                                      currentDatos={data?.datos}
+                                      activeChatId={activeChatId}
+                                      onApplySuccess={(key) =>
+                                        removeSelectedField(key)
+                                      }
+                                    />
+                                  </div>
+                                </div>
+                              ))}
+
+                              {/* Botón de Acción Masiva específico para este mensaje */}
+                              {msg.suggestions.some((s: any) =>
+                                selectedImprovements.includes(s.key),
+                              ) && (
+                                <Button
+                                  size="sm"
+                                  disabled={isSending}
+                                  className="w-full bg-teal-600 py-1 text-xs font-bold text-white hover:bg-teal-700"
+                                  onClick={() => {
+                                    const seleccionadas =
+                                      msg.suggestions.filter((s: any) =>
+                                        selectedImprovements.includes(s.key),
+                                      )
+                                    handleApplyMultiple(
+                                      seleccionadas,
+                                      msg.dbMessageId,
+                                    )
+                                  }}
+                                >
+                                  {isSending ? (
+                                    <Loader2
+                                      className="mr-2 animate-spin"
+                                      size={12}
+                                    />
+                                  ) : (
+                                    <Check className="mr-2" size={12} />
+                                  )}
+                                  Aplicar seleccionadas (
+                                  {
+                                    msg.suggestions.filter((s: any) =>
+                                      selectedImprovements.includes(s.key),
+                                    ).length
+                                  }
+                                  )
+                                </Button>
+                              )}
                             </div>
                           )}
                         </div>

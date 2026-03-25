@@ -14,7 +14,8 @@ import {
   MessageSquarePlus,
   Archive,
   History,
-  Edit2, // Agregado
+  Edit2,
+  Loader2, // Agregado
 } from 'lucide-react'
 import { useState, useEffect, useRef, useMemo } from 'react'
 
@@ -42,8 +43,10 @@ import {
   useConversationBySubject,
   useMessagesBySubjectChat,
   useSubject,
+  useUpdateAsignatura,
   useUpdateSubjectConversationName,
   useUpdateSubjectConversationStatus,
+  useUpdateSubjectRecommendation,
 } from '@/data'
 import { cn } from '@/lib/utils'
 
@@ -71,6 +74,9 @@ export function IAAsignaturaTab() {
   const scrollRef = useRef<HTMLDivElement>(null)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
 
+  const updateAsignatura = useUpdateAsignatura()
+  const updateRecommendation = useUpdateSubjectRecommendation()
+
   // --- DATA QUERIES ---
   const { data: datosGenerales } = useSubject(asignaturaId)
   const { data: todasConversaciones, isLoading: loadingConv } =
@@ -94,6 +100,81 @@ export function IAAsignaturaTab() {
     Array<string>
   >([])
   const [uploadedFiles, setUploadedFiles] = useState<Array<File>>([])
+  const [selectedImprovements, setSelectedImprovements] = useState<
+    Array<string>
+  >([])
+
+  const handleApplyMultiple = async (sugerencias: Array<any>) => {
+    if (!asignaturaId || !datosGenerales || sugerencias.length === 0) return
+
+    setIsSending(true)
+    try {
+      // 1. Consolidar el Patch
+      const patchData: any = {
+        datos: { ...datosGenerales.datos },
+      }
+
+      for (const sug of sugerencias) {
+        if (sug.campoKey === 'contenido_tematico') {
+          patchData.contenido_tematico = sug.valorSugerido
+        } else if (sug.campoKey === 'criterios_de_evaluacion') {
+          patchData.criterios_de_evaluacion = sug.valorSugerido
+        } else {
+          patchData.datos[sug.campoKey] = sug.valorSugerido
+        }
+      }
+
+      // 2. Actualización única de la asignatura
+      await updateAsignatura.mutateAsync({
+        asignaturaId: asignaturaId as any,
+        patch: patchData,
+      })
+
+      // 3. Marcar recomendaciones una por una (Secuencialmente para evitar colisiones)
+      for (const sug of sugerencias) {
+        await updateRecommendation.mutateAsync({
+          mensajeId: sug.messageId,
+          campoAfectado: sug.campoKey,
+        })
+      }
+
+      // 4. Limpieza de estados
+      const appliedKeys = sugerencias.map((s) => s.campoKey)
+      setSelectedFields((prev) =>
+        prev.filter((f) => !appliedKeys.includes(f.key)),
+      )
+      setSelectedImprovements([])
+
+      // Forzar actualización visual
+      queryClient.invalidateQueries({ queryKey: ['subject', asignaturaId] })
+    } catch (error) {
+      console.error('Error en aplicación masiva:', error)
+    } finally {
+      setIsSending(false)
+    }
+  }
+  const toggleImprovementSelection = (sugId: string) => {
+    setSelectedImprovements((prev) =>
+      prev.includes(sugId)
+        ? prev.filter((id) => id !== sugId)
+        : [...prev, sugId],
+    )
+  }
+
+  const toggleAllFromMessage = (sugerencias: Array<any>) => {
+    const allIds = sugerencias.map((s) => s.id)
+    const allSelected = allIds.every((id) => selectedImprovements.includes(id))
+
+    if (allSelected) {
+      setSelectedImprovements((prev) =>
+        prev.filter((id) => !allIds.includes(id)),
+      )
+    } else {
+      setSelectedImprovements((prev) =>
+        Array.from(new Set([...prev, ...allIds])),
+      )
+    }
+  }
 
   // Cálculo del total para el Badge del botón
   const totalReferencias =
@@ -678,31 +759,90 @@ export function IAAsignaturaTab() {
 
                       {/* CONTENEDOR DE SUGERENCIAS INTEGRADO */}
                       {msg.role === 'assistant' &&
-                        msg.sugerencias &&
-                        msg.sugerencias.length > 0 && (
+                        msg.sugerencias?.length > 0 && (
                           <div className="space-y-3 border-t bg-slate-50/50 p-3">
-                            <p className="mb-1 text-[10px] font-bold text-slate-400 uppercase">
-                              Mejoras disponibles:
-                            </p>
-                            {msg.sugerencias.map((sug: any) => (
-                              <ImprovementCard
-                                key={sug.id}
-                                sug={sug}
-                                asignaturaId={asignaturaId}
-                                onApplied={(campoFinalizado) => {
-                                  // Filtramos el array para conservar todos MENOS el que se aplicó
-                                  console.log(campoFinalizado)
-                                  console.log('campos:', selectedFields)
+                            <div className="flex items-center justify-between">
+                              <p className="text-[10px] font-bold text-slate-400 uppercase">
+                                Mejoras disponibles
+                              </p>
 
-                                  setSelectedFields((prev) =>
-                                    prev.filter((fieldObj) => {
-                                      // Accedemos a .key porque fieldObj es { key: "...", label: "..." }
-                                      return fieldObj.key !== campoFinalizado
-                                    }),
+                              {/* Solo mostramos "Seleccionar todo" si hay sugerencias pendientes en ESTE mensaje */}
+                              {msg.sugerencias.some((s) => !s.aceptada) && (
+                                <Button
+                                  variant="ghost"
+                                  className="h-6 text-[10px] text-teal-600 hover:bg-teal-100"
+                                  onClick={() =>
+                                    toggleAllFromMessage(msg.sugerencias)
+                                  }
+                                >
+                                  {msg.sugerencias
+                                    .filter((s) => !s.aceptada)
+                                    .every((s) =>
+                                      selectedImprovements.includes(s.id),
+                                    )
+                                    ? 'Desmarcar todas'
+                                    : 'Seleccionar todas'}
+                                </Button>
+                              )}
+                            </div>
+
+                            {msg.sugerencias.map((sug: any) => (
+                              <div key={sug.id} className="flex gap-2">
+                                {!sug.aceptada && (
+                                  <input
+                                    type="checkbox"
+                                    className="mt-4 h-4 w-4 rounded border-slate-300 accent-teal-600"
+                                    checked={selectedImprovements.includes(
+                                      sug.id,
+                                    )}
+                                    onChange={() =>
+                                      toggleImprovementSelection(sug.id)
+                                    }
+                                  />
+                                )}
+                                <div className="flex-1">
+                                  <ImprovementCard
+                                    sug={sug}
+                                    asignaturaId={asignaturaId}
+                                    onApplied={(key) =>
+                                      setSelectedFields((prev) =>
+                                        prev.filter((f) => f.key !== key),
+                                      )
+                                    }
+                                  />
+                                </div>
+                              </div>
+                            ))}
+
+                            {/* EL BOTÓN DE APLICAR: Lo movemos para que solo aparezca si hay algo seleccionado de ESTE mensaje */}
+                            {msg.sugerencias.some((s) =>
+                              selectedImprovements.includes(s.id),
+                            ) && (
+                              <Button
+                                size="sm"
+                                disabled={isSending}
+                                className="w-full bg-teal-600 text-xs font-bold shadow-md hover:bg-teal-700"
+                                onClick={() => {
+                                  const seleccionadasDeEsteMensaje =
+                                    msg.sugerencias.filter((s) =>
+                                      selectedImprovements.includes(s.id),
+                                    )
+                                  handleApplyMultiple(
+                                    seleccionadasDeEsteMensaje,
                                   )
                                 }}
-                              />
-                            ))}
+                              >
+                                {isSending ? (
+                                  <Loader2
+                                    className="mr-2 animate-spin"
+                                    size={14}
+                                  />
+                                ) : (
+                                  <Check className="mr-2" size={14} />
+                                )}
+                                Aplicar mejoras seleccionadas
+                              </Button>
+                            )}
                           </div>
                         )}
                     </div>
