@@ -52,6 +52,35 @@ const cleanText = (text: string) => {
     .toLowerCase()
 }
 
+const recalculoVectoresAsignaturasInFlight = new Set<string>()
+
+function triggerRecalculoVectoresAsignaturasNonBlocking(
+  supabase: ReturnType<typeof supabaseBrowser>,
+  planId: UUID,
+) {
+  const key = String(planId)
+  if (recalculoVectoresAsignaturasInFlight.has(key)) return
+
+  recalculoVectoresAsignaturasInFlight.add(key)
+
+  void (async () => {
+    const { error } = await supabase.rpc('recalcular_vectores_asignaturas')
+    if (error) {
+      // No debe bloquear ni romper el flujo principal.
+      console.warn(
+        '[recalcular_vectores_asignaturas] RPC error:',
+        error.message,
+      )
+    }
+  })()
+    .catch((err: unknown) => {
+      console.warn('[recalcular_vectores_asignaturas] RPC failed:', err)
+    })
+    .finally(() => {
+      recalculoVectoresAsignaturasInFlight.delete(key)
+    })
+}
+
 export async function plans_list(
   filters: PlanListFilters = {},
 ): Promise<Paged<PlanEstudio>> {
@@ -207,7 +236,7 @@ export async function plan_asignaturas_list(
   const { data, error } = await supabase
     .from('asignaturas')
     .select(
-      'id,plan_estudio_id,horas_academicas,horas_independientes,estructura_id,codigo,nombre,tipo,creditos,numero_ciclo,linea_plan_id,orden_celda,estado,datos,contenido_tematico,asignatura_hash,tipo_origen,meta_origen,creado_por,actualizado_por,creado_en,actualizado_en,prerrequisito_asignatura_id',
+      'id,plan_estudio_id,horas_academicas,horas_independientes,estructura_id,codigo,nombre,tipo,creditos,numero_ciclo,linea_plan_id,orden_celda,estado,datos,contenido_tematico,criterios_de_evaluacion,asignatura_hash,tipo_origen,meta_origen,creado_por,actualizado_por,creado_en,actualizado_en,prerrequisito_asignatura_id,search_vector',
     )
     .eq('plan_estudio_id', planId)
     .order('numero_ciclo', { ascending: true, nullsFirst: false })
@@ -215,6 +244,13 @@ export async function plan_asignaturas_list(
     .order('nombre', { ascending: true })
 
   throwIfError(error)
+
+  // No bloqueante: si el primer registro viene sin vector, dispara el recalculo.
+  const first: any = (data as any)?.[0]
+  if (first && first.search_vector === null) {
+    triggerRecalculoVectoresAsignaturasNonBlocking(supabase, planId)
+  }
+
   return data ?? []
 }
 

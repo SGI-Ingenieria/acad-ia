@@ -1400,6 +1400,7 @@ export type Database = {
         Args: { p_search: string }
         Returns: unknown
       }
+      recalcular_vectores_asignaturas: { Args: never; Returns: undefined }
       search_asignaturas: {
         Args: {
           p_limit?: number
