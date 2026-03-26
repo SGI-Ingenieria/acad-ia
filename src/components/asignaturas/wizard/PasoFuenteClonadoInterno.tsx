@@ -163,7 +163,7 @@ export function PasoFuenteClonadoInterno({
 
   return (
     <div className="grid gap-4">
-      <Card>
+      <Card className="gap-4">
         <CardHeader>
           <CardTitle className="text-base">Fuente</CardTitle>
         </CardHeader>

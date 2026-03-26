@@ -102,7 +102,7 @@ function RouteComponent() {
     }
   }
   return (
-    <div className="flex min-h-screen flex-col gap-6 bg-slate-50/30 p-6">
+    <div className="flex min-h-screen flex-col gap-6 bg-slate-50/30">
       {/* HEADER DE ACCIONES */}
       <div className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
         <div>

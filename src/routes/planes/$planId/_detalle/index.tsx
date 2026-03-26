@@ -229,7 +229,7 @@ function DatosGeneralesPage() {
     })
   }
   return (
-    <div className="animate-in fade-in container mx-auto px-6 py-6 duration-500">
+    <div className="animate-in fade-in duration-500">
       <div className="mb-6">
         <h2 className="text-foreground text-lg font-semibold">
           Datos Generales del Plan

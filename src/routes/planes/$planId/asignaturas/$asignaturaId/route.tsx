@@ -140,7 +140,7 @@ function AsignaturaLayout() {
   return (
     <div>
       <section className="bg-linear-to-b from-[#0b1d3a] to-[#0e2a5c] text-white">
-        <div className="mx-auto max-w-7xl px-6 py-10">
+        <div className="mx-auto max-w-400 p-4 py-10 md:px-6 lg:px-8">
           <Link
             to="/planes/$planId/asignaturas"
             params={{ planId }}
@@ -216,13 +216,13 @@ function AsignaturaLayout() {
       {/* TABS */}
 
       <nav className="sticky top-0 z-20 border-b bg-white">
-        <div className="mx-auto max-w-7xl px-6">
+        <div className="mx-auto max-w-400 p-4 py-2 md:px-6 lg:px-8">
           {/* CAMBIOS CLAVE:
         1. overflow-x-auto: Permite scroll horizontal.
         2. scrollbar-hide: (Opcional) para que no se vea la barra fea.
         3. justify-start md:justify-center: Alineado a la izquierda en móvil para que el scroll funcione, centrado en desktop.
     */}
-          <div className="no-scrollbar flex items-center justify-start gap-8 overflow-x-auto whitespace-nowrap md:justify-center">
+          <div className="no-scrollbar flex items-center justify-start gap-8 overflow-x-auto whitespace-nowrap md:justify-start">
             {[
               { label: 'Datos', to: '' },
               { label: 'Contenido', to: 'contenido' },
@@ -260,7 +260,7 @@ function AsignaturaLayout() {
         </div>
       </nav>
 
-      <div className="mx-auto max-w-7xl px-6 py-8">
+      <div className="mx-auto max-w-400 p-4 py-8 md:px-6 lg:px-8">
         <Outlet />
       </div>
     </div>

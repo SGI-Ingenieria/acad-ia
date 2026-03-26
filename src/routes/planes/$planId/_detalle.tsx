@@ -127,7 +127,7 @@ function RouteComponent() {
         </div>
       </div>
 
-      <div className="mx-auto max-w-400 space-y-8 p-8">
+      <div className="mx-auto max-w-400 space-y-8 p-4 md:px-6 md:pb-6 lg:px-8 lg:pb-8">
         {/* 2. Header del Plan */}
         {isLoading ? (
           /* ===== SKELETON ===== */

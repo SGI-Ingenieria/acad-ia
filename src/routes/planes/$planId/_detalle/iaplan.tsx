@@ -581,7 +581,7 @@ function RouteComponent() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-80px)] w-full flex-col gap-4 p-4 md:h-[calc(100vh-160px)] md:max-h-[calc(100vh-160px)] md:flex-row md:overflow-hidden">
+    <div className="flex h-[calc(100vh-80px)] w-full flex-col gap-4 pb-1 md:h-[calc(100vh-160px)] md:max-h-[calc(100vh-160px)] md:flex-row md:overflow-hidden">
       {/* --- HEADER MÓVIL (Solo visible en < md) --- */}
       <div className="flex shrink-0 items-center justify-between rounded-lg border bg-white p-2 shadow-sm md:hidden">
         <Button
@@ -1119,11 +1119,11 @@ function RouteComponent() {
       </div>
 
       {/* --- PANEL LATERAL: ACCIONES RÁPIDAS (Escritorio) --- */}
-      <div className="hidden flex-[1] flex-col gap-4 overflow-y-auto pr-2 md:flex">
+      <div className="hidden flex-[1] flex-col gap-4 overflow-y-auto md:flex">
         <h4 className="flex items-center gap-2 text-left text-sm font-bold text-slate-800">
           <Lightbulb size={18} className="text-orange-500" /> Acciones rápidas
         </h4>
-        <div className="space-y-2">
+        <div className="space-y-2 p-1">
           {PRESETS.map((preset) => (
             <button
               key={preset.id}
