@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useState } from 'react'
 
 import {
   ai_generate_subject,
@@ -6,6 +7,7 @@ import {
   bibliografia_delete,
   bibliografia_insert,
   bibliografia_update,
+  checkPrerrequisitoConflicts,
   lineas_insert,
   lineas_update,
   subjects_bibliografia_list,
@@ -316,4 +318,35 @@ export function useDeleteBibliografia(asignaturaId: string) {
       })
     },
   })
+}
+
+export function useAsignaturaConflictos() {
+  const [isValidating, setIsValidating] = useState(false)
+
+  const validarCambioCiclo = async (
+    asignaturaId: string,
+    nuevoCiclo: number,
+  ) => {
+    setIsValidating(true)
+    try {
+      const nombresConflictivos = await checkPrerrequisitoConflicts(
+        asignaturaId,
+        nuevoCiclo,
+      )
+
+      if (nombresConflictivos.length > 0) {
+        const mensaje = `Si mueves esta materia al ciclo ${nuevoCiclo}, se perderá la seriación con:\n\n• ${nombresConflictivos.join('\n• ')}\n\n¿Deseas continuar?`
+        return confirm(mensaje) // Puedes usar un Modal de Shadcn aquí en lugar de confirm
+      }
+
+      return true // Sin conflictos
+    } catch (error) {
+      console.error(error)
+      return false
+    } finally {
+      setIsValidating(false)
+    }
+  }
+
+  return { validarCambioCiclo, isValidating }
 }
