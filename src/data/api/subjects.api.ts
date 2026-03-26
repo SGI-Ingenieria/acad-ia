@@ -585,3 +585,49 @@ export async function bibliografia_delete(id: string) {
   if (error) throw error
   return id
 }
+
+export async function checkPrerrequisitoConflicts(
+  asignaturaId: string,
+  nuevoCiclo: number,
+): Promise<Array<string>> {
+  const supabase = supabaseBrowser()
+
+  // CORRECCIÓN 1: Agregamos 'id' al select
+  // CORRECCIÓN 2: Quitamos espacios en el .or()
+  const { data, error } = await supabase
+    .from('asignaturas')
+    .select('id, nombre, numero_ciclo, prerrequisito_asignatura_id')
+    .or(`prerrequisito_asignatura_id.eq.${asignaturaId},id.eq.${asignaturaId}`)
+
+  if (error) throw error
+
+  // CORRECCIÓN 3: 'data' ahora está disponible porque lo desestructuramos arriba
+  if (!data) return []
+
+  const conflictos: Array<string> = []
+
+  data.forEach((asig) => {
+    // Caso 1: Materias que tienen a esta como prerrequisito (Hijas)
+    // "Si yo me muevo al ciclo 5, y mi hija está en el 4, se rompe la regla"
+    if (asig.prerrequisito_asignatura_id === asignaturaId) {
+      if (asig.numero_ciclo !== null && asig.numero_ciclo <= nuevoCiclo) {
+        conflictos.push(asig.nombre)
+      }
+    }
+
+    // Caso 2: El prerrequisito de la materia que estoy moviendo (Padre)
+    // "Si yo me muevo al ciclo 2, y mi padre está en el 3, se rompe la regla"
+    if (asig.id === asignaturaId && asig.prerrequisito_asignatura_id) {
+      const padre = data.find((p) => p.id === asig.prerrequisito_asignatura_id)
+      if (
+        padre &&
+        padre.numero_ciclo !== null &&
+        padre.numero_ciclo >= nuevoCiclo
+      ) {
+        conflictos.push(padre.nombre)
+      }
+    }
+  })
+
+  return conflictos
+}
