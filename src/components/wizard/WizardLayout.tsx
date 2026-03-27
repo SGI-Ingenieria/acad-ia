@@ -25,7 +25,7 @@ export function WizardLayout({
         }}
       >
         <div className="z-10 flex-none border-b bg-white">
-          <CardHeader className="flex flex-row items-center justify-between gap-4 p-6 pb-4">
+          <CardHeader className="flex flex-row items-center justify-between gap-4 p-6 pb-3">
             <CardTitle>{title}</CardTitle>
             <button
               onClick={onClose}
@@ -36,10 +36,10 @@ export function WizardLayout({
             </button>
           </CardHeader>
 
-          {headerSlot ? <div className="px-6 pb-6">{headerSlot}</div> : null}
+          {headerSlot ? <div className="px-6 pb-3">{headerSlot}</div> : null}
         </div>
 
-        <div className="flex-1 overflow-y-auto bg-gray-50/30 p-6">
+        <div className="flex-1 overflow-y-auto bg-gray-50/30 px-4 py-3 xl:px-6">
           {children}
         </div>
 

@@ -125,7 +125,7 @@ function RouteComponent() {
     )
 
   return (
-    <div className="mx-auto max-w-5xl p-6">
+    <div className="mx-auto">
       <div className="mb-8 flex items-end justify-between">
         <div>
           <h1 className="flex items-center gap-2 text-xl font-bold text-slate-800">

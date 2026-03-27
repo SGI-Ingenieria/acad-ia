@@ -31,12 +31,7 @@ export interface Carrera {
   facultadId: string
 }
 
-export interface LineaCurricular {
-  id: string
-  nombre: string
-  orden: number
-  color?: string
-}
+export type LineaCurricular = Tables<'lineas_plan'>
 
 export interface Asignatura {
   id: string

@@ -662,7 +662,7 @@ export function ContenidoTematico() {
   }
 
   return (
-    <div className="animate-in fade-in mx-auto max-w-5xl space-y-6 py-10 duration-500">
+    <div className="animate-in fade-in space-y-6 pb-8 duration-500">
       <div className="flex items-center justify-between border-b pb-4">
         <div>
           <h2 className="text-2xl font-bold tracking-tight text-slate-900">

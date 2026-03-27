@@ -657,13 +657,19 @@ function InfoCard({
                   >
                     <SelectTrigger className="w-full">
                       <div className="flex-1 truncate text-left">
-                        <SelectValue placeholder="Selecciona una materia" />
+                        <SelectValue placeholder="Selecciona una materia">
+                          {Array.isArray(tempText) && tempText.length > 0
+                            ? `${tempText[0].code} - ${tempText[0].name}`
+                            : undefined}
+                        </SelectValue>
                       </div>
                     </SelectTrigger>
+
                     <SelectContent>
                       <SelectItem value="none">
                         Ninguna (Sin seriación)
                       </SelectItem>
+
                       {availableSubjects?.map((asig) => (
                         <SelectItem
                           key={asig.id}
@@ -673,7 +679,7 @@ function InfoCard({
                           <span className="text-primary font-bold">
                             [C{asig.numero_ciclo}]
                           </span>{' '}
-                          <span className="block truncate">
+                          <span className="inline-block truncate">
                             {asig.codigo} - {asig.nombre}
                           </span>
                         </SelectItem>
