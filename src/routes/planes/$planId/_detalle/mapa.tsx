@@ -248,7 +248,7 @@ function AsignaturaCardItem({
               {/* titulo */}
               <div className="mt-4 min-h-18">
                 <h3
-                  className="text-foreground text-md overflow-hidden leading-[1.08]"
+                  className="text-foreground overflow-hidden text-sm leading-[1.08]"
                   style={{
                     display: '-webkit-box',
                     WebkitLineClamp: 3,
@@ -261,37 +261,32 @@ function AsignaturaCardItem({
 
               {/* bottom */}
               <div className="mt-auto grid grid-cols-3 gap-2">
-                <div className="rounded-2xl border border-white/40 bg-white/55 px-2.5 py-2 backdrop-blur-sm dark:border-white/10 dark:bg-white/5">
-                  <div className="text-muted-foreground mb-1 flex items-center gap-1.5">
-                    <Icons.Award className="h-3.5 w-3.5" />
-                    <span className="text-[10px] font-medium tracking-wide uppercase">
-                      CR
-                    </span>
-                  </div>
+                <div className="flex flex-col items-center rounded-2xl border border-white/40 bg-white/55 px-2.5 py-2 backdrop-blur-sm dark:border-white/10 dark:bg-white/5">
+                  {/* <Icons.Award className="h-3.5 w-3.5" /> */}
+                  <span className="text-muted-foreground mb-1 text-[10px] font-medium tracking-wide uppercase">
+                    CR
+                  </span>
+
                   <div className="text-foreground text-sm font-bold">
                     {asignatura.creditos}
                   </div>
                 </div>
 
-                <div className="rounded-2xl border border-white/40 bg-white/55 px-2.5 py-2 backdrop-blur-sm dark:border-white/10 dark:bg-white/5">
-                  <div className="text-muted-foreground mb-1 flex items-center gap-1.5">
-                    <Icons.Clock3 className="h-3.5 w-3.5" />
-                    <span className="text-[10px] font-medium tracking-wide uppercase">
-                      HD
-                    </span>
-                  </div>
+                <div className="flex flex-col items-center rounded-2xl border border-white/40 bg-white/55 px-2.5 py-2 backdrop-blur-sm dark:border-white/10 dark:bg-white/5">
+                  <span className="text-muted-foreground mb-1 text-[10px] font-medium tracking-wide uppercase">
+                    HD
+                  </span>
+
                   <div className="text-foreground text-sm font-bold">
                     {asignatura.hd}
                   </div>
                 </div>
 
-                <div className="rounded-2xl border border-white/40 bg-white/55 px-2.5 py-2 backdrop-blur-sm dark:border-white/10 dark:bg-white/5">
-                  <div className="text-muted-foreground mb-1 flex items-center gap-1.5">
-                    <Icons.BookOpenText className="h-3.5 w-3.5" />
-                    <span className="text-[10px] font-medium tracking-wide uppercase">
-                      HI
-                    </span>
-                  </div>
+                <div className="flex flex-col items-center border border-white/40 bg-white/55 px-2.5 py-2 backdrop-blur-sm not-last:rounded-2xl dark:border-white/10 dark:bg-white/5">
+                  <span className="text-muted-foreground mb-1 text-[10px] font-medium tracking-wide uppercase">
+                    HI
+                  </span>
+
                   <div className="text-foreground text-sm font-bold">
                     {asignatura.hi}
                   </div>
@@ -728,7 +723,7 @@ function MapaCurricularPage() {
         <div
           className="grid gap-3"
           style={{
-            gridTemplateColumns: `140px repeat(${ciclosTotales}, minmax(auto, 1fr)) 120px`,
+            gridTemplateColumns: `140px repeat(${ciclosTotales}, 188px) 120px`,
           }}
         >
           <div className="text-muted-foreground self-end px-2 text-xs font-bold">
