@@ -169,7 +169,7 @@ export function BibliographyItem() {
                 resetScroll: false,
               })
             }
-            className="ring-offset-background bg-primary text-primary-foreground hover:bg-primary/90 inline-flex h-11 items-center justify-center gap-2 rounded-md px-8 text-sm font-medium shadow-md transition-colors"
+            className="shadow-md"
           >
             <Plus className="mr-2 h-4 w-4" /> Agregar Bibliografía
           </Button>

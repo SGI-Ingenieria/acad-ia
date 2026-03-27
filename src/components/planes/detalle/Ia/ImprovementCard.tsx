@@ -56,10 +56,9 @@ export const ImprovementCard = ({
 
           if (onApplySuccess) onApplySuccess(key)
 
-          // --- CAMBIO AQUÍ: Ahora enviamos el ID del mensaje ---
           if (dbMessageId) {
             updateAppliedStatus.mutate({
-              conversacionId: dbMessageId, // Cambiamos el nombre de la propiedad si es necesario
+              conversacionId: dbMessageId,
               campoAfectado: key,
             })
           }
@@ -81,21 +80,18 @@ export const ImprovementCard = ({
         return (
           <div
             key={sug.key}
-            className={`rounded-2xl border bg-white p-5 shadow-sm transition-all ${
-              isApplied ? 'border-teal-200 bg-teal-50/20' : 'border-slate-100'
+            className={`bg-card rounded-2xl border p-5 shadow-sm transition-all ${
+              isApplied ? 'border-primary/30 bg-primary/5' : 'border-border'
             }`}
           >
             <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-sm font-bold text-slate-900">{sug.label}</h3>
+              <h3 className="text-foreground text-sm font-bold">{sug.label}</h3>
               <Button
                 size="sm"
                 onClick={() => handleApply(sug.key, sug.newValue)}
                 disabled={isApplied || !!isUpdating}
-                className={`h-8 rounded-full px-4 text-xs transition-all ${
-                  isApplied
-                    ? 'cursor-not-allowed bg-slate-100 text-slate-400'
-                    : 'bg-[#00a189] text-white hover:bg-[#008f7a]'
-                }`}
+                variant={isApplied ? 'secondary' : 'default'}
+                className="h-8 rounded-full px-4 text-xs transition-all"
               >
                 {isUpdating ? (
                   <Loader2 size={12} className="animate-spin" />
@@ -112,8 +108,8 @@ export const ImprovementCard = ({
             <div
               className={`rounded-xl border p-3 text-sm transition-colors duration-300 ${
                 isApplied
-                  ? 'border-teal-100 bg-teal-50/50 text-slate-700'
-                  : 'border-slate-200 bg-slate-50 text-slate-500'
+                  ? 'border-primary/20 bg-primary/10 text-foreground'
+                  : 'border-border bg-muted/50 text-muted-foreground'
               }`}
             >
               {sug.newValue}

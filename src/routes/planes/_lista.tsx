@@ -8,6 +8,7 @@ import BarraBusqueda from '@/components/planes/BarraBusqueda'
 import Filtro from '@/components/planes/Filtro'
 import PlanEstudiosCard from '@/components/planes/PlanEstudiosCard'
 // Hooks y Utils (ajusta las rutas de importación)
+import { Button } from '@/components/ui/button'
 import { usePlanes, useCatalogosPlanes } from '@/data/hooks/usePlans'
 import { getIconByName } from '@/features/planes/utils/icon-utils'
 
@@ -131,16 +132,16 @@ function RouteComponent() {
                 </p>
               </div>
             </div>
-            <button
+            <Button
               onClick={() => {
                 console.log('planId')
 
                 navigate({ to: '/planes/nuevo', resetScroll: false })
               }}
-              className="ring-offset-background bg-primary text-primary-foreground hover:bg-primary/90 inline-flex h-11 items-center justify-center gap-2 rounded-md px-8 text-sm font-medium shadow-md transition-colors"
+              className="shadow-md"
             >
               <Icons.Plus /> Nuevo plan de estudios
-            </button>
+            </Button>
           </div>
 
           {/* Barra de Filtros */}
@@ -188,16 +189,17 @@ function RouteComponent() {
                   placeholder="Estado"
                 />
               </div>
-              <button
+              <Button
                 type="button"
+                variant="secondary"
                 onClick={resetFilters}
                 disabled={isClearDisabled}
-                className={`ring-offset-background bg-secondary text-secondary-foreground hover:bg-secondary/90 inline-flex h-9 items-center justify-center gap-2 rounded-md px-4 text-sm font-medium shadow-md transition-colors ${
+                className={`shadow-md ${
                   isClearDisabled ? 'cursor-not-allowed opacity-50' : ''
                 }`}
               >
                 <Icons.X className="h-4 w-4" /> Limpiar
-              </button>
+              </Button>
             </div>
           </div>
 

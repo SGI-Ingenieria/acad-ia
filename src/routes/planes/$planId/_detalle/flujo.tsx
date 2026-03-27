@@ -146,7 +146,7 @@ function RouteComponent() {
                 />
               </div>
 
-              <Button className="w-full bg-teal-600 hover:bg-teal-700" disabled>
+              <Button className="w-full" disabled>
                 Avanzar a Revisión Expertos
               </Button>
             </CardContent>

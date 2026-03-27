@@ -88,19 +88,19 @@ export function ImprovementCard({
           {valor.map((u: any, idx: number) => (
             <div
               key={idx}
-              className="rounded-md border border-teal-100 bg-white p-2 shadow-sm"
+              className="bg-card border-primary/20 rounded-md border p-2 shadow-sm"
             >
-              <div className="mb-1 flex items-center gap-2 border-b border-slate-50 pb-1 text-[11px] font-bold text-teal-800">
+              <div className="border-border/50 text-primary mb-1 flex items-center gap-2 border-b pb-1 text-[11px] font-bold">
                 <BookOpen size={12} /> Unidad {u.unidad}: {u.titulo}
               </div>
               <ul className="space-y-1">
                 {u.temas?.map((t: any, tidx: number) => (
                   <li
                     key={tidx}
-                    className="flex items-start justify-between gap-2 text-[10px] text-slate-600"
+                    className="text-muted-foreground flex items-start justify-between gap-2 text-[10px]"
                   >
                     <span className="leading-tight">• {t.nombre}</span>
-                    <span className="flex shrink-0 items-center gap-0.5 font-mono text-slate-400">
+                    <span className="text-muted-foreground/70 flex shrink-0 items-center gap-0.5 font-mono">
                       <Clock size={10} /> {t.horasEstimadas}h
                     </span>
                   </li>
@@ -116,24 +116,24 @@ export function ImprovementCard({
     if (valor[0]?.hasOwnProperty('criterio')) {
       return (
         <div className="space-y-2">
-          <div className="mb-1 flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase">
+          <div className="text-muted-foreground/70 mb-1 flex items-center gap-2 text-[10px] font-bold uppercase">
             <ListChecks size={12} /> Desglose de evaluación
           </div>
           {valor.map((c: any, idx: number) => (
             <div
               key={idx}
-              className="flex items-center justify-between gap-3 rounded-md border border-slate-100 bg-white p-2 shadow-sm"
+              className="bg-card border-border flex items-center justify-between gap-3 rounded-md border p-2 shadow-sm"
             >
-              <span className="text-[11px] leading-tight text-slate-700">
+              <span className="text-foreground text-[11px] leading-tight">
                 {c.criterio}
               </span>
-              <div className="flex shrink-0 items-center gap-1 rounded-full border border-orange-100 bg-orange-50 px-2 py-0.5 text-[10px] font-bold text-orange-600">
+              <div className="border-accent/30 bg-accent/10 text-accent flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold">
                 {c.porcentaje}%
               </div>
             </div>
           ))}
           {/* Opcional: Suma total para verificar que de 100% */}
-          <div className="pt-1 text-right text-[9px] font-medium text-slate-400">
+          <div className="text-muted-foreground/70 pt-1 text-right text-[9px] font-medium">
             Total:{' '}
             {valor.reduce(
               (acc: number, curr: any) => acc + (curr.porcentaje || 0),
@@ -156,17 +156,17 @@ export function ImprovementCard({
   // --- ESTADO APLICADO ---
   if (sug.aceptada) {
     return (
-      <div className="flex flex-col rounded-xl border border-slate-100 bg-white p-3 opacity-80 shadow-sm">
+      <div className="bg-card border-border flex flex-col rounded-xl border p-3 opacity-80 shadow-sm">
         <div className="mb-3 flex items-center justify-between gap-4">
-          <span className="text-sm font-bold text-slate-800">
+          <span className="text-foreground text-sm font-bold">
             {sug.campoNombre}
           </span>
-          <div className="flex items-center gap-1.5 rounded-full border border-slate-100 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-400">
+          <div className="border-border bg-muted/50 text-muted-foreground flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium">
             <Check size={14} />
             Aplicado
           </div>
         </div>
-        <div className="rounded-lg border border-teal-100 bg-teal-50/30 p-3 text-xs leading-relaxed text-slate-500">
+        <div className="border-primary/20 bg-primary/5 text-muted-foreground rounded-lg border p-3 text-xs leading-relaxed">
           {renderContenido(sug.valorSugerido)}
         </div>
       </div>
@@ -175,16 +175,16 @@ export function ImprovementCard({
 
   // --- ESTADO PENDIENTE ---
   return (
-    <div className="group flex flex-col rounded-xl border border-teal-100 bg-white p-3 shadow-sm transition-all hover:border-teal-200">
+    <div className="bg-card border-primary/20 hover:border-primary/40 group flex flex-col rounded-xl border p-3 shadow-sm transition-all">
       <div className="mb-3 flex items-center justify-between gap-4">
-        <span className="max-w-[150px] truncate rounded-lg border border-teal-100 bg-teal-50/50 px-2.5 py-1 text-[10px] font-bold tracking-wider text-teal-700 uppercase">
+        <span className="border-primary/20 bg-primary/10 text-primary max-w-[150px] truncate rounded-lg border px-2.5 py-1 text-[10px] font-bold tracking-wider uppercase">
           {sug.campoNombre}
         </span>
 
         <Button
           size="sm"
           disabled={isApplying || !asignatura}
-          className="h-8 w-auto bg-teal-600 px-4 text-xs font-semibold shadow-sm hover:bg-teal-700"
+          className="h-8 w-auto px-4 text-xs font-semibold shadow-sm"
           onClick={handleApply}
         >
           {isApplying ? (
@@ -198,7 +198,7 @@ export function ImprovementCard({
 
       <div
         className={cn(
-          'rounded-lg border border-dashed border-slate-200 bg-slate-50/50 p-3 text-xs leading-relaxed text-slate-600',
+          'border-border/60 bg-muted/30 text-muted-foreground rounded-lg border border-dashed p-3 text-xs leading-relaxed',
           !Array.isArray(sug.valorSugerido) && 'line-clamp-4 italic',
         )}
       >
