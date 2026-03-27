@@ -335,3 +335,14 @@ body {
     @apply bg-background text-foreground;
   }
 }
+
+/* =====================================================================
+   Utilidades locales (sin romper el design system)
+
+   Intención:
+   - Evitar estilos inline en JSX para assets puntuales del proyecto
+   ===================================================================== */
+
+.login-bg {
+  background-image: url('/fondo_login.png');
+}
