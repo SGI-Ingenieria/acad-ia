@@ -8,6 +8,7 @@ import type { TipoAsignatura } from '@/data'
 import type { Asignatura } from '@/types/plan'
 import type { TablesUpdate } from '@/types/supabase'
 
+import { AlertaConflicto } from '@/components/asignaturas/detalle/mapa/AlertaConflicto'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -34,6 +35,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import {
+  useAsignaturaConflictos,
   useCreateLinea,
   useDeleteLinea,
   usePlan,
@@ -338,6 +340,51 @@ function MapaCurricularPage() {
   const [ultimoHue, setUltimoHue] = useState<number | null>(null)
   const { mutate: updateAsignatura } = useUpdateAsignatura()
   const inputRef = useRef<HTMLInputElement>(null)
+  const { validarCambioCiclo } = useAsignaturaConflictos()
+  const [confirmState, setConfirmState] = useState<{
+    isOpen: boolean
+    resolve: (value: boolean) => void
+    mensaje: string
+  } | null>(null)
+
+  const validarConInterrupcion = async (
+    asignaturaId: string,
+    nuevoCiclo: number,
+  ): Promise<boolean> => {
+    const asignatura = asignaturas.find((a) => a.id === asignaturaId)
+    if (!asignatura) return true
+
+    // Buscamos las materias que causan el conflicto
+    const materiasConflicto = asignaturas.filter((a) => {
+      const esPrerrequisitoConflictivo =
+        asignatura.prerrequisito_asignatura_id === a.id &&
+        (a.ciclo ?? 0) >= nuevoCiclo
+
+      const esDependienteConflictiva =
+        a.prerrequisito_asignatura_id === asignatura.id &&
+        (a.ciclo ?? 0) <= nuevoCiclo &&
+        a.ciclo !== null
+
+      return esPrerrequisitoConflictivo || esDependienteConflictiva
+    })
+
+    if (materiasConflicto.length === 0) return true
+
+    // Extraemos solo los nombres para la lista visual
+    const listaNombres = materiasConflicto.map((m) => m.nombre)
+
+    return new Promise((resolve) => {
+      setConfirmState({
+        isOpen: true,
+        resolve,
+        // Guardamos la lista de nombres en el mensaje de forma que podamos procesarla
+        mensaje: JSON.stringify({
+          main: `Mover "${asignatura.nombre}" al ciclo ${nuevoCiclo} genera conflictos con:`,
+          materias: listaNombres,
+        }),
+      })
+    })
+  }
 
   useEffect(() => {
     if (data?.numero_ciclos) {
@@ -350,6 +397,39 @@ function MapaCurricularPage() {
       inputRef.current.focus()
     }
   }, [selectedLineaOption])
+
+  const handleCambioCicloSeguro = async (
+    asignatura: Asignatura,
+    nuevoCiclo: number,
+  ) => {
+    const acepto = await validarConInterrupcion(asignatura.id, nuevoCiclo)
+
+    if (!acepto) {
+      setConfirmState(null)
+      return
+    }
+
+    const patch = { numero_ciclo: nuevoCiclo }
+
+    updateAsignatura(
+      { asignaturaId: asignatura.id, patch: patch as any },
+      {
+        onSuccess: () => {
+          setAsignaturas((prev) =>
+            prev.map((m) =>
+              m.id === asignatura.id ? { ...m, ciclo: nuevoCiclo } : m,
+            ),
+          )
+          setConfirmState(null) // Cerramos el modal de Radix al tener éxito
+        },
+        onError: (err) => {
+          // En lugar de alert nativo, podrías usar un toast aquí
+          console.error('Error al actualizar:', err)
+          setConfirmState(null)
+        },
+      },
+    )
+  }
 
   const manejarAgregarLinea = (nombre: string, color: string, hue: number) => {
     const nombreNormalizado = nombre.trim()
@@ -614,14 +694,31 @@ function MapaCurricularPage() {
     e.dataTransfer.effectAllowed = 'move'
   }
   const handleDragOver = (e: React.DragEvent) => e.preventDefault()
-  const handleDrop = (
+  const handleDrop = async (
     e: React.DragEvent,
     cicloDestino: number | null,
     lineaId: string | null,
   ) => {
     e.preventDefault()
-    if (draggedAsignatura) {
-      // 1. Actualización optimista del UI
+
+    if (!draggedAsignatura) return
+
+    // Buscamos la asignatura completa para tener sus datos
+    const asignatura = asignaturas.find((a) => a.id === draggedAsignatura)
+    if (!asignatura) return
+
+    // SI EL CAMBIO ES DE CICLO (y no solo de línea o a la bandeja)
+    // Ejecutamos la validación segura
+    if (cicloDestino !== null && cicloDestino !== asignatura.ciclo) {
+      // Llamamos a la función que agregaste
+      // IMPORTANTE: Asegúrate que handleCambioCicloSeguro esté definida ANTES o sea accesible
+      await handleCambioCicloSeguro(asignatura, cicloDestino)
+
+      // Si la validación interna de handleCambioCicloSeguro falla o el usuario cancela,
+      // la ejecución se detiene dentro de esa función.
+    } else {
+      // CASO B: Es un movimiento a la bandeja (null) o cambio de línea en el mismo ciclo
+      // Mantenemos la lógica simple de actualización
       setAsignaturas((prev) =>
         prev.map((m) =>
           m.id === draggedAsignatura
@@ -629,23 +726,17 @@ function MapaCurricularPage() {
             : m,
         ),
       )
-      const patch = {
-        numero_ciclo: cicloDestino,
-        linea_plan_id: lineaId,
-      }
 
       updateAsignatura(
-        { asignaturaId: draggedAsignatura, patch },
         {
-          onError: (error) => {
-            console.error('Error al mover:', error)
-            // Opcional: Revertir el estado local si falla
-          },
+          asignaturaId: draggedAsignatura,
+          patch: { numero_ciclo: cicloDestino, linea_plan_id: lineaId },
         },
+        { onError: (err) => console.error('Error al mover:', err) },
       )
-
-      setDraggedAsignatura(null)
     }
+
+    setDraggedAsignatura(null)
   }
 
   const stats = useMemo(
@@ -1448,6 +1539,23 @@ function MapaCurricularPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      {confirmState && (
+        <AlertaConflicto
+          isOpen={confirmState.isOpen}
+          onOpenChange={(open) => {
+            if (!open) {
+              confirmState.resolve(false)
+              setConfirmState(null)
+            }
+          }}
+          onConfirm={() => {
+            confirmState.resolve(true)
+          }}
+          titulo="Conflicto de Seriación"
+          descripcion={confirmState.mensaje}
+        />
+      )}
     </div>
   )
 }
