@@ -221,7 +221,9 @@ export async function plan_lineas_list(
   const supabase = supabaseBrowser()
   const { data, error } = await supabase
     .from('lineas_plan')
-    .select('id,plan_estudio_id,nombre,orden,area,creado_en,actualizado_en')
+    .select(
+      'id,plan_estudio_id,nombre,orden,area,creado_en,actualizado_en,color',
+    )
     .eq('plan_estudio_id', planId)
     .order('orden', { ascending: true })
 

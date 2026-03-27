@@ -101,13 +101,20 @@ function RouteComponent() {
     setPage(0) // Resetear página al buscar
   }
 
+  // Deshabilitar el botón 'Limpiar' si no hay filtros distintos al valor por defecto
+  const isClearDisabled =
+    cleanSearchTerm === '' &&
+    facultadSel === 'todas' &&
+    carreraSel === 'todas' &&
+    estadoSel === 'todos'
+
   // Renderizado condicional básico
   if (isError)
     return <div className="p-8 text-red-500">Error cargando planes.</div>
 
   return (
     <main className="bg-background min-h-screen w-full">
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-4 py-6 md:px-6 lg:px-8">
+      <div className="mx-auto flex w-full flex-col gap-4 px-4 py-6 md:px-6 lg:px-8">
         <div className="flex flex-col gap-4 lg:col-span-3">
           {/* Header y Botón Nuevo */}
           <div className="flex flex-col items-stretch justify-between gap-4 sm:flex-row sm:items-center">
@@ -184,7 +191,10 @@ function RouteComponent() {
               <button
                 type="button"
                 onClick={resetFilters}
-                className="ring-offset-background bg-secondary text-secondary-foreground hover:bg-secondary/90 inline-flex h-9 items-center justify-center gap-2 rounded-md px-4 text-sm font-medium shadow-md transition-colors"
+                disabled={isClearDisabled}
+                className={`ring-offset-background bg-secondary text-secondary-foreground hover:bg-secondary/90 inline-flex h-9 items-center justify-center gap-2 rounded-md px-4 text-sm font-medium shadow-md transition-colors ${
+                  isClearDisabled ? 'cursor-not-allowed opacity-50' : ''
+                }`}
               >
                 <Icons.X className="h-4 w-4" /> Limpiar
               </button>

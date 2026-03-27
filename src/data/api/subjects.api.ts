@@ -499,6 +499,7 @@ export async function lineas_insert(linea: {
   plan_estudio_id: string
   orden: number
   area?: string
+  color?: string | null
 }) {
   const supabase = supabaseBrowser()
   const { data, error } = await supabase
@@ -514,7 +515,12 @@ export async function lineas_insert(linea: {
 // Actualizar una línea existente
 export async function lineas_update(
   lineaId: string,
-  patch: { nombre?: string; orden?: number; area?: string },
+  patch: {
+    nombre?: string
+    orden?: number
+    area?: string
+    color?: string | null
+  },
 ) {
   const supabase = supabaseBrowser()
   const { data, error } = await supabase

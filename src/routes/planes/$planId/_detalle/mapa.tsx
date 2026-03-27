@@ -2,10 +2,10 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { Plus, AlertTriangle, Trash2, Download } from 'lucide-react'
 import * as Icons from 'lucide-react'
-import { useMemo, useState, useEffect, Fragment } from 'react'
+import { useMemo, useState, useEffect, Fragment, useRef } from 'react'
 
 import type { TipoAsignatura } from '@/data'
-import type { Asignatura, LineaCurricular } from '@/types/plan'
+import type { Asignatura } from '@/types/plan'
 import type { TablesUpdate } from '@/types/supabase'
 
 import { AlertaConflicto } from '@/components/asignaturas/detalle/mapa/AlertaConflicto'
@@ -18,6 +18,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import {
   Select,
   SelectContent,
@@ -25,6 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Separator } from '@/components/ui/separator'
 import {
   Tooltip,
   TooltipContent,
@@ -41,6 +44,8 @@ import {
   useUpdateAsignatura,
   useUpdateLinea,
 } from '@/data'
+import { cn } from '@/lib/utils'
+import { generarColorContrastante } from '@/utils/colors'
 
 // --- Mapeadores (Fuera del componente para mayor limpieza) ---
 const palette = [
@@ -54,14 +59,21 @@ const palette = [
   '#C026D3', // fucsia
 ]
 
+type LineaCurricularUI = {
+  id: string
+  nombre: string
+  orden: number
+  color: string
+}
+
 const mapLineasToLineaCurricular = (
   lineasApi: Array<any> = [],
-): Array<LineaCurricular> => {
+): Array<LineaCurricularUI> => {
   return lineasApi.map((linea, index) => ({
     id: linea.id,
     nombre: linea.nombre,
     orden: linea.orden ?? 0,
-    color: palette[index % palette.length],
+    color: linea.color ?? palette[index % palette.length],
   }))
 }
 
@@ -187,7 +199,7 @@ function AsignaturaCardItem({
             onDragStart={(e) => onDragStart(e, asignatura.id)}
             onClick={onClick}
             className={[
-              'group relative h-50 w-40 shrink-0 overflow-hidden rounded-[22px] border text-left',
+              'group bg-background relative h-50 w-40 shrink-0 overflow-hidden rounded-[22px] border text-left',
               'transition-all duration-300 ease-out',
               'focus-visible:ring-ring/30 focus-visible:ring-2 focus-visible:outline-none',
               'cursor-grab active:cursor-grabbing',
@@ -196,26 +208,10 @@ function AsignaturaCardItem({
                 : 'hover:-translate-y-1 hover:shadow-lg',
             ].join(' ')}
             style={{
-              borderColor: hexToRgba(lineaColor, 0.18),
-              background: `
-                radial-gradient(circle at top right, ${hexToRgba(lineaColor, 0.22)} 0%, transparent 34%),
-                linear-gradient(180deg, ${hexToRgba(lineaColor, 0.12)} 0%, ${hexToRgba(lineaColor, 0.04)} 42%, var(--card) 100%)
-              `,
+              borderColor: lineaColor,
             }}
             title={asignatura.nombre}
           >
-            {/* franja */}
-            <div
-              className="absolute inset-x-0 top-0 h-2"
-              style={{ backgroundColor: lineaColor }}
-            />
-
-            {/* glow decorativo */}
-            <div
-              className="absolute -top-10 -right-10 h-28 w-28 rounded-full blur-2xl"
-              style={{ backgroundColor: hexToRgba(lineaColor, 0.22) }}
-            />
-
             <div className="relative flex h-full flex-col p-4">
               {/* top */}
               <div className="flex items-start justify-between gap-2">
@@ -250,7 +246,7 @@ function AsignaturaCardItem({
               {/* titulo */}
               <div className="mt-4 min-h-18">
                 <h3
-                  className="text-foreground text-md overflow-hidden leading-[1.08]"
+                  className="text-foreground overflow-hidden pb-1 text-sm leading-[1.08]"
                   style={{
                     display: '-webkit-box',
                     WebkitLineClamp: 3,
@@ -263,46 +259,36 @@ function AsignaturaCardItem({
 
               {/* bottom */}
               <div className="mt-auto grid grid-cols-3 gap-2">
-                <div className="rounded-2xl border border-white/40 bg-white/55 px-2.5 py-2 backdrop-blur-sm dark:border-white/10 dark:bg-white/5">
-                  <div className="text-muted-foreground mb-1 flex items-center gap-1.5">
-                    <Icons.Award className="h-3.5 w-3.5" />
-                    <span className="text-[10px] font-medium tracking-wide uppercase">
-                      CR
-                    </span>
-                  </div>
+                <div className="bg-muted/70 border-border/70 flex flex-col items-center rounded-2xl border px-2.5 py-2">
+                  {/* <Icons.Award className="h-3.5 w-3.5" /> */}
+                  <span className="text-muted-foreground mb-1 text-[10px] font-medium tracking-wide uppercase">
+                    CR
+                  </span>
+
                   <div className="text-foreground text-sm font-bold">
                     {asignatura.creditos}
                   </div>
                 </div>
 
-                <div className="rounded-2xl border border-white/40 bg-white/55 px-2.5 py-2 backdrop-blur-sm dark:border-white/10 dark:bg-white/5">
-                  <div className="text-muted-foreground mb-1 flex items-center gap-1.5">
-                    <Icons.Clock3 className="h-3.5 w-3.5" />
-                    <span className="text-[10px] font-medium tracking-wide uppercase">
-                      HD
-                    </span>
-                  </div>
+                <div className="bg-muted/70 border-border/70 flex flex-col items-center rounded-2xl border px-2.5 py-2">
+                  <span className="text-muted-foreground mb-1 text-[10px] font-medium tracking-wide uppercase">
+                    HD
+                  </span>
+
                   <div className="text-foreground text-sm font-bold">
                     {asignatura.hd}
                   </div>
                 </div>
 
-                <div className="rounded-2xl border border-white/40 bg-white/55 px-2.5 py-2 backdrop-blur-sm dark:border-white/10 dark:bg-white/5">
-                  <div className="text-muted-foreground mb-1 flex items-center gap-1.5">
-                    <Icons.BookOpenText className="h-3.5 w-3.5" />
-                    <span className="text-[10px] font-medium tracking-wide uppercase">
-                      HI
-                    </span>
-                  </div>
+                <div className="bg-muted/70 border-border/70 flex flex-col items-center rounded-2xl border px-2.5 py-2">
+                  <span className="text-muted-foreground mb-1 text-[10px] font-medium tracking-wide uppercase">
+                    HI
+                  </span>
+
                   <div className="text-foreground text-sm font-bold">
                     {asignatura.hi}
                   </div>
                 </div>
-              </div>
-
-              {/* drag affordance */}
-              <div className="bg-background/70 pointer-events-none absolute right-3 bottom-3 rounded-full p-1.5 opacity-0 backdrop-blur-sm transition-all duration-300 group-hover:opacity-100">
-                <Icons.GripVertical className="text-muted-foreground/55 h-4 w-4" />
               </div>
             </div>
           </button>
@@ -334,20 +320,26 @@ function MapaCurricularPage() {
   const { data } = usePlan(planId)
   const [totalCiclos, setTotalCiclos] = useState(0)
   const [editingLineaId, setEditingLineaId] = useState<string | null>(null)
-  const { mutate: createLinea } = useCreateLinea()
+  const { mutate: createLinea, isPending: isCreatingLinea } = useCreateLinea()
   const { mutate: updateLineaApi } = useUpdateLinea()
   const { mutate: deleteLineaApi } = useDeleteLinea()
   const { data: asignaturaApi, isLoading: loadingAsig } =
     usePlanAsignaturas(planId)
   const { data: lineasApi, isLoading: loadingLineas } = usePlanLineas(planId)
   const [asignaturas, setAsignaturas] = useState<Array<Asignatura>>([])
-  const [lineas, setLineas] = useState<Array<LineaCurricular>>([])
+  const [lineas, setLineas] = useState<Array<LineaCurricularUI>>([])
   const [draggedAsignatura, setDraggedAsignatura] = useState<string | null>(
     null,
   )
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
-  const [nombreNuevaLinea, setNombreNuevaLinea] = useState('') // Para el input de nombre personalizado
+  const [isAddLineaDialogOpen, setIsAddLineaDialogOpen] = useState(false)
+  const [selectedLineaOption, setSelectedLineaOption] = useState<
+    'matematicas' | 'area_comun' | 'custom' | ''
+  >('')
+  const [customLineaNombre, setCustomLineaNombre] = useState('')
+  const [ultimoHue, setUltimoHue] = useState<number | null>(null)
   const { mutate: updateAsignatura } = useUpdateAsignatura()
+  const inputRef = useRef<HTMLInputElement>(null)
   const { validarCambioCiclo } = useAsignaturaConflictos()
   const [confirmState, setConfirmState] = useState<{
     isOpen: boolean
@@ -400,6 +392,12 @@ function MapaCurricularPage() {
     }
   }, [data])
 
+  useEffect(() => {
+    if (selectedLineaOption === 'custom' && inputRef.current) {
+      inputRef.current.focus()
+    }
+  }, [selectedLineaOption])
+
   const handleCambioCicloSeguro = async (
     asignatura: Asignatura,
     nuevoCiclo: number,
@@ -433,7 +431,7 @@ function MapaCurricularPage() {
     )
   }
 
-  const manejarAgregarLinea = (nombre: string) => {
+  const manejarAgregarLinea = (nombre: string, color: string, hue: number) => {
     const nombreNormalizado = nombre.trim()
     if (!nombreNormalizado) return
     const nombreBusqueda = nombreNormalizado
@@ -454,12 +452,14 @@ function MapaCurricularPage() {
       return
     }
     const maxOrden = lineas.reduce((max, l) => Math.max(max, l.orden || 0), 0)
+
     createLinea(
       {
         nombre: nombreNormalizado,
         plan_estudio_id: planId,
         orden: maxOrden + 1,
         area: 'sin asignar',
+        color,
       },
       {
         onSuccess: (nueva) => {
@@ -467,10 +467,56 @@ function MapaCurricularPage() {
             id: nueva.id,
             nombre: nueva.nombre,
             orden: nueva.orden,
-            color: '#1976d2',
+            color: nueva.color ?? color,
           }
           setLineas((prev) => [...prev, mapeada])
-          setNombreNuevaLinea('')
+          setUltimoHue(hue)
+          setIsAddLineaDialogOpen(false)
+          setSelectedLineaOption('')
+          setCustomLineaNombre('')
+        },
+        onError: (err) => {
+          console.error('Error al crear linea:', err)
+        },
+      },
+    )
+  }
+
+  const canAddLinea =
+    selectedLineaOption === 'matematicas' ||
+    selectedLineaOption === 'area_comun' ||
+    (selectedLineaOption === 'custom' && customLineaNombre.trim().length > 0)
+
+  const handleAgregarLinea = () => {
+    if (!canAddLinea || isCreatingLinea) return
+
+    const nombreSeleccionado =
+      selectedLineaOption === 'matematicas'
+        ? 'Matemáticas'
+        : selectedLineaOption === 'area_comun'
+          ? 'Área Común'
+          : customLineaNombre.trim()
+
+    if (!nombreSeleccionado) return
+
+    const { hex, hue } = generarColorContrastante(ultimoHue)
+
+    manejarAgregarLinea(nombreSeleccionado, hex, hue)
+  }
+
+  const cambiarColorLinea = (lineaId: string, nuevoColor: string) => {
+    setLineas((prev) =>
+      prev.map((l) => (l.id === lineaId ? { ...l, color: nuevoColor } : l)),
+    )
+
+    updateLineaApi(
+      {
+        lineaId,
+        patch: { color: nuevoColor },
+      },
+      {
+        onError: (err) => {
+          console.error('Error al actualizar color de linea:', err)
         },
       },
     )
@@ -504,14 +550,6 @@ function MapaCurricularPage() {
       },
     )
   }
-  const tieneAreaComun = useMemo(() => {
-    return lineas.some(
-      (l) =>
-        l.nombre.toLowerCase() === 'área común' ||
-        l.nombre.toLowerCase() === 'area comun',
-    )
-  }, [lineas])
-
   useEffect(() => {
     if (asignaturaApi)
       setAsignaturas(mapAsignaturasToAsignaturas(asignaturaApi))
@@ -756,70 +794,42 @@ function MapaCurricularPage() {
             )}
           </div>
 
-          <div className="flex items-center justify-start gap-2 lg:justify-end">
-            <Button variant="outline" className="gap-2">
-              <Download size={16} /> Exportar
-            </Button>
-            {!tieneAreaComun && (
-              <Button
-                variant="outline"
-                className="text-primary border-primary/30 hover:bg-primary/8"
-                onClick={() => manejarAgregarLinea('Área Común')}
-              >
-                + Área Común
-              </Button>
+          <Button
+            variant="outline"
+            className={cn(
+              'inline-flex h-11 w-full items-center justify-start gap-2 rounded-md px-8 text-sm font-medium shadow-sm transition-colors',
+              // Fondo verde claro y texto oscuro para contraste
+              'bg-green-100 text-green-900 hover:bg-green-200/80',
+              // Borde verde más oscuro y definido
+              'border border-green-600/30',
+              // Enfoque y estados (Accesibilidad)
+              'ring-offset-background focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:outline-none',
+              // Soporte para modo oscuro (opcional pero recomendado)
+              'dark:border-green-500/40 dark:bg-green-900/30 dark:text-green-100 dark:hover:bg-green-900/50',
             )}
-          </div>
+          >
+            <Download
+              size={16}
+              className="text-green-700 dark:text-green-400"
+            />{' '}
+            Exportar a Excel
+          </Button>
 
-          <div className="border-border/70 bg-background/70 rounded-xl border p-3 lg:col-span-2">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-              <div className="space-y-1">
-                <label className="text-muted-foreground text-[11px] font-semibold tracking-wide uppercase">
-                  Nueva Línea Curricular
-                </label>
-                <p className="text-muted-foreground text-xs">
-                  Crea una línea personalizada sin abrir menús adicionales.
-                </p>
-              </div>
-
-              <div className="flex w-full gap-2 sm:w-auto sm:min-w-90">
-                <Input
-                  value={nombreNuevaLinea}
-                  onChange={(e) => setNombreNuevaLinea(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && nombreNuevaLinea.trim()) {
-                      manejarAgregarLinea(nombreNuevaLinea)
-                    }
-                  }}
-                  placeholder="Ej: Optativas"
-                  className="h-9"
-                />
-                <Button
-                  className="h-9 gap-1.5"
-                  onClick={() => manejarAgregarLinea(nombreNuevaLinea)}
-                  disabled={!nombreNuevaLinea.trim()}
-                >
-                  <Plus size={14} /> Agregar
-                </Button>
-              </div>
-            </div>
+          {/* Barra Totales */}
+          <div className="border-border bg-card/60 col-span-2 grid grid-cols-2 gap-3 rounded-2xl border p-3 shadow-sm md:grid-cols-4">
+            <StatItem label="Total Créditos" value={stats.cr} total={320} />
+            <StatItem label="Total HD" value={stats.hd} />
+            <StatItem label="Total HI" value={stats.hi} />
+            <StatItem label="Total Horas" value={stats.hd + stats.hi} />
           </div>
         </div>
       </div>
 
-      {/* Barra Totales */}
-      <div className="border-border bg-card/60 mb-8 grid grid-cols-2 gap-3 rounded-2xl border p-3 shadow-sm md:grid-cols-4">
-        <StatItem label="Total Créditos" value={stats.cr} total={320} />
-        <StatItem label="Total HD" value={stats.hd} />
-        <StatItem label="Total HI" value={stats.hi} />
-        <StatItem label="Total Horas" value={stats.hd + stats.hi} />
-      </div>
-
       <div className="overflow-x-auto pb-6">
         <div
-          className="grid gap-3"
+          className="grid gap-3 pl-1"
           style={{
-            gridTemplateColumns: `140px repeat(${ciclosTotales}, minmax(auto, 1fr)) 120px`,
+            gridTemplateColumns: `140px repeat(${ciclosTotales}, 188px) 120px`,
           }}
         >
           <div className="text-muted-foreground self-end px-2 text-xs font-bold">
@@ -845,7 +855,7 @@ function MapaCurricularPage() {
             return (
               <Fragment key={linea.id}>
                 <div
-                  className={`group relative flex items-start justify-between gap-2 rounded-xl border p-3 transition-all ${editingLineaId === linea.id ? 'ring-primary/30 ring-2' : 'cursor-text'}`}
+                  className={`group relative flex flex-col gap-2 rounded-xl border p-3 transition-all ${editingLineaId === linea.id ? 'ring-primary/30 ring-2' : 'cursor-text'}`}
                   style={{
                     borderColor: hexToRgba(linea.color || '#1976d2', 0.24),
                     backgroundColor:
@@ -892,7 +902,40 @@ function MapaCurricularPage() {
                       </TooltipContent>
                     </Tooltip>
                   </div>
-                  <div className="ml-1 flex shrink-0 items-center gap-1">
+
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="border-border/70 bg-background relative inline-flex h-8 w-8 items-center justify-center rounded-md border"
+                        style={{
+                          borderColor: hexToRgba(
+                            linea.color || '#1976d2',
+                            0.35,
+                          ),
+                        }}
+                      >
+                        <input
+                          type="color"
+                          aria-label="Cambiar color de línea"
+                          value={linea.color || '#1976d2'}
+                          onChange={(e) =>
+                            cambiarColorLinea(linea.id, e.target.value)
+                          }
+                          className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                        />
+                        <Icons.Palette
+                          className="text-muted-foreground h-4 w-4"
+                          aria-hidden
+                        />
+                      </div>
+
+                      <div
+                        className="border-border/70 h-5 w-5 rounded-full border"
+                        style={{ backgroundColor: linea.color || '#1976d2' }}
+                        aria-hidden
+                      />
+                    </div>
+
                     <button
                       type="button"
                       aria-label="Eliminar línea"
@@ -964,6 +1007,20 @@ function MapaCurricularPage() {
             )
           })}
 
+          {/* Agregar línea (sticky dentro del overflow-x)
+              Nota: Se envuelve en un row `col-span-full` para evitar bugs de sticky en mobile/iOS
+              cuando el sticky es un grid-item. */}
+          <div className="col-span-full">
+            <div className="sticky left-0 z-10 w-35">
+              <Button
+                className="ring-offset-background bg-primary text-primary-foreground hover:bg-primary/90 inline-flex h-11 w-full items-center justify-start gap-2 rounded-md px-8 text-sm font-medium shadow-md transition-colors"
+                onClick={() => setIsAddLineaDialogOpen(true)}
+              >
+                <Plus size={14} /> Agregar línea
+              </Button>
+            </div>
+          </div>
+
           <div className="border-border col-span-full my-2 border-t"></div>
 
           <div className="text-foreground self-center p-2 font-bold">
@@ -997,7 +1054,7 @@ function MapaCurricularPage() {
             )
           })}
 
-          <div className="text-primary-foreground border-primary/40 bg-primary flex flex-col justify-center rounded-xl border p-2 text-center text-xs font-bold shadow-sm">
+          <div className="text-accent-foreground border-accent/40 bg-accent flex flex-col justify-center rounded-xl border p-2 text-center text-xs font-bold shadow-sm">
             <div>{stats.cr} Cr</div>
             <div>{stats.hd + stats.hi} Hrs</div>
           </div>
@@ -1005,7 +1062,7 @@ function MapaCurricularPage() {
       </div>
 
       {/* Asignaturas Sin Asignar */}
-      <div className="border-border bg-card/80 mt-12 rounded-[28px] border p-5 shadow-sm backdrop-blur-sm">
+      <div className="border-border bg-card/80 mt-6 rounded-[28px] border p-5 shadow-sm backdrop-blur-sm">
         <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
@@ -1086,6 +1143,150 @@ function MapaCurricularPage() {
       </div>
 
       {/* Modal de Edición */}
+      <Dialog
+        open={isAddLineaDialogOpen}
+        onOpenChange={(open) => {
+          setIsAddLineaDialogOpen(open)
+          if (!open) {
+            setSelectedLineaOption(undefined)
+            setCustomLineaNombre('')
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-4xl">
+          <DialogHeader>
+            <DialogTitle className="text-foreground text-xl font-bold">
+              Agregar línea curricular
+            </DialogTitle>
+          </DialogHeader>
+
+          <RadioGroup
+            value={selectedLineaOption}
+            onValueChange={(val) =>
+              setSelectedLineaOption(val as typeof selectedLineaOption)
+            }
+            className="grid grid-cols-[1fr_auto_1fr] gap-8 py-4"
+          >
+            {/* Columna Izquierda: Predefinidas */}
+            <div className="space-y-4">
+              <div className="text-foreground mb-3 text-sm font-semibold">
+                Catálogo Institucional
+              </div>
+
+              {/* Tarjeta: Matemáticas */}
+              <div className="border-input has-[[data-state=checked]]:border-primary/50 has-[[data-state=checked]]:bg-primary/5 hover:bg-muted/50 relative flex w-full items-start gap-3 rounded-md border p-4 shadow-sm transition-all outline-none">
+                <RadioGroupItem
+                  id="linea-matematicas"
+                  value="matematicas"
+                  className="mt-0.5 size-5 after:absolute after:inset-0 [&_svg]:size-3"
+                />
+                <div className="grid grow gap-1">
+                  <Label
+                    htmlFor="linea-matematicas"
+                    className="cursor-pointer font-semibold"
+                  >
+                    Matemáticas
+                  </Label>
+                  <p className="text-muted-foreground text-xs">
+                    Línea base para ciencias exactas.
+                  </p>
+                </div>
+              </div>
+
+              {/* Tarjeta: Área Común */}
+              <div className="border-input has-[[data-state=checked]]:border-primary/50 has-[[data-state=checked]]:bg-primary/5 hover:bg-muted/50 relative flex w-full items-start gap-3 rounded-md border p-4 shadow-sm transition-all outline-none">
+                <RadioGroupItem
+                  id="linea-area-comun"
+                  value="area_comun"
+                  className="mt-0.5 size-5 after:absolute after:inset-0 [&_svg]:size-3"
+                />
+                <div className="grid grow gap-1">
+                  <Label
+                    htmlFor="linea-area-comun"
+                    className="cursor-pointer font-semibold"
+                  >
+                    Área Común
+                  </Label>
+                  <p className="text-muted-foreground text-xs">
+                    Materias compartidas entre programas.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Separador */}
+            <div className="flex justify-center">
+              <Separator orientation="vertical" />
+            </div>
+
+            {/* Columna Derecha: Personalizada */}
+            <div className="space-y-4">
+              <div className="text-foreground mb-3 text-sm font-semibold">
+                Línea personalizada
+              </div>
+
+              {/* Tarjeta: Custom */}
+              <div
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault() // Evita que la página haga scroll con el espacio
+                    setSelectedLineaOption('custom')
+                    inputRef.current?.focus()
+                  }
+                }}
+                onClick={() => {
+                  setSelectedLineaOption('custom')
+                  inputRef.current?.focus()
+                }}
+                className={`focus-visible:ring-primary relative flex w-full cursor-pointer items-start gap-3 rounded-md border p-4 shadow-sm transition-all outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${
+                  selectedLineaOption === 'custom'
+                    ? 'border-primary/50 bg-primary/5'
+                    : 'border-input hover:bg-muted/50'
+                }`}
+              >
+                {/* Omitimos after:absolute para no tapar el input */}
+                <RadioGroupItem
+                  id="linea-custom"
+                  value="custom"
+                  className="mt-0.5 size-5 [&_svg]:size-3"
+                />
+                <div className="grid w-full grow gap-3">
+                  <Label
+                    htmlFor="linea-custom"
+                    className="cursor-pointer font-semibold"
+                  >
+                    Otra línea...
+                  </Label>
+                  <Input
+                    ref={inputRef}
+                    value={customLineaNombre}
+                    onChange={(e) =>
+                      setCustomLineaNombre(e.target.value.slice(0, 200))
+                    }
+                    placeholder="Escribe el nombre aquí"
+                    maxLength={200}
+                    disabled={selectedLineaOption !== 'custom'}
+                    className="bg-background h-9 w-full"
+                  />
+                </div>
+              </div>
+            </div>
+          </RadioGroup>
+
+          <div className="mt-2 flex items-center justify-end gap-3 border-t pt-4">
+            <Button
+              className="ring-offset-background bg-primary text-primary-foreground hover:bg-primary/90 inline-flex h-11 items-center justify-center gap-2 rounded-md px-8 text-sm font-medium shadow-md transition-colors"
+              onClick={handleAgregarLinea}
+              disabled={!canAddLinea || isCreatingLinea}
+            >
+              <Plus size={16} /> Agregar
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
         <DialogContent
           className="sm:max-w-137.5"

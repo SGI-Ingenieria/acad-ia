@@ -30,7 +30,7 @@ function RouteComponent() {
       4. px-4 md:px-6: Padding RESPONSIVO interno (seguro para móviles y desktop).
       5. py-6: Padding vertical (opcional, para separarse del header).
       */}
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 px-4 py-6 md:px-6 lg:px-8">
+      <div className="mx-auto flex w-full flex-col gap-4 p-4 md:px-6 md:pb-6 lg:px-8 lg:pb-8">
         <DashboardHeader
           nombre="Dr. Carlos Mendoza"
           rol="Jefe de Carrera"

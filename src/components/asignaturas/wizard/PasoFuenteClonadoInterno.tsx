@@ -163,7 +163,7 @@ export function PasoFuenteClonadoInterno({
 
   return (
     <div className="grid gap-4">
-      <Card>
+      <Card className="gap-4">
         <CardHeader>
           <CardTitle className="text-base">Fuente</CardTitle>
         </CardHeader>
@@ -297,7 +297,7 @@ export function PasoFuenteClonadoInterno({
           Selecciona una asignatura fuente (solo una).
         </div>
 
-        <div className="grid max-h-80 gap-2 overflow-y-auto">
+        <div className="grid max-h-80 gap-2 overflow-y-auto px-1">
           {subjectsLoading ? (
             <div className="text-muted-foreground text-sm">
               Cargando asignaturas…
