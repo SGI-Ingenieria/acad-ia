@@ -59,7 +59,7 @@ const mapLineasToLineaCurricular = (
     id: linea.id,
     nombre: linea.nombre,
     orden: linea.orden ?? 0,
-    color: palette[index % palette.length],
+    color: linea.color ?? palette[index % palette.length],
   }))
 }
 
@@ -185,7 +185,7 @@ function AsignaturaCardItem({
             onDragStart={(e) => onDragStart(e, asignatura.id)}
             onClick={onClick}
             className={[
-              'group relative h-50 w-40 shrink-0 overflow-hidden rounded-[22px] border text-left',
+              'group bg-background relative h-50 w-40 shrink-0 overflow-hidden rounded-[22px] border text-left',
               'transition-all duration-300 ease-out',
               'focus-visible:ring-ring/30 focus-visible:ring-2 focus-visible:outline-none',
               'cursor-grab active:cursor-grabbing',
@@ -194,26 +194,10 @@ function AsignaturaCardItem({
                 : 'hover:-translate-y-1 hover:shadow-lg',
             ].join(' ')}
             style={{
-              borderColor: hexToRgba(lineaColor, 0.18),
-              background: `
-                radial-gradient(circle at top right, ${hexToRgba(lineaColor, 0.22)} 0%, transparent 34%),
-                linear-gradient(180deg, ${hexToRgba(lineaColor, 0.12)} 0%, ${hexToRgba(lineaColor, 0.04)} 42%, var(--card) 100%)
-              `,
+              borderColor: lineaColor,
             }}
             title={asignatura.nombre}
           >
-            {/* franja */}
-            <div
-              className="absolute inset-x-0 top-0 h-2"
-              style={{ backgroundColor: lineaColor }}
-            />
-
-            {/* glow decorativo */}
-            <div
-              className="absolute -top-10 -right-10 h-28 w-28 rounded-full blur-2xl"
-              style={{ backgroundColor: hexToRgba(lineaColor, 0.22) }}
-            />
-
             <div className="relative flex h-full flex-col p-4">
               {/* top */}
               <div className="flex items-start justify-between gap-2">
@@ -248,7 +232,7 @@ function AsignaturaCardItem({
               {/* titulo */}
               <div className="mt-4 min-h-18">
                 <h3
-                  className="text-foreground overflow-hidden text-sm leading-[1.08]"
+                  className="text-foreground overflow-hidden pb-1 text-sm leading-[1.08]"
                   style={{
                     display: '-webkit-box',
                     WebkitLineClamp: 3,
@@ -261,7 +245,7 @@ function AsignaturaCardItem({
 
               {/* bottom */}
               <div className="mt-auto grid grid-cols-3 gap-2">
-                <div className="flex flex-col items-center rounded-2xl border border-white/40 bg-white/55 px-2.5 py-2 backdrop-blur-sm dark:border-white/10 dark:bg-white/5">
+                <div className="bg-muted/70 border-border/70 flex flex-col items-center rounded-2xl border px-2.5 py-2">
                   {/* <Icons.Award className="h-3.5 w-3.5" /> */}
                   <span className="text-muted-foreground mb-1 text-[10px] font-medium tracking-wide uppercase">
                     CR
@@ -272,7 +256,7 @@ function AsignaturaCardItem({
                   </div>
                 </div>
 
-                <div className="flex flex-col items-center rounded-2xl border border-white/40 bg-white/55 px-2.5 py-2 backdrop-blur-sm dark:border-white/10 dark:bg-white/5">
+                <div className="bg-muted/70 border-border/70 flex flex-col items-center rounded-2xl border px-2.5 py-2">
                   <span className="text-muted-foreground mb-1 text-[10px] font-medium tracking-wide uppercase">
                     HD
                   </span>
@@ -282,7 +266,7 @@ function AsignaturaCardItem({
                   </div>
                 </div>
 
-                <div className="flex flex-col items-center border border-white/40 bg-white/55 px-2.5 py-2 backdrop-blur-sm not-last:rounded-2xl dark:border-white/10 dark:bg-white/5">
+                <div className="bg-muted/70 border-border/70 flex flex-col items-center rounded-2xl border px-2.5 py-2">
                   <span className="text-muted-foreground mb-1 text-[10px] font-medium tracking-wide uppercase">
                     HI
                   </span>
@@ -382,10 +366,28 @@ function MapaCurricularPage() {
             id: nueva.id,
             nombre: nueva.nombre,
             orden: nueva.orden,
-            color: '#1976d2',
+            color: (nueva as any).color ?? '#1976d2',
           }
           setLineas((prev) => [...prev, mapeada])
           setNombreNuevaLinea('')
+        },
+      },
+    )
+  }
+
+  const cambiarColorLinea = (lineaId: string, nuevoColor: string) => {
+    setLineas((prev) =>
+      prev.map((l) => (l.id === lineaId ? { ...l, color: nuevoColor } : l)),
+    )
+
+    updateLineaApi(
+      {
+        lineaId,
+        patch: { color: nuevoColor },
+      },
+      {
+        onError: (err) => {
+          console.error('Error al actualizar color de linea:', err)
         },
       },
     )
@@ -721,7 +723,7 @@ function MapaCurricularPage() {
 
       <div className="overflow-x-auto pb-6">
         <div
-          className="grid gap-3"
+          className="grid gap-3 pl-1"
           style={{
             gridTemplateColumns: `140px repeat(${ciclosTotales}, 188px) 120px`,
           }}
@@ -749,7 +751,7 @@ function MapaCurricularPage() {
             return (
               <Fragment key={linea.id}>
                 <div
-                  className={`group relative flex items-start justify-between gap-2 rounded-xl border p-3 transition-all ${editingLineaId === linea.id ? 'ring-primary/30 ring-2' : 'cursor-text'}`}
+                  className={`group relative flex flex-col gap-2 rounded-xl border p-3 transition-all ${editingLineaId === linea.id ? 'ring-primary/30 ring-2' : 'cursor-text'}`}
                   style={{
                     borderColor: hexToRgba(linea.color || '#1976d2', 0.24),
                     backgroundColor:
@@ -796,7 +798,40 @@ function MapaCurricularPage() {
                       </TooltipContent>
                     </Tooltip>
                   </div>
-                  <div className="ml-1 flex shrink-0 items-center gap-1">
+
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="border-border/70 bg-background relative inline-flex h-8 w-8 items-center justify-center rounded-md border"
+                        style={{
+                          borderColor: hexToRgba(
+                            linea.color || '#1976d2',
+                            0.35,
+                          ),
+                        }}
+                      >
+                        <input
+                          type="color"
+                          aria-label="Cambiar color de línea"
+                          value={linea.color || '#1976d2'}
+                          onChange={(e) =>
+                            cambiarColorLinea(linea.id, e.target.value)
+                          }
+                          className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                        />
+                        <Icons.Palette
+                          className="text-muted-foreground h-4 w-4"
+                          aria-hidden
+                        />
+                      </div>
+
+                      <div
+                        className="border-border/70 h-5 w-5 rounded-full border"
+                        style={{ backgroundColor: linea.color || '#1976d2' }}
+                        aria-hidden
+                      />
+                    </div>
+
                     <button
                       type="button"
                       aria-label="Eliminar línea"

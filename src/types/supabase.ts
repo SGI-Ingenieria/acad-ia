@@ -833,6 +833,7 @@ export type Database = {
         Row: {
           actualizado_en: string
           area: string | null
+          color: string | null
           creado_en: string
           id: string
           nombre: string
@@ -842,6 +843,7 @@ export type Database = {
         Insert: {
           actualizado_en?: string
           area?: string | null
+          color?: string | null
           creado_en?: string
           id?: string
           nombre: string
@@ -851,6 +853,7 @@ export type Database = {
         Update: {
           actualizado_en?: string
           area?: string | null
+          color?: string | null
           creado_en?: string
           id?: string
           nombre?: string
