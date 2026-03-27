@@ -6,7 +6,6 @@ import { useMemo, useState, useEffect, Fragment } from 'react'
 
 import type { TipoAsignatura } from '@/data'
 import type { Asignatura, LineaCurricular } from '@/types/plan'
-import type { TablesUpdate } from '@/types/supabase'
 
 import { AlertaConflicto } from '@/components/asignaturas/detalle/mapa/AlertaConflicto'
 import { Badge } from '@/components/ui/badge'
@@ -404,15 +403,19 @@ function MapaCurricularPage() {
     asignatura: Asignatura,
     nuevoCiclo: number,
   ) => {
+    // 1. Esperamos la interacción del usuario
     const acepto = await validarConInterrupcion(asignatura.id, nuevoCiclo)
 
-    if (!acepto) {
-      setConfirmState(null)
-      return
+    // 2. Limpiamos el estado del modal ANTES de seguir
+    setConfirmState(null)
+
+    // 3. Verificamos la respuesta
+    if (acepto === false) {
+      return // Detenemos la ejecución aquí
     }
 
+    // 4. Solo si acepto es true, ejecutamos la API
     const patch = { numero_ciclo: nuevoCiclo }
-
     updateAsignatura(
       { asignaturaId: asignatura.id, patch: patch as any },
       {
@@ -422,12 +425,9 @@ function MapaCurricularPage() {
               m.id === asignatura.id ? { ...m, ciclo: nuevoCiclo } : m,
             ),
           )
-          setConfirmState(null) // Cerramos el modal de Radix al tener éxito
         },
         onError: (err) => {
-          // En lugar de alert nativo, podrías usar un toast aquí
           console.error('Error al actualizar:', err)
-          setConfirmState(null)
         },
       },
     )
@@ -549,47 +549,60 @@ function MapaCurricularPage() {
 
     return val
   }
-  const handleSaveChanges = () => {
-    if (!editingData) return
-    setAsignaturas((prev) =>
-      prev.map((m) => (m.id === editingData.id ? { ...editingData } : m)),
-    )
-    type AsignaturaPatch = {
-      codigo?: TablesUpdate<'asignaturas'>['codigo']
-      nombre?: TablesUpdate<'asignaturas'>['nombre']
-      tipo?: TablesUpdate<'asignaturas'>['tipo']
-      creditos?: TablesUpdate<'asignaturas'>['creditos']
-      horas_academicas?: TablesUpdate<'asignaturas'>['horas_academicas']
-      horas_independientes?: TablesUpdate<'asignaturas'>['horas_independientes']
-      numero_ciclo?: TablesUpdate<'asignaturas'>['numero_ciclo']
-      linea_plan_id?: TablesUpdate<'asignaturas'>['linea_plan_id']
-      prerrequisito_asignatura_id?: string | null
+
+  const procesarCambioAsignatura = async (
+    asignaturaId: string,
+    nuevosDatos: Partial<Asignatura>,
+  ) => {
+    const asignaturaOriginal = asignaturas.find((a) => a.id === asignaturaId)
+    if (!asignaturaOriginal) return
+
+    // ¿Cambió el ciclo? Si es así, validamos seriación
+    if (
+      nuevosDatos.ciclo !== undefined &&
+      nuevosDatos.ciclo !== asignaturaOriginal.ciclo
+    ) {
+      const acepto = await validarConInterrupcion(
+        asignaturaId,
+        nuevosDatos.ciclo,
+      )
+      setConfirmState(null)
+      if (!acepto) return // El usuario canceló, no guardamos nada
     }
-    const patch: Partial<AsignaturaPatch> = {
-      nombre: editingData.nombre,
-      codigo: editingData.clave,
-      creditos: editingData.creditos,
-      horas_academicas: editingData.hd,
-      horas_independientes: editingData.hi,
-      numero_ciclo: editingData.ciclo,
-      linea_plan_id: editingData.lineaCurricularId,
-      prerrequisito_asignatura_id: editingData.prerrequisito_asignatura_id,
-      tipo: editingData.tipo.toUpperCase() as TipoAsignatura, // Asegurar que coincida con el ENUM (OBLIGATORIA/OPTATIVA)
+
+    // Si llegamos aquí, o no cambió el ciclo o el usuario aceptó el conflicto
+    const patch = {
+      nombre: nuevosDatos.nombre ?? asignaturaOriginal.nombre,
+      codigo: nuevosDatos.clave ?? asignaturaOriginal.clave,
+      numero_ciclo: nuevosDatos.ciclo,
+      linea_plan_id: nuevosDatos.lineaCurricularId,
+      creditos: nuevosDatos.creditos,
+      horas_academicas: nuevosDatos.hd,
+      horas_independientes: nuevosDatos.hi,
+      prerrequisito_asignatura_id: nuevosDatos.prerrequisito_asignatura_id,
+      tipo: nuevosDatos.tipo?.toUpperCase() as TipoAsignatura,
     }
 
     updateAsignatura(
-      { asignaturaId: editingData.id, patch: patch as any },
+      { asignaturaId, patch: patch as any },
       {
         onSuccess: () => {
-          setIsEditModalOpen(false)
-          // Opcional: Mostrar un toast de éxito
+          setAsignaturas((prev) =>
+            prev.map((m) =>
+              m.id === asignaturaId ? { ...m, ...nuevosDatos } : m,
+            ),
+          )
+          setIsEditModalOpen(false) // Cerramos el modal si estaba abierto
         },
-        onError: (error) => {
-          console.error('Error al guardar:', error)
-          alert('Hubo un error al guardar los cambios.')
-        },
+        onError: (err) => console.error('Error al guardar:', err),
       },
     )
+  }
+  const handleSaveChanges = () => {
+    if (!editingData) return
+
+    // Llamamos a la lógica centralizada que incluye la alerta
+    procesarCambioAsignatura(editingData.id, editingData)
   }
   const unassignedAsignaturas = asignaturas.filter(
     (m) => m.ciclo === null || m.lineaCurricularId === null,
@@ -662,41 +675,13 @@ function MapaCurricularPage() {
     lineaId: string | null,
   ) => {
     e.preventDefault()
-
     if (!draggedAsignatura) return
 
-    // Buscamos la asignatura completa para tener sus datos
-    const asignatura = asignaturas.find((a) => a.id === draggedAsignatura)
-    if (!asignatura) return
-
-    // SI EL CAMBIO ES DE CICLO (y no solo de línea o a la bandeja)
-    // Ejecutamos la validación segura
-    if (cicloDestino !== null && cicloDestino !== asignatura.ciclo) {
-      // Llamamos a la función que agregaste
-      // IMPORTANTE: Asegúrate que handleCambioCicloSeguro esté definida ANTES o sea accesible
-      await handleCambioCicloSeguro(asignatura, cicloDestino)
-
-      // Si la validación interna de handleCambioCicloSeguro falla o el usuario cancela,
-      // la ejecución se detiene dentro de esa función.
-    } else {
-      // CASO B: Es un movimiento a la bandeja (null) o cambio de línea en el mismo ciclo
-      // Mantenemos la lógica simple de actualización
-      setAsignaturas((prev) =>
-        prev.map((m) =>
-          m.id === draggedAsignatura
-            ? { ...m, ciclo: cicloDestino, lineaCurricularId: lineaId }
-            : m,
-        ),
-      )
-
-      updateAsignatura(
-        {
-          asignaturaId: draggedAsignatura,
-          patch: { numero_ciclo: cicloDestino, linea_plan_id: lineaId },
-        },
-        { onError: (err) => console.error('Error al mover:', err) },
-      )
-    }
+    // Solo disparamos la lógica si realmente hay un cambio de posición
+    procesarCambioAsignatura(draggedAsignatura, {
+      ciclo: cicloDestino,
+      lineaCurricularId: lineaId,
+    })
 
     setDraggedAsignatura(null)
   }

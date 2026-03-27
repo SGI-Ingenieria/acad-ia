@@ -9,9 +9,10 @@ import {
 import { ArrowLeft, GraduationCap } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
+import { AlertaConflicto } from '@/components/asignaturas/detalle/mapa/AlertaConflicto'
 import { Badge } from '@/components/ui/badge'
 import { lateralConfetti } from '@/components/ui/lateral-confetti'
-import { useSubject, useUpdateAsignatura } from '@/data'
+import { usePlanAsignaturas, useSubject, useUpdateAsignatura } from '@/data'
 
 export const Route = createFileRoute(
   '/planes/$planId/asignaturas/$asignaturaId',
@@ -73,7 +74,44 @@ function AsignaturaLayout() {
   })
   const { data: asignaturaApi, isLoading: loadingAsig } =
     useSubject(asignaturaId)
-  // 1. Asegúrate de tener estos estados en tu componente principal
+  const { data: todasLasAsignaturas } = usePlanAsignaturas(planId)
+  const [confirmState, setConfirmState] = useState<{
+    isOpen: boolean
+    resolve: (value: boolean) => void
+    mensaje: string
+  } | null>(null)
+  const validarConInterrupcion = async (
+    nuevoCiclo: number,
+  ): Promise<boolean> => {
+    if (!todasLasAsignaturas || !asignaturaApi) return true
+
+    const materiasConflicto = todasLasAsignaturas.filter((a) => {
+      const esPrerrequisitoConflictivo =
+        asignaturaApi.prerrequisito_asignatura_id === a.id &&
+        (a.numero_ciclo ?? 0) >= nuevoCiclo
+
+      const esDependienteConflictiva =
+        a.prerrequisito_asignatura_id === asignaturaApi.id &&
+        (a.numero_ciclo ?? 0) <= nuevoCiclo
+
+      return esPrerrequisitoConflictivo || esDependienteConflictiva
+    })
+
+    if (materiasConflicto.length === 0) return true
+
+    const listaNombres = materiasConflicto.map((m) => m.nombre)
+
+    return new Promise((resolve) => {
+      setConfirmState({
+        isOpen: true,
+        resolve,
+        mensaje: JSON.stringify({
+          main: `Mover "${asignaturaApi.nombre}" al ciclo ${nuevoCiclo} genera conflictos con:`,
+          materias: listaNombres,
+        }),
+      })
+    })
+  }
 
   const updateAsignatura = useUpdateAsignatura()
 
@@ -97,16 +135,30 @@ function AsignaturaLayout() {
     }
   }, [asignaturaApi])
 
-  const handleUpdateHeader = (key: string, value: string | number) => {
+  const handleUpdateHeader = async (key: string, value: string | number) => {
+    // 1. Si es ciclo, validamos antes de hacer nada
+    if (key === 'ciclo') {
+      const nuevoCiclo = Number(value)
+      const acepto = await validarConInterrupcion(nuevoCiclo)
+
+      setConfirmState(null) // Cerramos el modal tras la respuesta
+
+      if (!acepto) {
+        // Revertimos el estado local al valor de la API si cancela
+        setHeaderData((prev) => ({
+          ...prev,
+          ciclo: asignaturaApi?.numero_ciclo ?? 0,
+        }))
+        return
+      }
+    }
+
+    // 2. Si no es ciclo o si aceptó el conflicto, procedemos
     const newData = { ...headerData, [key]: value }
     setHeaderData(newData)
 
     const patch: Record<string, any> =
-      key === 'ciclo'
-        ? { numero_ciclo: value }
-        : {
-            [key]: value,
-          }
+      key === 'ciclo' ? { numero_ciclo: value } : { [key]: value }
 
     updateAsignatura.mutate({
       asignaturaId,
@@ -166,11 +218,6 @@ function AsignaturaLayout() {
                   onSave={(val) => handleUpdateHeader('nombre', val)}
                 />
               </h1>
-              {
-                // console.log(headerData),
-
-                console.log(asignaturaApi.planes_estudio?.nombre)
-              }
               <div className="flex flex-wrap gap-4 text-sm text-blue-200">
                 <span className="flex items-center gap-1">
                   <GraduationCap className="h-4 w-4 shrink-0" />
@@ -212,6 +259,21 @@ function AsignaturaLayout() {
           </div>
         </div>
       </section>
+
+      {confirmState && (
+        <AlertaConflicto
+          isOpen={confirmState.isOpen}
+          onOpenChange={(open) => {
+            if (!open) {
+              confirmState.resolve(false)
+              setConfirmState(null)
+            }
+          }}
+          onConfirm={() => confirmState.resolve(true)}
+          titulo="Conflicto de Seriación"
+          descripcion={confirmState.mensaje}
+        />
+      )}
 
       {/* TABS */}
 
