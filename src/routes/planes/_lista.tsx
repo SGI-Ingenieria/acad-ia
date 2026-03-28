@@ -224,9 +224,9 @@ function RouteComponent() {
                 // NOTA: El color del estado no viene en BD por defecto,
                 // puedes crear un mapa de colores o agregar columna 'color' a tabla 'estados_plan'
                 // Aquí uso un fallback simple.
-                const estadoColor = estado?.es_final
-                  ? 'bg-emerald-600'
-                  : 'bg-amber-600'
+                const estadoColorHex = (estado as any)?.color as
+                  | string
+                  | undefined
 
                 return (
                   <PlanEstudiosCard
@@ -237,7 +237,8 @@ function RouteComponent() {
                     ciclos={`${plan.numero_ciclos} ${plan.tipo_ciclo.toLowerCase()}s`}
                     facultad={facultad?.nombre ?? 'Sin Facultad'}
                     estado={estado?.etiqueta ?? 'Desconocido'}
-                    claseColorEstado={estadoColor}
+                    colorEstadoHex={estadoColorHex}
+                    claseColorEstado={!estadoColorHex ? 'bg-secondary' : ''}
                     colorFacultad={facultad?.color ?? '#000000'}
                     onClick={() =>
                       navigate({
