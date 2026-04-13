@@ -223,7 +223,8 @@ function AsignaturaLayout() {
                   <GraduationCap className="h-4 w-4 shrink-0" />
                   Pertenece al plan:{' '}
                   <span className="text-blue-100">
-                    {(asignaturaApi.planes_estudio as DatosPlan).nombre || ''}
+                    {(asignaturaApi.planes_estudio as DatosPlan | undefined)
+                      ?.nombre ?? ''}
                   </span>
                 </span>
               </div>
