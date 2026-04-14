@@ -128,8 +128,6 @@ export default function AsignaturaDetailPage() {
   }
   /* ---------- sincronizar API ---------- */
   useEffect(() => {
-    console.log(requisitosFormateados)
-
     if (asignaturaApi) setAsignatura(asignaturaApi)
   }, [asignaturaApi, requisitosFormateados])
 
@@ -182,7 +180,6 @@ function DatosGenerales({
 
   const criteriosEvaluacion: Array<CriterioEvaluacionRow> = useMemo(() => {
     const raw = (data as any)?.criterios_de_evaluacion
-    console.log(raw)
 
     if (!Array.isArray(raw)) return []
 
@@ -232,7 +229,7 @@ function DatosGenerales({
   if (isLoading) return <p>Cargando información...</p>
 
   return (
-    <div className="animate-in fade-in space-y-8 pb-8 duration-500">
+    <div className="animate-in fade-in mx-auto max-w-7xl space-y-8 px-4 py-8 duration-500">
       {/* Encabezado de la Sección */}
       <div className="flex flex-col justify-between gap-4 border-b pb-6 md:flex-row md:items-center">
         <div>
@@ -414,8 +411,7 @@ function InfoCard({
   useEffect(() => {
     setData(initialContent)
     setTempText(initialContent)
-    console.log(data)
-    console.log(initialContent)
+
     if (type === 'evaluation') {
       const raw = Array.isArray(initialContent) ? initialContent : []
       const rows: Array<CriterioEvaluacionRowDraft> = raw
@@ -457,10 +453,6 @@ function InfoCard({
   }, [highlightToken])
 
   const handleSave = () => {
-    console.log('clave, valor:', clave, String(tempText ?? ''))
-    console.log(clave)
-    console.log(tempText)
-
     if (type === 'evaluation') {
       const cleaned: Array<CriterioEvaluacionRow> = []
       for (const r of evalRows) {
@@ -491,8 +483,6 @@ function InfoCard({
       return
     }
     if (type === 'requirements') {
-      console.log('entre aqui ')
-
       // Si tempText es un array y tiene elementos, tomamos el ID del primero
       // Si es "none" o está vacío, mandamos null (para limpiar la seriación)
       const prerequisiteId =
@@ -519,8 +509,6 @@ function InfoCard({
   }
 
   const handleIARequest = (campoClave: string) => {
-    console.log(campoClave)
-
     let targetClave = campoClave
     if (type === 'evaluation' && !targetClave) {
       targetClave = 'criterios_de_evaluacion'
@@ -529,8 +517,6 @@ function InfoCard({
     if (targetClave === 'contenido') {
       targetClave = 'contenido_tematico'
     }
-    console.log(targetClave)
-    console.log(asignaturaId)
 
     navigate({
       to: '/planes/$planId/asignaturas/$asignaturaId/iaasignatura',
@@ -652,18 +638,12 @@ function InfoCard({
                         : 'none'
                     }
                     onValueChange={(val) => {
-                      console.log(availableSubjects)
-
                       const selected = availableSubjects?.find(
                         (s) => s.id === val,
                       )
                       if (val === 'none' || !selected) {
-                        console.log('guardando')
-
                         setTempText([])
                       } else {
-                        console.log('hola')
-
                         setTempText([
                           {
                             id: selected.id,
@@ -677,20 +657,29 @@ function InfoCard({
                   >
                     <SelectTrigger className="w-full">
                       <div className="flex-1 truncate text-left">
-                        <SelectValue placeholder="Selecciona una materia" />
+                        <SelectValue placeholder="Selecciona una materia">
+                          {Array.isArray(tempText) && tempText.length > 0
+                            ? `${tempText[0].code} - ${tempText[0].name}`
+                            : undefined}
+                        </SelectValue>
                       </div>
                     </SelectTrigger>
+
                     <SelectContent>
                       <SelectItem value="none">
                         Ninguna (Sin seriación)
                       </SelectItem>
+
                       {availableSubjects?.map((asig) => (
                         <SelectItem
                           key={asig.id}
                           value={asig.id}
                           className="max-w-[300px] sm:max-w-[500px]"
                         >
-                          <span className="block truncate">
+                          <span className="text-primary font-bold">
+                            [C{asig.numero_ciclo}]
+                          </span>{' '}
+                          <span className="inline-block truncate">
                             {asig.codigo} - {asig.nombre}
                           </span>
                         </SelectItem>

@@ -36,7 +36,8 @@ export const AlertaConflicto = ({
           ))}
         </div>
         <p className="mt-2 text-xs font-semibold text-slate-500">
-          ¿Deseas ignorar la regla y moverla de todos modos?
+          ¿Deseas ignorar la regla y moverla de todos modos (Esto eliminará la
+          seriación)?
         </p>
       </div>
     )
@@ -62,13 +63,8 @@ export const AlertaConflicto = ({
 
           <div className="mt-8 flex flex-col-reverse justify-end gap-3 sm:flex-row">
             <AlertDialog.Cancel asChild>
-              <Button
-                variant="ghost"
-                onClick={() => onConfirm()} // Si tu componente espera resolve
-                className="font-semibold text-slate-500 hover:text-slate-700"
-              >
-                Cancelar
-              </Button>
+              <Button variant="ghost">Cancelar</Button>
+              {/* Radix automáticamente llamará a onOpenChange(false) al hacer clic aquí */}
             </AlertDialog.Cancel>
 
             <AlertDialog.Action asChild>
