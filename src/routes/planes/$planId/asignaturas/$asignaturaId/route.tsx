@@ -1,3 +1,4 @@
+import { useQueryClient } from '@tanstack/react-query'
 import {
   createFileRoute,
   Outlet,
@@ -15,7 +16,7 @@ import {
   CalendarDays,
   Tag,
 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 import { AlertaConflicto } from '@/components/asignaturas/detalle/mapa/AlertaConflicto'
 import { Badge } from '@/components/ui/badge'
@@ -166,7 +167,7 @@ function AsignaturaLayout() {
     from: '/planes/$planId/asignaturas/$asignaturaId',
   })
 
-  const { data: asignaturaApi, isLoading: loadingAsig } =
+  const { data: asignaturaApi, isLoading } =
     useSubject(asignaturaId)
   const { data: todasLasAsignaturas } = usePlanAsignaturas(planId)
   const [confirmState, setConfirmState] = useState<{
@@ -209,48 +210,30 @@ function AsignaturaLayout() {
 
   const updateAsignatura = useUpdateAsignatura()
 
-  const [headerData, setHeaderData] = useState({
-    codigo: '',
-    nombre: '',
-    creditos: 0,
-    ciclo: 0,
-  })
-
-  useEffect(() => {
-    if (asignaturaApi) {
-      setHeaderData({
-        codigo: asignaturaApi.codigo ?? '',
-        nombre: asignaturaApi.nombre,
-        creditos: asignaturaApi.creditos,
-        ciclo: asignaturaApi.numero_ciclo ?? 0,
-      })
-    }
-  }, [asignaturaApi])
+  // Reemplaza tu useState y useEffect de headerData con esto:
+const headerData = useMemo(() => ({
+  codigo: asignaturaApi?.codigo ?? '',
+  nombre: asignaturaApi?.nombre ?? '',
+  creditos: asignaturaApi?.creditos ?? 0,
+  ciclo: asignaturaApi?.numero_ciclo ?? 0,
+}), [asignaturaApi]);
 
   const handleUpdateHeader = async (key: string, value: string | number) => {
-    // 1. Si es ciclo, validamos antes de hacer nada
+    // 1. Validación de ciclo
     if (key === 'ciclo') {
       const nuevoCiclo = Number(value)
       const acepto = await validarConInterrupcion(nuevoCiclo)
 
-      setConfirmState(null) // Cerramos el modal tras la respuesta
-
+      // Si no aceptó, no hacemos nada más
       if (!acepto) {
-        // Revertimos el estado local al valor de la API si cancela
-        setHeaderData((prev) => ({
-          ...prev,
-          ciclo: asignaturaApi?.numero_ciclo ?? 0,
-        }))
+        setConfirmState(null)
         return
       }
+      setConfirmState(null)
     }
 
-    // 2. Si no es ciclo o si aceptó el conflicto, procedemos
-    const newData = { ...headerData, [key]: value }
-    setHeaderData(newData)
-
-    const patch: Record<string, any> =
-      key === 'ciclo' ? { numero_ciclo: value } : { [key]: value }
+    // 2. Ejecutar mutación
+    const patch = key === 'ciclo' ? { numero_ciclo: value } : { [key]: value }
 
     updateAsignatura.mutate({ asignaturaId, patch })
   }
@@ -260,13 +243,14 @@ function AsignaturaLayout() {
   })
 
   useEffect(() => {
+    
     if ((location.state as any)?.showConfetti) {
       lateralConfetti()
       window.history.replaceState({}, document.title)
     }
   }, [location.state])
 
-  if (loadingAsig) {
+  if ( isLoading || !asignaturaApi) {
     return (
       <div className="bg-background text-foreground flex h-screen items-center justify-center">
         Cargando asignatura...
@@ -345,7 +329,7 @@ function AsignaturaLayout() {
               <GraduationCap className="h-4 w-4 shrink-0 text-white/60" />
               <span>Pertenece al plan:</span>
               <span className="font-medium text-white">
-                {(asignaturaApi.planes_estudio as DatosPlan).nombre || ''}
+                {(asignaturaApi.planes_estudio as DatosPlan | undefined)?.nombre ?? ''}
               </span>
             </div>
           </div>

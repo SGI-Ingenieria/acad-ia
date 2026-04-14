@@ -231,28 +231,18 @@ export function useUpdateAsignatura() {
   const qc = useQueryClient()
 
   return useMutation({
-    mutationFn: (vars: {
-      asignaturaId: UUID
-      patch: Partial<SubjectsUpdateFieldsPatch>
-    }) => asignaturas_update(vars.asignaturaId, vars.patch),
+    mutationFn: (vars: { asignaturaId: UUID; patch: any }) =>
+      asignaturas_update(vars.asignaturaId, vars.patch),
 
     onSuccess: (updated) => {
-      // ✅ Mantener consistencia con las query keys centralizadas (qk)
-      // 1) Actualiza el detalle (esto evita volver a entrar con caché vieja)
-      qc.setQueryData(qk.asignatura(updated.id), (prev) =>
-        prev ? { ...(prev as any), ...(updated as any) } : updated,
-      )
+      // FORZAR actualización de la caché con spread operator para asegurar nueva referencia
+      qc.setQueryData(qk.asignatura(updated.id), (prev: any) => ({
+        ...prev,
+        ...updated,
+      }))
 
-      // 2) Refresca vistas derivadas del plan
-      qc.invalidateQueries({
-        queryKey: qk.planAsignaturas(updated.plan_estudio_id),
-      })
-      qc.invalidateQueries({
-        queryKey: qk.planHistorial(updated.plan_estudio_id),
-      })
-
-      // 3) Refresca historial de la asignatura si existe
-      qc.invalidateQueries({ queryKey: qk.asignaturaHistorial(updated.id) })
+      // Invalidar para asegurar sincronización con DB
+      qc.invalidateQueries({ queryKey: qk.asignatura(updated.id) })
     },
   })
 }
