@@ -94,11 +94,7 @@ export function DocumentoSEPTab({
 
           {pdfUrl && !isLoading && (
             <>
-              <Button
-                size="sm"
-                className="gap-2 bg-teal-700 hover:bg-teal-800"
-                onClick={onDownloadWord}
-              >
+              <Button size="sm" className="gap-2" onClick={onDownloadWord}>
                 <Download className="h-4 w-4" /> Descargar Word
               </Button>
               <Button

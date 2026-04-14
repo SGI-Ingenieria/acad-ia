@@ -6,13 +6,22 @@ import {
   useParams,
   useRouterState,
 } from '@tanstack/react-router'
-import { ArrowLeft, GraduationCap } from 'lucide-react'
+import {
+  ArrowLeft,
+  GraduationCap,
+  Pencil,
+  Hash,
+  BookOpen,
+  CalendarDays,
+  Tag,
+} from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import { AlertaConflicto } from '@/components/asignaturas/detalle/mapa/AlertaConflicto'
 import { Badge } from '@/components/ui/badge'
 import { lateralConfetti } from '@/components/ui/lateral-confetti'
-import { usePlanAsignaturas, useSubject, useUpdateAsignatura } from '@/data'
+import { useSubject, useUpdateAsignatura, usePlanAsignaturas } from '@/data'
+import { cn } from '@/lib/utils'
 
 export const Route = createFileRoute(
   '/planes/$planId/asignaturas/$asignaturaId',
@@ -20,58 +29,143 @@ export const Route = createFileRoute(
   component: AsignaturaLayout,
 })
 
-function EditableHeaderField({
+// --- 1. COMPONENTE PARA EDITAR EL TÍTULO SOBRE FONDO AZUL ---
+function InlineEditTitle({
   value,
   onSave,
-  className,
 }: {
-  value: string | number
+  value: string
   onSave: (val: string) => void
-  className?: string
 }) {
-  const textValue = String(value)
+  const [isEditing, setIsEditing] = useState(false)
+  const [tempVal, setTempVal] = useState(value)
 
-  // Manejador para cuando el usuario termina de editar (pierde el foco)
-  const handleBlur = (e: React.FocusEvent<HTMLSpanElement>) => {
-    const newValue = e.currentTarget.innerText
-    if (newValue !== textValue) {
-      onSave(newValue)
-    }
+  useEffect(() => setTempVal(value), [value])
+
+  const handleSave = () => {
+    setIsEditing(false)
+    if (tempVal.trim() && tempVal !== value) onSave(tempVal.trim())
+    else setTempVal(value) // Revertir si está vacío
   }
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLSpanElement>) => {
-    if (e.key === 'Enter') {
-      e.preventDefault()
-      e.currentTarget.blur() // Forzamos el guardado al presionar Enter
-    }
+  if (isEditing) {
+    return (
+      <input
+        autoFocus
+        value={tempVal}
+        onChange={(e) => setTempVal(e.target.value)}
+        onBlur={handleSave}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') handleSave()
+          if (e.key === 'Escape') {
+            setTempVal(value)
+            setIsEditing(false)
+          }
+        }}
+        // Input estilizado para fondo oscuro: borde blanco sutil, texto blanco
+        className="focus:ring-primary/40 w-full rounded-md border-2 border-white/20 bg-transparent px-2 py-1 text-3xl font-bold text-white shadow-sm outline-none focus:ring-4"
+      />
+    )
   }
 
   return (
-    // eslint-disable-next-line jsx-a11y/no-static-element-interactions
-    <span
-      contentEditable
-      suppressContentEditableWarning={true} // Evita el warning de React por tener hijos y contentEditable
-      spellCheck={false}
-      onBlur={handleBlur}
-      onKeyDown={handleKeyDown}
-      className={`inline-block cursor-text rounded-sm px-1 transition-all hover:bg-white/10 focus:bg-white/20 focus:ring-2 focus:ring-blue-400/50 focus:outline-none ${className ?? ''} `}
+    <h1
+      onClick={() => setIsEditing(true)}
+      // Texto blanco por defecto, fondo blanco sutil al hover
+      className="group flex cursor-pointer items-center gap-3 rounded-md px-2 py-1 text-3xl font-bold text-white transition-colors hover:bg-white/5"
     >
-      {textValue}
-    </span>
+      {value}
+      {/* Lápiz blanco sutil */}
+      <Pencil className="h-5 w-5 text-white/50 opacity-0 transition-all group-hover:opacity-100 hover:text-white" />
+    </h1>
   )
 }
+
+// --- 2. COMPONENTE PARA EDITAR LOS BADGES SOBRE FONDO AZUL ---
+function InlineEditBadge({
+  icon,
+  label,
+  value,
+  suffix = '',
+  type = 'text',
+  onSave,
+}: {
+  icon: React.ReactNode
+  label: string
+  value: string | number
+  suffix?: string
+  type?: 'text' | 'number'
+  onSave: (val: string) => void
+}) {
+  const [isEditing, setIsEditing] = useState(false)
+  const [tempVal, setTempVal] = useState(value)
+
+  useEffect(() => setTempVal(value), [value])
+
+  const handleSave = () => {
+    setIsEditing(false)
+    if (String(tempVal).trim() !== String(value)) {
+      onSave(String(tempVal))
+    }
+  }
+
+  if (isEditing) {
+    return (
+      // Contenedor del input con estética de badge oscuro
+      <div className="focus:ring-primary/40 flex h-8 items-center gap-2 rounded-md border border-white/20 bg-white/5 px-3 shadow-sm ring-1 focus-within:ring-2">
+        <span className="text-xs font-medium tracking-wider text-white/60 uppercase">
+          {label}:
+        </span>
+        <input
+          autoFocus
+          type={type}
+          value={tempVal}
+          onChange={(e) => setTempVal(e.target.value)}
+          onBlur={handleSave}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') handleSave()
+            if (e.key === 'Escape') {
+              setTempVal(value)
+              setIsEditing(false)
+            }
+          }}
+          // Texto blanco dentro del input
+          className="w-16 bg-transparent text-sm font-semibold text-white outline-none"
+        />
+      </div>
+    )
+  }
+
+  return (
+    <button
+      onClick={() => setIsEditing(true)}
+      // Badge oscuro: borde blanco sutil, texto blanco, fondo más claro al hover
+      className="group flex h-8 items-center gap-2 rounded-md border border-white/10 bg-white/5 px-3 text-sm text-white transition-all hover:border-white/20 hover:bg-white/10"
+    >
+      {/* Ícono blanco sutil */}
+      <span className="text-white/70">{icon}</span>
+      <span className="text-xs font-medium tracking-wider text-white/60 uppercase">
+        {label}:
+      </span>
+      <span className="font-semibold text-white">
+        {value} {suffix}
+      </span>
+      {/* Lápiz blanco sutil */}
+      <Pencil className="h-3 w-3 text-white/50 opacity-0 transition-opacity group-hover:opacity-100" />
+    </button>
+  )
+}
+
 interface DatosPlan {
   nombre?: string
 }
 
 function AsignaturaLayout() {
   const location = useLocation()
-  const { asignaturaId } = useParams({
+  const { asignaturaId, planId } = useParams({
     from: '/planes/$planId/asignaturas/$asignaturaId',
   })
-  const { planId } = useParams({
-    from: '/planes/$planId/asignaturas/$asignaturaId',
-  })
+
   const { data: asignaturaApi, isLoading: loadingAsig } =
     useSubject(asignaturaId)
   const { data: todasLasAsignaturas } = usePlanAsignaturas(planId)
@@ -115,7 +209,6 @@ function AsignaturaLayout() {
 
   const updateAsignatura = useUpdateAsignatura()
 
-  // Dentro de AsignaturaDetailPage
   const [headerData, setHeaderData] = useState({
     codigo: '',
     nombre: '',
@@ -123,7 +216,6 @@ function AsignaturaLayout() {
     ciclo: 0,
   })
 
-  // Sincronizar cuando llegue la API
   useEffect(() => {
     if (asignaturaApi) {
       setHeaderData({
@@ -160,17 +252,13 @@ function AsignaturaLayout() {
     const patch: Record<string, any> =
       key === 'ciclo' ? { numero_ciclo: value } : { [key]: value }
 
-    updateAsignatura.mutate({
-      asignaturaId,
-      patch,
-    })
+    updateAsignatura.mutate({ asignaturaId, patch })
   }
 
   const pathname = useRouterState({
     select: (state) => state.location.pathname,
   })
 
-  // Confetti al llegar desde creación IA
   useEffect(() => {
     if ((location.state as any)?.showConfetti) {
       lateralConfetti()
@@ -180,87 +268,95 @@ function AsignaturaLayout() {
 
   if (loadingAsig) {
     return (
-      <div className="flex h-screen items-center justify-center bg-[#0b1d3a] text-white">
+      <div className="bg-background text-foreground flex h-screen items-center justify-center">
         Cargando asignatura...
       </div>
     )
   }
 
-  // Si no hay datos y no está cargando, algo falló
   if (!asignaturaApi) return null
 
   return (
-    <div>
-      <section className="bg-linear-to-b from-[#0b1d3a] to-[#0e2a5c] text-white">
-        <div className="mx-auto p-4 py-10 md:px-6 lg:px-8">
+    <div className="bg-background min-h-screen">
+      {/* HEADER DE LA ASIGNATURA CON TU FONDO AZUL HARDCODEADO */}
+      <section className="border-border border-b bg-[#0b1d3a] pt-6 pb-8">
+        <div className="mx-auto px-4 md:px-6 lg:px-8">
           <Link
             to="/planes/$planId/asignaturas"
             params={{ planId }}
-            className="mb-4 flex items-center gap-2 text-sm text-blue-200 hover:text-white"
+            // Enlace blanco sutil
+            className="mb-4 flex w-fit items-center gap-2 text-sm text-white/70 transition-colors hover:text-white"
           >
             <ArrowLeft className="h-4 w-4" /> Volver al plan
           </Link>
 
-          <div className="flex items-start justify-between gap-6">
-            <div className="space-y-3">
-              {/* CÓDIGO EDITABLE */}
-              <Badge className="border border-blue-700 bg-blue-900/50">
-                <EditableHeaderField
-                  value={headerData.codigo}
-                  onSave={(val) => handleUpdateHeader('codigo', val)}
-                />
-              </Badge>
-
-              {/* NOMBRE EDITABLE */}
-              <h1 className="text-3xl font-bold">
-                <EditableHeaderField
-                  value={headerData.nombre}
-                  onSave={(val) => handleUpdateHeader('nombre', val)}
-                />
-              </h1>
-              <div className="flex flex-wrap gap-4 text-sm text-blue-200">
-                <span className="flex items-center gap-1">
-                  <GraduationCap className="h-4 w-4 shrink-0" />
-                  Pertenece al plan:{' '}
-                  <span className="text-blue-100">
-                    {(asignaturaApi.planes_estudio as DatosPlan | undefined)
-                      ?.nombre ?? ''}
-                  </span>
-                </span>
-              </div>
+          <div className="flex flex-col gap-4">
+            {/* Título Editable (Texto blanco controlado dentro del componente) */}
+            <div className="-ml-2">
+              <InlineEditTitle
+                value={headerData.nombre}
+                onSave={(val) => handleUpdateHeader('nombre', val)}
+              />
             </div>
 
-            <div className="flex flex-col items-end gap-2 text-right">
-              {/* CRÉDITOS EDITABLES */}
-              <Badge variant="secondary" className="gap-1">
-                <span className="inline-flex max-w-fit">
-                  <EditableHeaderField
-                    value={headerData.creditos}
-                    onSave={(val) =>
-                      handleUpdateHeader('creditos', parseInt(val) || 0)
-                    }
-                  />
-                </span>
-                <span>créditos</span>
+            {/* Fila de Metadatos Alineados */}
+            <div className="flex flex-wrap items-center gap-3">
+              {/* Badge Estático del Tipo (Estilo oscuro sutil) */}
+              <Badge
+                variant="outline"
+                className="flex h-8 cursor-default items-center gap-1.5 border-white/10 bg-white/5 px-3 text-white"
+              >
+                <Tag size={12} className="text-white/70" />
+                {asignaturaApi.tipo}
               </Badge>
 
-              {/* SEMESTRE EDITABLE */}
-              <Badge variant="secondary" className="gap-1">
-                <EditableHeaderField
-                  value={headerData.ciclo}
-                  onSave={(val) =>
-                    handleUpdateHeader('ciclo', parseInt(val) || 0)
-                  }
-                />
-                <span>° ciclo</span>
-              </Badge>
+              {/* Badges Editables (Texto blanco controlado dentro de los componentes) */}
+              <InlineEditBadge
+                icon={<Hash size={14} />}
+                label="Código"
+                value={headerData.codigo}
+                onSave={(val) => handleUpdateHeader('codigo', val)}
+              />
 
-              <Badge variant="secondary">{asignaturaApi.tipo}</Badge>
+              <InlineEditBadge
+                icon={<BookOpen size={14} />}
+                label="Créditos"
+                type="number"
+                value={headerData.creditos}
+                onSave={(val) =>
+                  handleUpdateHeader('creditos', parseInt(val) || 0)
+                }
+              />
+
+              <InlineEditBadge
+                icon={<CalendarDays size={14} />}
+                label="Semestre"
+                type="number"
+                value={headerData.ciclo}
+                suffix="°"
+                onSave={(val) =>
+                  handleUpdateHeader('ciclo', parseInt(val) || 0)
+                }
+              />
+            </div>
+
+            {/* Subtítulo de contexto (Texto blanco sutil) */}
+            <div className="mt-2 flex items-center gap-2 text-sm text-white/70">
+              <GraduationCap className="h-4 w-4 shrink-0 text-white/60" />
+              <span>Pertenece al plan:</span>
+              <span className="font-medium text-white">
+                {(asignaturaApi.planes_estudio as DatosPlan).nombre || ''}
+              </span>
             </div>
           </div>
         </div>
       </section>
 
+      {/* TABS NAVEGACIÓN (Se mantiene semántico para el cuerpo de la página) 
+      <nav className="border-border bg-background/80 sticky top-0 z-20 border-b backdrop-blur-md">
+        <div className="mx-auto px-4 py-1 md:px-6 lg:px-8">
+          <div className="scrollbar-hide flex items-center justify-start gap-8 overflow-x-auto whitespace-nowrap md:justify-start">
+          */}
       {confirmState && (
         <AlertaConflicto
           isOpen={confirmState.isOpen}
@@ -309,11 +405,12 @@ function AsignaturaLayout() {
                   }
                   from="/planes/$planId/asignaturas/$asignaturaId"
                   params={{ planId, asignaturaId }}
-                  className={`shrink-0 border-b-2 py-4 text-sm font-medium transition-colors ${
+                  className={cn(
+                    'shrink-0 border-b-2 py-3 text-sm font-medium transition-colors',
                     isActive
-                      ? 'border-blue-600 text-blue-600'
-                      : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700'
-                  }`}
+                      ? 'border-primary text-primary font-bold'
+                      : 'text-muted-foreground hover:border-border hover:text-foreground border-transparent',
+                  )}
                 >
                   {tab.label}
                 </Link>

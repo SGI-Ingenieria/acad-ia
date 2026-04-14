@@ -15,7 +15,7 @@ import {
   Archive,
   History,
   Edit2,
-  Loader2, // Agregado
+  Loader2,
 } from 'lucide-react'
 import { useState, useEffect, useRef, useMemo } from 'react'
 
@@ -62,6 +62,7 @@ export function IAAsignaturaTab() {
     from: '/planes/$planId/asignaturas/$asignaturaId',
   })
   const location = useLocation()
+
   // --- ESTADOS ---
   const [activeChatId, setActiveChatId] = useState<string | undefined>(
     undefined,
@@ -109,7 +110,6 @@ export function IAAsignaturaTab() {
 
     setIsSending(true)
     try {
-      // 1. Consolidar el Patch
       const patchData: any = {
         datos: { ...datosGenerales.datos },
       }
@@ -124,13 +124,11 @@ export function IAAsignaturaTab() {
         }
       }
 
-      // 2. Actualización única de la asignatura
       await updateAsignatura.mutateAsync({
         asignaturaId: asignaturaId as any,
         patch: patchData,
       })
 
-      // 3. Marcar recomendaciones una por una (Secuencialmente para evitar colisiones)
       for (const sug of sugerencias) {
         await updateRecommendation.mutateAsync({
           mensajeId: sug.messageId,
@@ -138,14 +136,12 @@ export function IAAsignaturaTab() {
         })
       }
 
-      // 4. Limpieza de estados
       const appliedKeys = sugerencias.map((s) => s.campoKey)
       setSelectedFields((prev) =>
         prev.filter((f) => !appliedKeys.includes(f.key)),
       )
       setSelectedImprovements([])
 
-      // Forzar actualización visual
       queryClient.invalidateQueries({ queryKey: ['subject', asignaturaId] })
     } catch (error) {
       console.error('Error en aplicación masiva:', error)
@@ -153,6 +149,7 @@ export function IAAsignaturaTab() {
       setIsSending(false)
     }
   }
+
   const toggleImprovementSelection = (sugId: string) => {
     setSelectedImprovements((prev) =>
       prev.includes(sugId)
@@ -176,7 +173,6 @@ export function IAAsignaturaTab() {
     }
   }
 
-  // Cálculo del total para el Badge del botón
   const totalReferencias =
     selectedArchivoIds.length +
     selectedRepositorioIds.length +
@@ -186,14 +182,12 @@ export function IAAsignaturaTab() {
     if (isSending) return true
     if (!rawMessages || rawMessages.length === 0) return false
 
-    // Verificamos si el último mensaje está en estado de procesamiento
     const lastMessage = rawMessages[rawMessages.length - 1]
     return (
       lastMessage.estado === 'PROCESANDO' || lastMessage.estado === 'PENDIENTE'
     )
   }, [isSending, rawMessages])
 
-  // --- AUTO-SCROLL ---
   useEffect(() => {
     const viewport = scrollRef.current?.querySelector(
       '[data-radix-scroll-area-viewport]',
@@ -203,7 +197,6 @@ export function IAAsignaturaTab() {
     }
   }, [rawMessages, isSending])
 
-  // --- FILTRADO DE CHATS ---
   const { activeChats, archivedChats } = useMemo(() => {
     const chats = todasConversaciones || []
     return {
@@ -213,7 +206,6 @@ export function IAAsignaturaTab() {
   }, [todasConversaciones])
 
   const availableFields = useMemo(() => {
-    // 1. Obtenemos los campos dinámicos de la DB
     const dynamicFields = datosGenerales?.datos
       ? Object.keys(datosGenerales.datos).map((key) => {
           const estructuraProps =
@@ -228,13 +220,8 @@ export function IAAsignaturaTab() {
         })
       : []
 
-    // 2. Definimos tus campos manuales (hardcoded)
     const hardcodedFields = [
-      {
-        key: 'contenido_tematico',
-        label: 'Contenido temático',
-        value: '', // Puedes dejarlo vacío o buscarlo en datosGenerales si existiera
-      },
+      { key: 'contenido_tematico', label: 'Contenido temático', value: '' },
       {
         key: 'criterios_de_evaluacion',
         label: 'Criterios de evaluación',
@@ -242,7 +229,6 @@ export function IAAsignaturaTab() {
       },
     ]
 
-    // 3. Unimos ambos, filtrando duplicados por si acaso el backend ya los envía
     const combined = [...dynamicFields]
 
     hardcodedFields.forEach((hf) => {
@@ -254,18 +240,13 @@ export function IAAsignaturaTab() {
     return combined
   }, [datosGenerales])
 
-  // --- PROCESAMIENTO DE MENSAJES ---
-  // --- PROCESAMIENTO DE MENSAJES ---
   const messages = useMemo(() => {
     const msgs: Array<any> = []
 
-    // 1. Mensajes existentes de la DB
     if (rawMessages) {
       rawMessages.forEach((m) => {
-        // Mensaje del usuario
         msgs.push({ id: `${m.id}-user`, role: 'user', content: m.mensaje })
 
-        // Respuesta de la IA (si existe)
         if (m.respuesta) {
           const sugerencias =
             m.propuesta?.recommendations?.map((rec: any, index: number) => ({
@@ -287,21 +268,14 @@ export function IAAsignaturaTab() {
       })
     }
 
-    // 2. INYECCIÓN OPTIMISTA: Si estamos enviando, mostramos el texto actual del input como mensaje de usuario
     if (isSending && input.trim()) {
-      msgs.push({
-        id: 'optimistic-user-msg',
-        role: 'user',
-        content: input,
-      })
+      msgs.push({ id: 'optimistic-user-msg', role: 'user', content: input })
     }
 
     return msgs
   }, [rawMessages, isSending, input])
 
-  // Auto-selección inicial
   useEffect(() => {
-    // Si ya hay un chat, o si el usuario ya interactuó (hasInitialSelected), abortamos.
     if (activeChatId || hasInitialSelected.current) return
 
     if (activeChats.length > 0 && !loadingConv) {
@@ -312,16 +286,14 @@ export function IAAsignaturaTab() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value
-    const selectionStart = e.target.selectionStart // Posición del cursor
+    const selectionStart = e.target.selectionStart
     setInput(value)
 
-    // Buscamos si el carácter anterior al cursor es ':'
     const lastChar = value.slice(selectionStart - 1, selectionStart)
 
     if (lastChar === ':') {
       setShowSuggestions(true)
     } else if (!value.includes(':')) {
-      // Si borran todos los dos puntos, cerramos
       setShowSuggestions(false)
     }
   }
@@ -329,17 +301,11 @@ export function IAAsignaturaTab() {
   const filteredFields = useMemo(() => {
     if (!showSuggestions || !input) return availableFields
 
-    // 1. Encontrar el ":" más cercano a la IZQUIERDA del cursor
-    // Usamos una posición de referencia (si no tienes ref, usaremos el final del string,
-    // pero para mayor precisión lo ideal es usar e.target.selectionStart en el onChange)
-
     const lastColonIndex = input.lastIndexOf(':')
     if (lastColonIndex === -1) return availableFields
 
-    // 2. Extraer solo el fragmento de "búsqueda"
-    // Cortamos desde el ":" hasta el final, y luego tomamos solo la primera palabra
     const textAfterColon = input.slice(lastColonIndex + 1)
-    const query = textAfterColon.split(/\s/)[0].toLowerCase() // Se detiene al encontrar un espacio
+    const query = textAfterColon.split(/\s/)[0].toLowerCase()
 
     if (!query) return availableFields
 
@@ -353,28 +319,21 @@ export function IAAsignaturaTab() {
   useEffect(() => {
     const state = location.state as any
 
-    // Verificamos si existe el timestamp (_ts) para saber que es una acción nueva
     if (state?.activeTab === 'ia' && state?._ts) {
-      // Si el campo no está ya seleccionado, lo agregamos
       if (state.prefillCampo) {
         const fieldToSelect = availableFields.find(
           (f) => f.key === state.prefillCampo,
         )
 
         if (fieldToSelect) {
-          setSelectedFields([fieldToSelect]) // Reemplaza o añade según prefieras
-
-          // Generamos un prompt inicial automático
+          setSelectedFields([fieldToSelect])
           const autoPrompt = `Mejora el contenido de: ${fieldToSelect.label}`
           setInput(autoPrompt)
-
-          // Opcional: Si quieres que dispare la IA inmediatamente al llegar:
-          // handleSend(autoPrompt)
         }
       }
     }
   }, [location.state, availableFields])
-  // 2. Efecto para cerrar con ESC
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setShowSuggestions(false)
@@ -383,7 +342,6 @@ export function IAAsignaturaTab() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [])
 
-  // 3. Función para insertar el campo y limpiar el prompt
   const handleSelectField = (field: SelectedField) => {
     if (!selectedFields.find((f) => f.key === field.key)) {
       setSelectedFields((prev) => [...prev, field])
@@ -392,16 +350,11 @@ export function IAAsignaturaTab() {
     const lastColonIndex = input.lastIndexOf(':')
     if (lastColonIndex !== -1) {
       const parteAntesDelColon = input.slice(0, lastColonIndex)
-
-      // Buscamos si hay texto después de la palabra que estamos escribiendo
       const textoDespuesDelColon = input.slice(lastColonIndex + 1)
       const espacioIndex = textoDespuesDelColon.indexOf(' ')
-
-      // Si hay un espacio, guardamos lo que sigue. Si no, es el final del texto.
       const parteRestante =
         espacioIndex !== -1 ? textoDespuesDelColon.slice(espacioIndex) : ''
 
-      // Reconstruimos: [Antes] + [Label] + [Lo que ya estaba después]
       const nuevoTexto = `${parteAntesDelColon}${field.label}${parteRestante}`
       setInput(nuevoTexto)
     }
@@ -423,21 +376,17 @@ export function IAAsignaturaTab() {
     setIsSending(true)
     try {
       const response = await sendMessage({
-        subjectId: asignaturaId as any, // Importante: se usa para crear la conv si activeChatId es undefined
+        subjectId: asignaturaId as any,
         content: text,
         campos: selectedFields.map((f) => f.key),
-        conversacionId: activeChatId, // Si es undefined, la mutación crea el chat automáticamente
+        conversacionId: activeChatId,
       })
 
-      // IMPORTANTE: Después de la respuesta, actualizamos el ID activo con el que creó el backend
       if (response.conversacionId) {
         setActiveChatId(response.conversacionId)
       }
 
       setInput('')
-      // setSelectedFields([])
-
-      // Invalidamos la lista de conversaciones para que el nuevo chat aparezca en el historial (panel izquierdo)
       queryClient.invalidateQueries({
         queryKey: ['conversation-by-subject', asignaturaId],
       })
@@ -457,10 +406,9 @@ export function IAAsignaturaTab() {
   }
 
   const createNewChat = () => {
-    setActiveChatId(undefined) // Al ser undefined, el próximo mensaje creará la charla en el backend
+    setActiveChatId(undefined)
     setInput('')
     setSelectedFields([])
-    // Opcional: podrías forzar el foco al textarea aquí con una ref
   }
 
   const PRESETS = [
@@ -485,19 +433,19 @@ export function IAAsignaturaTab() {
   ]
 
   return (
-    <div className="flex h-full w-full overflow-hidden bg-white">
-      <div className="fixed top-0 z-40 flex w-full items-center justify-between border-b bg-white/80 p-2 backdrop-blur-md">
+    <div className="bg-background flex h-full w-full overflow-hidden">
+      <div className="bg-background/80 fixed top-0 z-40 flex w-full items-center justify-between border-b p-2 backdrop-blur-md">
         <Button
           variant="ghost"
           size="sm"
-          className="text-slate-600"
+          className="text-muted-foreground"
           onClick={() => setIsSidebarOpen(true)}
         >
           <History size={18} className="mr-2" /> Historial
         </Button>
 
         <div className="flex flex-col items-center">
-          <span className="text-[9px] font-bold tracking-wider text-teal-600 uppercase">
+          <span className="text-primary text-[9px] font-bold tracking-wider uppercase">
             Asistente
           </span>
         </div>
@@ -505,16 +453,17 @@ export function IAAsignaturaTab() {
         <Button
           variant="ghost"
           size="sm"
-          className="text-slate-600"
-          onClick={() => setOpenIA(true)} // O el drawer de acciones/referencias
+          className="text-muted-foreground"
+          onClick={() => setOpenIA(true)}
         >
-          <FileText size={18} className="mr-2 text-teal-600" /> Referencias
+          <FileText size={18} className="text-primary mr-2" /> Referencias
         </Button>
       </div>
+
       {/* 1. PANEL IZQUIERDO (HISTORIAL) - Desktop */}
-      <aside className="hidden h-full w-64 shrink-0 flex-col border-r bg-white pr-4 md:flex">
+      <aside className="bg-background hidden h-full w-64 shrink-0 flex-col border-r pr-4 md:flex">
         <div className="mb-4 flex items-center justify-between px-2 pt-4">
-          <h2 className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase">
+          <h2 className="text-muted-foreground flex items-center gap-2 text-xs font-bold uppercase">
             <History size={14} /> Historial
           </h2>
           <Button
@@ -522,7 +471,7 @@ export function IAAsignaturaTab() {
             size="icon"
             className={cn(
               'h-8 w-8',
-              showArchived && 'bg-teal-50 text-teal-600',
+              showArchived && 'bg-accent text-accent-foreground',
             )}
             onClick={() => setShowArchived(!showArchived)}
           >
@@ -539,7 +488,7 @@ export function IAAsignaturaTab() {
             queryClient.setQueryData(['subject-messages', undefined], [])
           }}
           variant="outline"
-          className="mb-4 w-full justify-start gap-2 border-dashed border-slate-300 text-slate-600 hover:border-teal-500 hover:bg-teal-50/50"
+          className="border-border text-muted-foreground hover:border-primary hover:bg-primary/10 mb-4 w-full justify-start gap-2 border-dashed"
         >
           <MessageSquarePlus size={18} /> Nuevo Chat
         </Button>
@@ -550,11 +499,10 @@ export function IAAsignaturaTab() {
               <div
                 key={chat.id}
                 className={cn(
-                  // Agregamos 'overflow-hidden' para que nada salga de este cuadro
                   'group relative flex w-full min-w-0 items-center justify-between gap-2 overflow-hidden rounded-lg px-3 py-2 text-sm transition-all',
                   activeChatId === chat.id
-                    ? 'bg-teal-50 text-teal-900'
-                    : 'text-slate-600 hover:bg-slate-100',
+                    ? 'bg-accent text-foreground font-medium'
+                    : 'text-muted-foreground hover:bg-muted',
                 )}
                 onDoubleClick={() => {
                   setEditingId(chat.id)
@@ -565,7 +513,7 @@ export function IAAsignaturaTab() {
                   <div className="flex min-w-0 flex-1 items-center">
                     <input
                       autoFocus
-                      className="w-full rounded border-none bg-white px-1 text-xs ring-1 ring-teal-400 outline-none"
+                      className="bg-background ring-primary w-full rounded border-none px-1 text-xs ring-1 outline-none"
                       value={tempName}
                       onChange={(e) => setTempName(e.target.value)}
                       onBlur={() => handleSaveName(chat.id)}
@@ -577,7 +525,6 @@ export function IAAsignaturaTab() {
                   </div>
                 ) : (
                   <>
-                    {/* CLAVE 2: 'truncate' y 'min-w-0' en el span para que ceda ante los botones */}
                     <span
                       onClick={() => setActiveChatId(chat.id)}
                       className="block max-w-[140px] min-w-0 flex-1 cursor-pointer truncate pr-1"
@@ -586,13 +533,12 @@ export function IAAsignaturaTab() {
                       {chat.nombre || chat.titulo || 'Conversación'}
                     </span>
 
-                    {/* CLAVE 3: 'shrink-0' asegura que los botones NUNCA desaparezcan */}
                     <div
                       className={cn(
                         'z-10 flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100',
                         activeChatId === chat.id
-                          ? 'bg-teal-50'
-                          : 'bg-slate-100',
+                          ? 'bg-accent'
+                          : 'bg-transparent',
                       )}
                     >
                       <TooltipProvider delayDuration={300}>
@@ -604,7 +550,7 @@ export function IAAsignaturaTab() {
                                 setEditingId(chat.id)
                                 setTempName(chat.nombre || chat.titulo || '')
                               }}
-                              className="rounded-md p-1 transition-colors hover:bg-slate-200 hover:text-teal-600"
+                              className="hover:bg-muted hover:text-primary rounded-md p-1 transition-colors"
                             >
                               <Edit2 size={14} />
                             </button>
@@ -629,10 +575,10 @@ export function IAAsignaturaTab() {
                                 })
                               }}
                               className={cn(
-                                'rounded-md p-1 transition-colors hover:bg-slate-200',
+                                'hover:bg-muted rounded-md p-1 transition-colors',
                                 chat.estado === 'ACTIVA'
-                                  ? 'hover:text-red-500'
-                                  : 'hover:text-teal-600',
+                                  ? 'hover:text-destructive'
+                                  : 'hover:text-primary',
                               )}
                             >
                               {chat.estado === 'ACTIVA' ? (
@@ -658,16 +604,16 @@ export function IAAsignaturaTab() {
         </ScrollArea>
       </aside>
 
-      {/* 2. PANEL CENTRAL (CHAT) - EL RECUADRO ESTILIZADO */}
+      {/* 2. PANEL CENTRAL (CHAT) */}
       <main
         className={cn(
-          'relative flex min-w-0 flex-1 flex-col overflow-hidden bg-slate-50/50 shadow-sm',
-          'mt-[50px] h-[calc(100svh-50px)]', // 50px es la altura aproximada de tu header fixed
-          'md:m-2 md:mt-0 md:h-[calc(100vh-160px)] md:rounded-xl md:border md:border-slate-200',
+          'bg-muted/30 relative flex min-w-0 flex-1 flex-col overflow-hidden shadow-sm',
+          'mt-[50px] h-[calc(100svh-50px)]',
+          'md:border-border md:m-2 md:mt-0 md:h-[calc(100vh-160px)] md:rounded-xl md:border',
         )}
       >
-        {/* Header Interno del Recuadro */}
-        <div className="flex shrink-0 items-center justify-between border-b bg-white p-3">
+        {/* Header Interno */}
+        <div className="bg-background flex shrink-0 items-center justify-between border-b p-3">
           <div className="flex items-center gap-2">
             <Button
               variant="ghost"
@@ -675,13 +621,13 @@ export function IAAsignaturaTab() {
               className="md:hidden"
               onClick={() => setIsSidebarOpen(true)}
             >
-              <History size={20} className="text-slate-500" />
+              <History size={20} className="text-muted-foreground" />
             </Button>
             <div className="flex flex-col">
-              <span className="text-[10px] font-bold tracking-wider text-teal-600 uppercase">
+              <span className="text-primary text-[10px] font-bold tracking-wider uppercase">
                 Asistente Académico
               </span>
-              <span className="text-[11px] text-slate-400">
+              <span className="text-muted-foreground text-[11px]">
                 Personalizado para tu asignatura
               </span>
             </div>
@@ -690,12 +636,12 @@ export function IAAsignaturaTab() {
           <div className="flex gap-2">
             <button
               onClick={() => setOpenIA(true)}
-              className="flex items-center gap-2 rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-200"
+              className="bg-secondary text-secondary-foreground hover:bg-secondary/80 flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors"
             >
               <FileText size={14} />
               <span className="xs:inline hidden">Referencias</span>
               {totalReferencias > 0 && (
-                <span className="flex h-4 min-w-[16px] items-center justify-center rounded-full bg-teal-600 px-1 text-[10px] text-white">
+                <span className="bg-primary text-primary-foreground flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[10px]">
                   {totalReferencias}
                 </span>
               )}
@@ -719,8 +665,8 @@ export function IAAsignaturaTab() {
                     className={cn(
                       'h-9 w-9 shrink-0 border shadow-sm',
                       msg.role === 'assistant'
-                        ? 'bg-teal-600 text-white'
-                        : 'bg-slate-100',
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-muted text-muted-foreground',
                     )}
                   >
                     <AvatarFallback>
@@ -742,11 +688,10 @@ export function IAAsignaturaTab() {
                       className={cn(
                         'relative overflow-hidden rounded-2xl border shadow-sm',
                         msg.role === 'user'
-                          ? 'rounded-tr-none border-teal-700 bg-teal-600 px-4 py-3 text-white'
-                          : 'w-full rounded-tl-none border-slate-200 bg-white text-slate-800',
+                          ? 'border-primary bg-primary text-primary-foreground rounded-tr-none px-4 py-3'
+                          : 'bg-card text-card-foreground border-border w-full rounded-tl-none',
                       )}
                     >
-                      {/* Texto del mensaje principal */}
                       <div
                         style={{ whiteSpace: 'pre-line' }}
                         className={cn(
@@ -757,27 +702,27 @@ export function IAAsignaturaTab() {
                         {msg.content}
                       </div>
 
-                      {/* CONTENEDOR DE SUGERENCIAS INTEGRADO */}
                       {msg.role === 'assistant' &&
                         msg.sugerencias?.length > 0 && (
-                          <div className="space-y-3 border-t bg-slate-50/50 p-3">
+                          <div className="border-border bg-muted/50 space-y-3 border-t p-3">
                             <div className="flex items-center justify-between">
-                              <p className="text-[10px] font-bold text-slate-400 uppercase">
+                              <p className="text-muted-foreground text-[10px] font-bold uppercase">
                                 Mejoras disponibles
                               </p>
 
-                              {/* Solo mostramos "Seleccionar todo" si hay sugerencias pendientes en ESTE mensaje */}
-                              {msg.sugerencias.some((s) => !s.aceptada) && (
+                              {msg.sugerencias.some(
+                                (s: any) => !s.aceptada,
+                              ) && (
                                 <Button
                                   variant="ghost"
-                                  className="h-6 text-[10px] text-teal-600 hover:bg-teal-100"
+                                  className="text-primary hover:bg-primary/10 h-6 text-[10px]"
                                   onClick={() =>
                                     toggleAllFromMessage(msg.sugerencias)
                                   }
                                 >
                                   {msg.sugerencias
-                                    .filter((s) => !s.aceptada)
-                                    .every((s) =>
+                                    .filter((s: any) => !s.aceptada)
+                                    .every((s: any) =>
                                       selectedImprovements.includes(s.id),
                                     )
                                     ? 'Desmarcar todas'
@@ -791,7 +736,7 @@ export function IAAsignaturaTab() {
                                 {!sug.aceptada && (
                                   <input
                                     type="checkbox"
-                                    className="mt-4 h-4 w-4 rounded border-slate-300 accent-teal-600"
+                                    className="border-input accent-primary mt-4 h-4 w-4 rounded"
                                     checked={selectedImprovements.includes(
                                       sug.id,
                                     )}
@@ -814,17 +759,16 @@ export function IAAsignaturaTab() {
                               </div>
                             ))}
 
-                            {/* EL BOTÓN DE APLICAR: Lo movemos para que solo aparezca si hay algo seleccionado de ESTE mensaje */}
-                            {msg.sugerencias.some((s) =>
+                            {msg.sugerencias.some((s: any) =>
                               selectedImprovements.includes(s.id),
                             ) && (
                               <Button
                                 size="sm"
                                 disabled={isSending}
-                                className="w-full bg-teal-600 text-xs font-bold shadow-md hover:bg-teal-700"
+                                className="w-full text-xs font-bold shadow-md"
                                 onClick={() => {
                                   const seleccionadasDeEsteMensaje =
-                                    msg.sugerencias.filter((s) =>
+                                    msg.sugerencias.filter((s: any) =>
                                       selectedImprovements.includes(s.id),
                                     )
                                   handleApplyMultiple(
@@ -851,139 +795,137 @@ export function IAAsignaturaTab() {
               ))}
               {isAiThinking && (
                 <div className="animate-in fade-in slide-in-from-bottom-2 flex gap-4">
-                  <Avatar className="h-9 w-9 shrink-0 border bg-teal-600 text-white shadow-sm">
+                  <Avatar className="bg-primary text-primary-foreground h-9 w-9 shrink-0 border shadow-sm">
                     <AvatarFallback>
                       <Sparkles size={16} className="animate-pulse" />
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex flex-col items-start gap-2">
-                    <div className="rounded-2xl rounded-tl-none border border-slate-200 bg-white p-4 shadow-sm">
+                    <div className="bg-card border-border rounded-2xl rounded-tl-none border p-4 shadow-sm">
                       <div className="flex gap-1">
-                        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400 [animation-delay:-0.3s]"></span>
-                        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400 [animation-delay:-0.15s]"></span>
-                        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400"></span>
+                        <span className="bg-muted-foreground/50 h-1.5 w-1.5 animate-bounce rounded-full [animation-delay:-0.3s]"></span>
+                        <span className="bg-muted-foreground/50 h-1.5 w-1.5 animate-bounce rounded-full [animation-delay:-0.15s]"></span>
+                        <span className="bg-muted-foreground/50 h-1.5 w-1.5 animate-bounce rounded-full"></span>
                       </div>
                     </div>
-                    <span className="text-[10px] font-medium text-slate-400 italic">
+                    <span className="text-muted-foreground text-[10px] font-medium italic">
                       La IA está analizando tu solicitud...
                     </span>
                   </div>
                 </div>
               )}
-              {/* Espacio extra al final para que el scroll no tape el último mensaje */}
               <div className="h-4" />
             </div>
           </ScrollArea>
         </div>
 
         {/* Input de Chat */}
-        <footer className="shrink-0 border-t bg-white p-3 md:p-4">
-          <div className="shrink-0 border-t bg-white p-2 md:p-4">
-            <div className="relative mx-auto max-w-4xl">
-              {showSuggestions && (
-                <div className="animate-in fade-in slide-in-from-bottom-2 absolute bottom-full left-0 z-50 mb-2 w-72 overflow-hidden rounded-xl border bg-white shadow-2xl">
-                  <div className="flex justify-between border-b bg-slate-50 px-3 py-2 text-[10px] font-bold text-slate-500 uppercase">
-                    <span>Filtrando campos...</span>
-                    <span className="rounded bg-slate-200 px-1 text-[9px] text-slate-400">
-                      ESC para cerrar
-                    </span>
-                  </div>
-                  <div className="max-h-60 overflow-y-auto p-1">
-                    {filteredFields.length > 0 ? (
-                      filteredFields.map((field) => (
-                        <button
-                          key={field.key}
-                          onClick={() => handleSelectField(field)}
-                          className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm transition-colors hover:bg-teal-50"
-                        >
-                          <div className="flex flex-col">
-                            <span className="font-medium text-slate-700">
-                              {field.label}
-                            </span>
-                          </div>
-                          {selectedFields.find((f) => f.key === field.key) && (
-                            <Check size={14} className="text-teal-600" />
-                          )}
-                        </button>
-                      ))
-                    ) : (
-                      <div className="p-4 text-center text-xs text-slate-400 italic">
-                        No se encontraron coincidencias
-                      </div>
-                    )}
-                  </div>
+        <footer className="bg-background border-t p-3 md:p-4">
+          <div className="relative mx-auto max-w-4xl">
+            {showSuggestions && (
+              <div className="animate-in fade-in slide-in-from-bottom-2 bg-popover border-border absolute bottom-full left-0 z-50 mb-2 w-72 overflow-hidden rounded-xl border shadow-2xl">
+                <div className="bg-muted text-muted-foreground flex justify-between border-b px-3 py-2 text-[10px] font-bold uppercase">
+                  <span>Filtrando campos...</span>
+                  <span className="bg-muted-foreground/20 text-muted-foreground rounded px-1 text-[9px]">
+                    ESC para cerrar
+                  </span>
+                </div>
+                <div className="max-h-60 overflow-y-auto p-1">
+                  {filteredFields.length > 0 ? (
+                    filteredFields.map((field) => (
+                      <button
+                        key={field.key}
+                        onClick={() => handleSelectField(field)}
+                        className="hover:bg-accent flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm transition-colors"
+                      >
+                        <div className="flex flex-col">
+                          <span className="text-foreground font-medium">
+                            {field.label}
+                          </span>
+                        </div>
+                        {selectedFields.find((f) => f.key === field.key) && (
+                          <Check size={14} className="text-primary" />
+                        )}
+                      </button>
+                    ))
+                  ) : (
+                    <div className="text-muted-foreground p-4 text-center text-xs italic">
+                      No se encontraron coincidencias
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div className="bg-muted/50 focus-within:bg-background focus-within:ring-primary flex flex-col gap-2 rounded-xl border p-2 transition-all focus-within:ring-1">
+              {selectedFields.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 px-2 pt-1">
+                  {selectedFields.map((field) => (
+                    <div
+                      key={field.key}
+                      className="animate-in zoom-in-95 border-primary/20 bg-primary/10 text-primary flex items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-bold shadow-sm"
+                    >
+                      <Target size={10} />
+                      {field.label}
+                      <button
+                        onClick={() => toggleField(field)}
+                        className="hover:bg-primary/20 ml-1 rounded-full p-0.5 transition-colors"
+                      >
+                        <X size={10} />
+                      </button>
+                    </div>
+                  ))}
                 </div>
               )}
 
-              <div className="flex flex-col gap-2 rounded-xl border bg-slate-50 p-2 transition-all focus-within:bg-white focus-within:ring-1 focus-within:ring-teal-500">
-                {selectedFields.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 px-2 pt-1">
-                    {selectedFields.map((field) => (
-                      <div
-                        key={field.key}
-                        className="animate-in zoom-in-95 flex items-center gap-1 rounded-md border border-teal-200 bg-teal-50 px-2 py-0.5 text-[11px] font-bold text-teal-700 shadow-sm"
-                      >
-                        <Target size={10} />
-                        {field.label}
-                        <button
-                          onClick={() => toggleField(field)}
-                          className="ml-1 rounded-full p-0.5 transition-colors hover:bg-teal-200/50"
-                        >
-                          <X size={10} />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
+              <div className="flex items-end gap-2">
+                <Textarea
+                  value={input}
+                  onChange={(e) => {
+                    const val = e.target.value
+                    const cursor = e.target.selectionStart
+                    setInput(val)
 
-                <div className="flex items-end gap-2">
-                  <Textarea
-                    value={input}
-                    onChange={(e) => {
-                      const val = e.target.value
-                      const cursor = e.target.selectionStart
-                      setInput(val)
+                    const textBeforeCursor = val.slice(0, cursor)
+                    const lastColonIndex = textBeforeCursor.lastIndexOf(':')
 
-                      const textBeforeCursor = val.slice(0, cursor)
-                      const lastColonIndex = textBeforeCursor.lastIndexOf(':')
+                    if (lastColonIndex !== -1) {
+                      const textSinceColon = textBeforeCursor.slice(
+                        lastColonIndex + 1,
+                      )
 
-                      if (lastColonIndex !== -1) {
-                        const textSinceColon = textBeforeCursor.slice(
-                          lastColonIndex + 1,
-                        )
-
-                        // Si hay un espacio después del ":", cerramos sugerencias (ya no es un comando)
-                        // Si no hay espacio, activamos
-                        if (!textSinceColon.includes(' ')) {
-                          setShowSuggestions(true)
-                        } else {
-                          setShowSuggestions(false)
-                        }
+                      if (!textSinceColon.includes(' ')) {
+                        setShowSuggestions(true)
                       } else {
                         setShowSuggestions(false)
                       }
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault()
-                        handleSend()
-                      }
-                    }}
-                    placeholder='Escribe ":" para referenciar un campo...'
-                    className="max-h-[120px] min-h-[40px] flex-1 resize-none border-none bg-transparent text-sm shadow-none focus-visible:ring-0"
-                  />
-                  <Button
-                    onClick={() => handleSend()}
-                    disabled={
-                      (!input.trim() && selectedFields.length === 0) ||
-                      isSending
+                    } else {
+                      setShowSuggestions(false)
                     }
-                    size="icon"
-                    className="h-9 w-9 bg-teal-600 hover:bg-teal-700"
-                  >
-                    <Send size={16} className="text-white" />
-                  </Button>
-                </div>
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault()
+                      handleSend()
+                    }
+                  }}
+                  placeholder='Escribe ":" para referenciar un campo...'
+                  className="max-h-[120px] min-h-[40px] flex-1 resize-none border-none bg-transparent text-sm shadow-none focus-visible:ring-0"
+                />
+                <Button
+                  onClick={() => handleSend()}
+                  disabled={
+                    (!input.trim() && selectedFields.length === 0) || isSending
+                  }
+                  size="icon"
+                  className="mb-1 h-9 w-9 shrink-0"
+                >
+                  {isSending ? (
+                    <Loader2 className="animate-spin" size={16} />
+                  ) : (
+                    <Send size={16} />
+                  )}
+                </Button>
               </div>
             </div>
           </div>
@@ -992,20 +934,20 @@ export function IAAsignaturaTab() {
 
       {/* 3. PANEL DERECHO (ATAJOS) */}
       <aside className="hidden w-64 shrink-0 flex-col gap-4 overflow-y-auto p-4 lg:flex">
-        <h4 className="flex items-center gap-2 text-sm font-bold text-slate-800">
-          <Lightbulb size={18} className="text-orange-500" /> Atajos Rápidos
+        <h4 className="text-foreground flex items-center gap-2 text-sm font-bold">
+          <Lightbulb size={18} className="text-primary" /> Atajos Rápidos
         </h4>
         <div className="space-y-2">
           {PRESETS.map((preset) => (
             <button
               key={preset.id}
               onClick={() => handleSend(preset.prompt)}
-              className="group flex w-full items-center gap-3 rounded-xl border border-slate-100 bg-white p-3 text-left text-sm transition-all hover:border-teal-500 hover:shadow-sm"
+              className="bg-card border-border hover:border-primary group flex w-full items-center gap-3 rounded-xl border p-3 text-left text-sm transition-all hover:shadow-sm"
             >
-              <div className="rounded-lg bg-slate-50 p-2 group-hover:bg-teal-50 group-hover:text-teal-600">
+              <div className="bg-muted group-hover:bg-primary/10 group-hover:text-primary rounded-lg p-2 transition-colors">
                 <preset.icon size={16} />
               </div>
-              <span className="font-medium text-slate-600 group-hover:text-slate-900">
+              <span className="text-muted-foreground group-hover:text-foreground font-medium">
                 {preset.label}
               </span>
             </button>
@@ -1015,14 +957,14 @@ export function IAAsignaturaTab() {
 
       {/* DRAWERS (Referencias e Historial Móvil) */}
       <Drawer open={openIA} onOpenChange={setOpenIA}>
-        <DrawerContent className="fixed inset-x-0 bottom-0 mx-auto mb-4 flex h-[80vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border bg-white shadow-2xl">
-          <div className="flex items-center justify-between border-b bg-slate-50/50 px-4 py-3">
-            <h2 className="text-xs font-bold tracking-wider text-slate-500 uppercase">
+        <DrawerContent className="bg-background fixed inset-x-0 bottom-0 mx-auto mb-4 flex h-[80vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border shadow-2xl">
+          <div className="bg-muted/50 border-border flex items-center justify-between border-b px-4 py-3">
+            <h2 className="text-muted-foreground text-xs font-bold tracking-wider uppercase">
               Referencias para la IA
             </h2>
             <button
               onClick={() => setOpenIA(false)}
-              className="text-slate-400 hover:text-slate-600"
+              className="text-muted-foreground hover:text-foreground transition-colors"
             >
               <X size={18} />
             </button>
@@ -1051,10 +993,9 @@ export function IAAsignaturaTab() {
 
       <Drawer open={isSidebarOpen} onOpenChange={setIsSidebarOpen}>
         <DrawerPortal>
-          <DrawerOverlay className="fixed inset-0 bg-black/40" />
+          <DrawerOverlay />
           <DrawerContent className="fixed right-0 bottom-0 left-0 h-[70vh] p-4 outline-none">
             <div className="flex h-full flex-col overflow-hidden pt-8">
-              {/* Reutiliza aquí el componente de la lista de chats */}
               <Button
                 onClick={() => {
                   setActiveChatId(undefined)
@@ -1062,10 +1003,10 @@ export function IAAsignaturaTab() {
                   setInput('')
                   setSelectedFields([])
                   queryClient.setQueryData(['subject-messages', undefined], [])
-                  setIsSidebarOpen(false) // Cierra el drawer al crear nuevo
+                  setIsSidebarOpen(false)
                 }}
                 variant="outline"
-                className="mb-6 w-full justify-center gap-2 border-dashed border-teal-500 bg-teal-50/50 text-teal-700 hover:bg-teal-100"
+                className="border-primary/50 bg-primary/10 text-primary hover:bg-primary/20 mb-6 w-full justify-center gap-2 border-dashed"
               >
                 <MessageSquarePlus size={18} /> Nuevo Chat
               </Button>
@@ -1074,11 +1015,10 @@ export function IAAsignaturaTab() {
                 <div
                   key={chat.id}
                   className={cn(
-                    // Agregamos 'overflow-hidden' para que nada salga de este cuadro
                     'group relative flex w-full min-w-0 items-center justify-between gap-2 overflow-hidden rounded-lg px-3 py-2 text-sm transition-all',
                     activeChatId === chat.id
-                      ? 'bg-teal-50 text-teal-900'
-                      : 'text-slate-600 hover:bg-slate-100',
+                      ? 'bg-accent text-accent-foreground font-medium'
+                      : 'text-muted-foreground hover:bg-muted',
                   )}
                   onDoubleClick={() => {
                     setEditingId(chat.id)
@@ -1089,7 +1029,7 @@ export function IAAsignaturaTab() {
                     <div className="flex min-w-0 flex-1 items-center">
                       <input
                         autoFocus
-                        className="w-full rounded border-none bg-white px-1 text-xs ring-1 ring-teal-400 outline-none"
+                        className="bg-background ring-primary w-full rounded border-none px-1 text-xs ring-1 outline-none"
                         value={tempName}
                         onChange={(e) => setTempName(e.target.value)}
                         onBlur={() => handleSaveName(chat.id)}
@@ -1101,7 +1041,6 @@ export function IAAsignaturaTab() {
                     </div>
                   ) : (
                     <>
-                      {/* CLAVE 2: 'truncate' y 'min-w-0' en el span para que ceda ante los botones */}
                       <span
                         onClick={() => setActiveChatId(chat.id)}
                         className="block max-w-[140px] min-w-0 flex-1 cursor-pointer truncate pr-1"
@@ -1110,13 +1049,12 @@ export function IAAsignaturaTab() {
                         {chat.nombre || chat.titulo || 'Conversación'}
                       </span>
 
-                      {/* CLAVE 3: 'shrink-0' asegura que los botones NUNCA desaparezcan */}
                       <div
                         className={cn(
                           'z-10 flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100',
                           activeChatId === chat.id
-                            ? 'bg-teal-50'
-                            : 'bg-slate-100',
+                            ? 'bg-accent'
+                            : 'bg-transparent',
                         )}
                       >
                         <TooltipProvider delayDuration={300}>
@@ -1128,7 +1066,7 @@ export function IAAsignaturaTab() {
                                   setEditingId(chat.id)
                                   setTempName(chat.nombre || chat.titulo || '')
                                 }}
-                                className="rounded-md p-1 transition-colors hover:bg-slate-200 hover:text-teal-600"
+                                className="hover:bg-muted hover:text-primary rounded-md p-1 transition-colors"
                               >
                                 <Edit2 size={14} />
                               </button>
@@ -1153,10 +1091,10 @@ export function IAAsignaturaTab() {
                                   })
                                 }}
                                 className={cn(
-                                  'rounded-md p-1 transition-colors hover:bg-slate-200',
+                                  'hover:bg-muted rounded-md p-1 transition-colors',
                                   chat.estado === 'ACTIVA'
-                                    ? 'hover:text-red-500'
-                                    : 'hover:text-teal-600',
+                                    ? 'hover:text-destructive'
+                                    : 'hover:text-primary',
                                 )}
                               >
                                 {chat.estado === 'ACTIVA' ? (

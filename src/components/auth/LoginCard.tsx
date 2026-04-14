@@ -9,6 +9,13 @@ export function LoginCard() {
 
   return (
     <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-xl">
+      <div className="flex justify-center">
+        <img
+          src="/4_IMAGOTIPO_LASALLE_MEXICO_COLOR_RGB_2020.png"
+          alt="La Salle México"
+          className="mb-6 h-20 w-auto"
+        />
+      </div>
       <h1 className="mb-1 text-center text-2xl font-semibold">
         Iniciar sesión
       </h1>
