@@ -8,18 +8,24 @@ import {
 } from 'lucide-react'
 import { useState, useEffect, forwardRef } from 'react'
 
+import type { Database } from '@/types/supabase'
+
 import { Badge } from '@/components/ui/badge'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
 import { NotFoundPage } from '@/components/ui/NotFoundPage'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import { plans_get } from '@/data/api/plans.api'
 import { usePlan, useUpdatePlanFields } from '@/data/hooks/usePlans'
 import { qk } from '@/data/query/keys'
+import { cn } from '@/lib/utils'
+
+type NivelPlanEstudio = Database['public']['Enums']['nivel_plan_estudio']
 
 export const Route = createFileRoute('/planes/$planId/_detalle')({
   loader: async ({ context: { queryClient }, params: { planId } }) => {
@@ -54,27 +60,25 @@ function RouteComponent() {
 
   // Estados locales para manejar la edición "en vivo" antes de persistir
   const [nombrePlan, setNombrePlan] = useState('')
-  const [nivelPlan, setNivelPlan] = useState('')
-  const [isDirty, setIsDirty] = useState(false)
+  const [nivelPlan, setNivelPlan] = useState<NivelPlanEstudio | undefined>(
+    undefined,
+  )
 
   useEffect(() => {
     if (data) {
       setNombrePlan(data.nombre || '')
-      setNivelPlan(data.nivel || '')
+      setNivelPlan(data.nivel)
     }
   }, [data])
 
-  const niveles = [
+  const niveles: Array<NivelPlanEstudio> = [
     'Licenciatura',
     'Maestría',
     'Doctorado',
-    'Diplomado',
     'Especialidad',
+    'Diplomado',
+    'Otro',
   ]
-
-  const persistChange = (patch: any) => {
-    mutate({ planId, patch })
-  }
 
   const MAX_CHARACTERS = 200
 
@@ -114,13 +118,13 @@ function RouteComponent() {
     }
   }
   return (
-    <div className="min-h-screen bg-white">
+    <div className="bg-background min-h-screen">
       {/* 1. Header Superior */}
-      <div className="sticky top-0 z-20 border-b bg-white/50 shadow-sm backdrop-blur-sm">
+      <div className="bg-background/80 sticky top-0 z-20 border-b shadow-sm backdrop-blur-sm">
         <div className="px-6 py-2">
           <Link
             to="/planes"
-            className="flex w-fit items-center gap-1 text-xs text-gray-500 transition-colors hover:text-gray-800"
+            className="text-muted-foreground hover:text-foreground flex w-fit items-center gap-1 text-xs transition-colors"
           >
             <ChevronLeft size={14} /> Volver a planes
           </Link>
@@ -139,7 +143,7 @@ function RouteComponent() {
         ) : (
           <div className="flex flex-col items-start justify-between gap-4 md:flex-row">
             <div>
-              <h1 className="flex flex-wrap items-baseline gap-2 text-3xl leading-tight font-bold tracking-tight text-slate-900">
+              <h1 className="text-foreground flex flex-wrap items-baseline gap-2 text-3xl leading-tight font-bold tracking-tight">
                 {/* El prefijo "Nivel en" lo mantenemos simple */}
                 <span className="shrink-0">{nivelPlan} en</span>
                 <span
@@ -148,80 +152,105 @@ function RouteComponent() {
                   contentEditable
                   suppressContentEditableWarning
                   spellCheck={false}
+                  aria-label="Nombre del plan"
+                  title="Nombre del plan"
                   onKeyDown={handleKeyDown}
-                  onPaste={handlePaste} // Añadido para controlar lo que pegan
+                  onPaste={handlePaste}
                   onBlur={(e) => {
-                    const nuevoNombre =
-                      e.currentTarget.textContent?.trim() || ''
+                    const nuevoNombre = e.currentTarget.textContent.trim()
                     setNombrePlan(nuevoNombre)
                     if (nuevoNombre !== data?.nombre) {
                       mutate({ planId, patch: { nombre: nuevoNombre } })
                     }
                   }}
-                  // Clases añadidas: break-words y whitespace-pre-wrap para el wrap
-                  className="block w-full cursor-text border-b border-transparent break-words whitespace-pre-wrap transition-colors outline-none select-text hover:border-slate-300 focus:border-teal-500 sm:inline-block sm:w-auto"
-                  style={{ textDecoration: 'none' }}
+                  className="hover:border-input focus:border-primary block w-full cursor-text border-b border-transparent wrap-break-word whitespace-pre-wrap no-underline transition-colors outline-none select-text sm:inline-block sm:w-auto"
                 >
                   {nombrePlan}
                 </span>
               </h1>
-              <p className="mt-1 text-lg font-medium text-slate-500">
+              <p className="text-muted-foreground mt-1 text-lg font-medium">
                 {data?.carreras?.facultades?.nombre}{' '}
                 {data?.carreras?.nombre_corto}
               </p>
             </div>
 
-            <div className="flex gap-2">
-              <Badge className="gap-1 border-teal-200 bg-teal-50 px-3 text-teal-700 hover:bg-teal-100">
-                {data?.estados_plan?.etiqueta}
-              </Badge>
-            </div>
+            {(() => {
+              const estadoColorHex = (data?.estados_plan as any)?.color as
+                | string
+                | undefined
+              const badgeStyle = estadoColorHex
+                ? ({
+                    backgroundColor: estadoColorHex,
+                    borderColor: estadoColorHex,
+                  } as const)
+                : undefined
+
+              return (
+                <Badge
+                  style={badgeStyle}
+                  className={cn(
+                    'text-sm font-semibold',
+                    !estadoColorHex &&
+                      'border-primary/20 bg-primary/10 text-primary hover:bg-primary/20',
+                  )}
+                >
+                  <span className="text-white [text-shadow:1px_1px_0_#000,-1px_-1px_0_#000,1px_-1px_0_#000,-1px_1px_0_#000,0_1px_0_#000,0_-1px_0_#000,1px_0_0_#000,-1px_0_0_#000]">
+                    {data?.estados_plan?.etiqueta}
+                  </span>
+                </Badge>
+              )
+            })()}
           </div>
         )}
 
         {/* 3. Cards de Información */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <InfoCard
-                icon={<GraduationCap className="text-slate-400" />}
-                label="Nivel"
+          <div className="border-border/60 bg-muted/30 flex h-18 w-full items-center gap-4 rounded-xl border p-4 shadow-sm transition-all">
+            <div className="bg-background flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border shadow-sm">
+              <GraduationCap className="text-muted-foreground" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-muted-foreground mb-0.5 truncate text-[10px] font-bold tracking-wider uppercase">
+                Nivel
+              </p>
+              <Select
                 value={nivelPlan}
-                isEditable
-              />
-            </DropdownMenuTrigger>
-
-            <DropdownMenuContent className="w-48">
-              {niveles.map((n) => (
-                <DropdownMenuItem
-                  key={n}
-                  onClick={() => {
-                    setNivelPlan(n)
-                    if (n !== data?.nivel) {
-                      mutate({ planId, patch: { nivel: n } })
-                    }
-                  }}
-                >
-                  {n}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
+                onValueChange={(value) => {
+                  const nuevoNivel = value as NivelPlanEstudio
+                  setNivelPlan(nuevoNivel)
+                  if (nuevoNivel !== data?.nivel) {
+                    mutate({ planId, patch: { nivel: nuevoNivel } })
+                  }
+                }}
+              >
+                <SelectTrigger className="w-full" size="sm">
+                  <SelectValue placeholder="---" />
+                </SelectTrigger>
+                <SelectContent>
+                  {niveles.map((n) => (
+                    <SelectItem key={n} value={n}>
+                      {n}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
 
           <InfoCard
-            icon={<Clock className="text-slate-400" />}
+            icon={<Clock className="text-muted-foreground" />}
             label="Duración"
             value={`${data?.numero_ciclos || 0} Ciclos`}
           />
           <InfoCard
-            icon={<Hash className="text-slate-400" />}
+            icon={<Hash className="text-muted-foreground" />}
             label="Créditos"
             value="320"
           />
           <InfoCard
-            icon={<CalendarDays className="text-slate-400" />}
+            icon={<CalendarDays className="text-muted-foreground" />}
             label="Creación"
-            value={data?.creado_en?.split('T')[0]}
+            value={data?.creado_en.split('T')[0]}
           />
         </div>
 
@@ -276,20 +305,20 @@ const InfoCard = forwardRef<
     <div
       ref={ref}
       {...props}
-      className={`flex h-18 w-full items-center gap-4 rounded-xl border border-slate-200/60 bg-slate-50/50 p-4 shadow-sm transition-all ${
+      className={`border-border/60 bg-muted/30 flex h-18 w-full items-center gap-4 rounded-xl border p-4 shadow-sm transition-all ${
         isEditable
-          ? 'cursor-pointer hover:border-teal-200 hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/40'
+          ? 'hover:border-primary/50 hover:bg-accent focus-visible:ring-primary/40 cursor-pointer focus:outline-none focus-visible:ring-2'
           : ''
       } ${className ?? ''}`}
     >
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border bg-white shadow-sm">
+      <div className="bg-background flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border shadow-sm">
         {icon}
       </div>
       <div className="min-w-0 flex-1">
-        <p className="mb-0.5 truncate text-[10px] font-bold tracking-wider text-slate-400 uppercase">
+        <p className="text-muted-foreground mb-0.5 truncate text-[10px] font-bold tracking-wider uppercase">
           {label}
         </p>
-        <p className="truncate text-sm font-semibold text-slate-700">
+        <p className="text-foreground truncate text-sm font-semibold">
           {value || '---'}
         </p>
       </div>
@@ -311,8 +340,8 @@ function Tab({
     <Link
       to={to}
       params={params}
-      className="border-b-2 border-transparent pb-3 text-sm font-medium text-slate-500 transition-all hover:text-slate-800"
-      activeProps={{ className: 'border-teal-600 text-teal-700 font-bold' }}
+      className="text-muted-foreground hover:text-foreground border-b-2 border-transparent pb-3 text-sm font-medium transition-all"
+      activeProps={{ className: 'border-primary text-primary font-bold' }}
       activeOptions={{
         exact: true,
       }}
@@ -324,7 +353,7 @@ function Tab({
 
 function DatosGeneralesSkeleton() {
   return (
-    <div className="rounded-xl border bg-white">
+    <div className="bg-card rounded-xl border">
       {/* Header */}
       <div className="flex items-center justify-between border-b px-5 py-3">
         <Skeleton className="h-4 w-40" />

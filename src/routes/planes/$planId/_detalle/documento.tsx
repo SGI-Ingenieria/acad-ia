@@ -122,11 +122,7 @@ function RouteComponent() {
           >
             <RefreshCcw size={16} /> Regenerar
           </Button>
-          <Button
-            size="sm"
-            className="gap-2 bg-teal-700 hover:bg-teal-800"
-            onClick={handleDownloadWord}
-          >
+          <Button size="sm" className="gap-2" onClick={handleDownloadWord}>
             <Download size={16} /> Descargar Word
           </Button>
           <Button

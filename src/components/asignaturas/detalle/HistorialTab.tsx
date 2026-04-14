@@ -11,7 +11,6 @@ import {
   Filter,
   Calendar,
   Loader2,
-  Eye,
 } from 'lucide-react'
 import { useState, useMemo } from 'react'
 
@@ -249,7 +248,16 @@ export function HistorialTab() {
                           `bg-current ${config.color}`,
                         )}
                       />
-                      <Card className="card-interactive">
+                      <Card
+                        className="border-border card-interactive hover:border-primary/50 flex-1 cursor-pointer shadow-none transition-colors"
+                        onClick={() => openCompareModal(cambio)}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ')
+                            openCompareModal(cambio)
+                        }}
+                      >
                         <CardContent className="py-4">
                           <div className="flex items-start gap-4">
                             <div
@@ -265,16 +273,7 @@ export function HistorialTab() {
                                 <p className="font-medium">
                                   {cambio.descripcion}
                                 </p>
-                                {/* BOTÓN PARA VER CAMBIOS */}
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="gap-2 text-blue-600 hover:bg-blue-50 hover:text-blue-700"
-                                  onClick={() => openCompareModal(cambio)}
-                                >
-                                  <Eye className="h-4 w-4" />
-                                  Ver cambios
-                                </Button>
+
                                 <span className="text-muted-foreground text-xs">
                                   {format(cambio.fecha, 'HH:mm')}
                                 </span>

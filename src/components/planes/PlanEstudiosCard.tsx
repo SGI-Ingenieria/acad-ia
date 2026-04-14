@@ -14,6 +14,7 @@ interface PlanEstudiosCardProps {
   facultad: string
   estado: string
   claseColorEstado?: string
+  colorEstadoHex?: string
   colorFacultad: string
   onClick?: () => void
 }
@@ -26,9 +27,17 @@ export default function PlanEstudiosCard({
   facultad,
   estado,
   claseColorEstado = '',
+  colorEstadoHex,
   colorFacultad,
   onClick,
 }: PlanEstudiosCardProps) {
+  const badgeStyle = colorEstadoHex
+    ? ({
+        backgroundColor: colorEstadoHex,
+        borderColor: colorEstadoHex,
+      } as const)
+    : undefined
+
   return (
     <Card
       onClick={onClick}
@@ -36,7 +45,7 @@ export default function PlanEstudiosCard({
         'group relative flex h-full cursor-pointer flex-col justify-between overflow-hidden transition-all hover:shadow-lg',
       )}
     >
-      <div className="flex flex-grow flex-col">
+      <div className="flex grow flex-col">
         <CardHeader className="pb-2">
           {/* Círculo del ícono con el color de la facultad */}
           <div
@@ -63,8 +72,16 @@ export default function PlanEstudiosCard({
       </div>
 
       <CardFooter className="flex items-center justify-between pt-0 pb-6">
-        <Badge className={cn('text-sm font-semibold', claseColorEstado)}>
-          {estado}
+        <Badge
+          style={badgeStyle}
+          className={cn(
+            'text-sm font-semibold',
+            !colorEstadoHex && claseColorEstado,
+          )}
+        >
+          <span className="text-white [text-shadow:1px_1px_0_#000,-1px_-1px_0_#000,1px_-1px_0_#000,-1px_1px_0_#000,0_1px_0_#000,0_-1px_0_#000,1px_0_0_#000,-1px_0_0_#000]">
+            {estado}
+          </span>
         </Badge>
 
         {/* Flecha animada */}
