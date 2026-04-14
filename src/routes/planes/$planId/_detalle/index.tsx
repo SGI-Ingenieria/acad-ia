@@ -3,7 +3,6 @@ import {
   useNavigate,
   useLocation,
 } from '@tanstack/react-router'
-// import confetti from 'canvas-confetti'
 import { Pencil, Check, X, Sparkles, AlertCircle } from 'lucide-react'
 import { useState, useEffect } from 'react'
 
@@ -20,7 +19,6 @@ import {
 } from '@/components/ui/tooltip'
 import { usePlan, useUpdatePlanFields } from '@/data'
 
-// import { toast } from 'sonner' // Asegúrate de tener sonner instalado o quita la línea
 export const Route = createFileRoute('/planes/$planId/_detalle/')({
   component: DatosGeneralesPage,
 })
@@ -34,21 +32,20 @@ function DatosGeneralesPage() {
   const { planId } = Route.useParams()
   const { data, isLoading } = usePlan(planId)
   const navigate = useNavigate()
-  // Inicializamos campos como un arreglo vacío
+
   const [campos, setCampos] = useState<Array<DatosGeneralesField>>([])
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editValue, setEditValue] = useState('')
   const location = useLocation()
   const updatePlan = useUpdatePlanFields()
-  // Confetti al llegar desde creación
+
   useEffect(() => {
     if (location.state.showConfetti) {
       lateralConfetti()
-      window.history.replaceState({}, document.title) // Limpiar el estado para que no se repita
+      window.history.replaceState({}, document.title)
     }
   }, [location.state])
 
-  // Efecto para transformar data?.datos en el arreglo de campos
   useEffect(() => {
     const definicion = data?.estructuras_plan?.definicion as any
     const properties = definicion?.properties
@@ -59,18 +56,13 @@ function DatosGeneralesPage() {
     if (properties && typeof properties === 'object') {
       let keys = Object.keys(properties)
 
-      // Ordenar llaves basado en la lista "required" si existe
       if (Array.isArray(requiredOrder)) {
         keys = keys.sort((a, b) => {
           const indexA = requiredOrder.indexOf(a)
           const indexB = requiredOrder.indexOf(b)
-          // Si 'a' está en la lista y 'b' no -> 'a' primero (-1)
           if (indexA !== -1 && indexB === -1) return -1
-          // Si 'b' está en la lista y 'a' no -> 'b' primero (1)
           if (indexA === -1 && indexB !== -1) return 1
-          // Si ambos están, comparar índices
           if (indexA !== -1 && indexB !== -1) return indexA - indexB
-          // Ninguno en la lista, mantener orden relativo
           return 0
         })
       }
@@ -108,18 +100,14 @@ function DatosGeneralesPage() {
     }
   }, [data])
 
-  // 3. Manejadores de acciones (Ahora como funciones locales)
   const handleEdit = (nuevoCampo: DatosGeneralesField) => {
-    // 1. SI YA ESTÁBAMOS EDITANDO OTRO CAMPO, GUARDAMOS EL ANTERIOR PRIMERO
     if (editingId && editingId !== nuevoCampo.id) {
       const campoAnterior = campos.find((c) => c.id === editingId)
       if (campoAnterior && editValue !== campoAnterior.value) {
-        // Solo guardamos si el valor realmente cambió
         ejecutarGuardadoSilencioso(campoAnterior, editValue)
       }
     }
 
-    // 2. ABRIMOS EL NUEVO CAMPO
     setEditingId(nuevoCampo.id)
     setEditValue(nuevoCampo.value)
   }
@@ -128,7 +116,7 @@ function DatosGeneralesPage() {
     setEditingId(null)
     setEditValue('')
   }
-  // Función auxiliar para procesar los datos (fuera o dentro del componente)
+
   const prepararDatosActualizados = (
     data: any,
     campo: DatosGeneralesField,
@@ -167,7 +155,6 @@ function DatosGeneralesPage() {
       patch: { datos: datosActualizados },
     })
 
-    // Actualizar UI localmente
     setCampos((prev) =>
       prev.map((c) => (c.id === campo.id ? { ...c, value: valor } : c)),
     )
@@ -185,13 +172,11 @@ function DatosGeneralesPage() {
       currentValue !== null &&
       'description' in currentValue
     ) {
-      // Caso 1: objeto con description
       newValue = {
         ...currentValue,
         description: editValue,
       }
     } else {
-      // Caso 2: valor plano (string, number, etc)
       newValue = editValue
     }
 
@@ -207,7 +192,6 @@ function DatosGeneralesPage() {
       },
     })
 
-    // UI optimista
     setCampos((prev) =>
       prev.map((c) => (c.id === campo.id ? { ...c, value: editValue } : c)),
     )
@@ -217,17 +201,18 @@ function DatosGeneralesPage() {
     setEditValue('')
   }
 
-  const handleIARequest = (clave: string) => {
+  const handleIARequest = (campo: DatosGeneralesField) => {
     navigate({
       to: '/planes/$planId/iaplan',
       params: {
-        planId: planId, // o dinámico
+        planId: planId,
       },
       state: {
-        campo_edit: clave,
+        campo_edit: campo.clave,
       } as any,
     })
   }
+
   return (
     <div className="animate-in fade-in duration-500">
       <div className="mb-6">
@@ -246,19 +231,19 @@ function DatosGeneralesPage() {
           return (
             <div
               key={campo.id}
-              className={`rounded-xl border transition-all ${
+              className={`bg-card rounded-xl border transition-all ${
                 isEditing
-                  ? 'border-teal-500 shadow-lg ring-2 ring-teal-50'
-                  : 'bg-white hover:shadow-md'
+                  ? 'border-primary ring-primary/20 shadow-lg ring-2'
+                  : 'hover:shadow-md'
               }`}
             >
               {/* Header de la Card */}
               <TooltipProvider>
-                <div className="flex items-center justify-between border-b bg-slate-50/50 px-5 py-3">
+                <div className="bg-muted/30 flex items-center justify-between border-b px-5 py-3">
                   <div className="flex items-center gap-2">
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <h3 className="cursor-help text-sm font-medium text-slate-700">
+                        <h3 className="text-foreground cursor-help text-sm font-medium">
                           {campo.label}
                         </h3>
                       </TooltipTrigger>
@@ -268,7 +253,7 @@ function DatosGeneralesPage() {
                     </Tooltip>
 
                     {campo.requerido && (
-                      <span className="text-xs text-red-500">*</span>
+                      <span className="text-destructive text-xs">*</span>
                     )}
                   </div>
 
@@ -279,7 +264,7 @@ function DatosGeneralesPage() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8 text-teal-600"
+                            className="text-primary hover:text-primary/90 h-8 w-8"
                             onClick={() => handleIARequest(campo)}
                           >
                             <Sparkles size={14} />
@@ -293,7 +278,7 @@ function DatosGeneralesPage() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8"
+                            className="text-muted-foreground hover:text-foreground h-8 w-8"
                             onClick={() => handleEdit(campo)}
                           >
                             <Pencil size={14} />
@@ -324,11 +309,7 @@ function DatosGeneralesPage() {
                       >
                         <X size={14} className="mr-1" /> Cancelar
                       </Button>
-                      <Button
-                        size="sm"
-                        className="bg-teal-600 hover:bg-teal-700"
-                        onClick={() => handleSave(campo)}
-                      >
+                      <Button size="sm" onClick={() => handleSave(campo)}>
                         <Check size={14} className="mr-1" /> Guardar
                       </Button>
                     </div>
@@ -336,12 +317,12 @@ function DatosGeneralesPage() {
                 ) : (
                   <div className="min-h-25">
                     {campo.value ? (
-                      <div className="text-sm leading-relaxed text-slate-600">
+                      <div className="text-muted-foreground text-sm leading-relaxed">
                         {campo.tipo === 'lista' ? (
                           <ul className="space-y-1">
                             {campo.value.split('\n').map((item, i) => (
                               <li key={i} className="flex gap-2">
-                                <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-teal-500" />
+                                <span className="bg-primary mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full" />
                                 {item}
                               </li>
                             ))}
@@ -351,7 +332,7 @@ function DatosGeneralesPage() {
                         )}
                       </div>
                     ) : (
-                      <div className="flex items-center gap-2 text-sm text-slate-400">
+                      <div className="text-muted-foreground/70 flex items-center gap-2 text-sm">
                         <AlertCircle size={14} />
                         <span>Sin contenido.</span>
                       </div>

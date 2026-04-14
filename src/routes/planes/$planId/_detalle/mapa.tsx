@@ -998,7 +998,7 @@ function MapaCurricularPage() {
           <div className="col-span-full">
             <div className="sticky left-0 z-10 w-35">
               <Button
-                className="ring-offset-background bg-primary text-primary-foreground hover:bg-primary/90 inline-flex h-11 w-full items-center justify-start gap-2 rounded-md px-8 text-sm font-medium shadow-md transition-colors"
+                className="shadow-md"
                 onClick={() => setIsAddLineaDialogOpen(true)}
               >
                 <Plus size={14} /> Agregar línea
@@ -1262,7 +1262,7 @@ function MapaCurricularPage() {
 
           <div className="mt-2 flex items-center justify-end gap-3 border-t pt-4">
             <Button
-              className="ring-offset-background bg-primary text-primary-foreground hover:bg-primary/90 inline-flex h-11 items-center justify-center gap-2 rounded-md px-8 text-sm font-medium shadow-md transition-colors"
+              className="shadow-md"
               onClick={handleAgregarLinea}
               disabled={!canAddLinea || isCreatingLinea}
             >
