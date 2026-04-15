@@ -1,17 +1,21 @@
-name: Deploy to Azure Static Web Apps
+name: Azure Static Web Apps CI/CD
 
 on:
   push:
     branches:
       - main
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+    branches:
+      - main
 
 jobs:
-  build-and-deploy:
+  build_and_deploy_job:
+    if: github.event_name == 'push' || github.event.action != 'closed'
     runs-on: ubuntu-latest
-
+    name: Build and Deploy
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -27,11 +31,22 @@ jobs:
           VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
         run: bunx --bun vite build
 
-      # No hace falta instalar el CLI globalmente, usamos bunx
-      - name: Deploy to Azure Static Web Apps
-        env:
-          AZURE_SWA_DEPLOYMENT_TOKEN: ${{ secrets.AZURE_SWA_DEPLOYMENT_TOKEN }}
-        run: |
-          bunx @azure/static-web-apps-cli deploy ./dist \
-            --env production \
-            --deployment-token "$AZURE_SWA_DEPLOYMENT_TOKEN"
+      - name: Deploy
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_SWA_DEPLOYMENT_TOKEN }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: "upload"
+          app_location: "/"
+          output_location: "dist"
+
+  close_pull_request_job:
+    if: github.event_name == 'pull_request' && github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    name: Close Pull Request
+    steps:
+      - name: Close PR environment
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_SWA_DEPLOYMENT_TOKEN }}
+          action: "close"
