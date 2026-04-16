@@ -2,8 +2,8 @@ name: Deploy Migrations to Desarrollo
 
 on:
   pull_request:
-  paths:
-    - 'supabase/**'
+    paths:
+      - 'supabase/**'
   workflow_dispatch:
 
 jobs:
