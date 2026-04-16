@@ -65,39 +65,20 @@ jobs:
           echo "Supabase branch payload:"
           cat branch.json
 
-          PREVIEW_PROJECT_REF=$(jq -r '.project_ref // .ref // .projectRef' branch.json)
+          # 1. Extraer URL y Anon Key directamente del nuevo formato JSON
+          PREVIEW_URL=$(jq -r '.SUPABASE_URL // empty' branch.json)
+          PUBLISHABLE_KEY=$(jq -r '.SUPABASE_ANON_KEY // empty' branch.json)
 
-          if [ -z "$PREVIEW_PROJECT_REF" ] || [ "$PREVIEW_PROJECT_REF" = "null" ]; then
-            echo "Could not resolve preview project ref from branch.json"
+          if [ -z "$PREVIEW_URL" ] || [ -z "$PUBLISHABLE_KEY" ]; then
+            echo "Error: No se pudo extraer SUPABASE_URL o SUPABASE_ANON_KEY del payload"
             exit 1
           fi
 
+          # 2. Derivar el Project Ref extrayéndolo de la URL (por si lo necesitas)
+          PREVIEW_PROJECT_REF=$(echo "$PREVIEW_URL" | sed -e 's|^https://||' -e 's|\.supabase\.co$||')
           echo "Preview project ref: $PREVIEW_PROJECT_REF"
 
-          supabase projects api-keys \
-            --project-ref "$PREVIEW_PROJECT_REF" \
-            -o json > api-keys.json
-
-          echo "Supabase api-keys payload:"
-          cat api-keys.json
-
-          PUBLISHABLE_KEY=$(jq -r '.[]? | select(.type == "publishable") | .api_key' api-keys.json)
-
-          if [ -z "$PUBLISHABLE_KEY" ] || [ "$PUBLISHABLE_KEY" = "null" ]; then
-            PUBLISHABLE_KEY=$(jq -r '.[]? | select(.name == "anon" or .type == "anon") | .api_key' api-keys.json)
-          fi
-
-          if [ -z "$PUBLISHABLE_KEY" ] || [ "$PUBLISHABLE_KEY" = "null" ]; then
-            echo "Could not resolve publishable/anon key from api-keys.json"
-            exit 1
-          fi
-
-          PREVIEW_URL=$(jq -r '.api_url // .url // empty' branch.json)
-
-          if [ -z "$PREVIEW_URL" ]; then
-            PREVIEW_URL="https://${PREVIEW_PROJECT_REF}.supabase.co"
-          fi
-
+          # 3. Inyectar variables de entorno para Vite
           echo "VITE_SUPABASE_URL=$PREVIEW_URL" >> $GITHUB_ENV
           echo "VITE_SUPABASE_ANON_KEY=$PUBLISHABLE_KEY" >> $GITHUB_ENV
 
