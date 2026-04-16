@@ -1,0 +1,25 @@
+name: Deploy Function
+
+on:
+  pull_request:
+  paths:
+    - 'supabase/**'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_DESARROLLO_ACCESS_TOKEN }}
+      SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_DESARROLLO_PROJECT_ID }}
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Deploy edge function
+        run: npx supabase@beta functions deploy --project-ref $SUPABASE_PROJECT_ID --use-api
