@@ -297,7 +297,7 @@ const headerData = useMemo(() => ({
               {/* Badges Editables (Texto blanco controlado dentro de los componentes) */}
               <InlineEditBadge
                 icon={<Hash size={14} />}
-                label="Código"
+                label="Clave"
                 value={headerData.codigo}
                 onSave={(val) => handleUpdateHeader('codigo', val)}
               />
