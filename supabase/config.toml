@@ -1,0 +1,89 @@
+[db]
+major_version = 15
+
+[functions.ai-generate-plan]
+enabled = true
+verify_jwt = true
+import_map = "./functions/ai-generate-plan/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/ai-generate-plan/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/ai-generate-plan/*.html" ]
+
+# [functions.ai-structured]
+# DEPRECATED: replaced by shared module `_shared/openai-service.ts`
+# enabled = false
+# verify_jwt = false
+# import_map = "./functions/ai-structured/deno.json"
+
+[functions.create-chat-conversation]
+enabled = true
+verify_jwt = true
+import_map = "./functions/create-chat-conversation/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/create-chat-conversation/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/create-chat-conversation/*.html" ]
+
+[functions.ai-generate-subject]
+enabled = true
+verify_jwt = true
+import_map = "./functions/ai-generate-subject/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/ai-generate-subject/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/ai-generate-subject/*.html" ]
+
+[functions.generate-subject-suggestions]
+enabled = true
+verify_jwt = true
+import_map = "./functions/generate-subject-suggestions/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/generate-subject-suggestions/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/generate-subject-suggestions/*.html" ]
+
+[auth.hook.custom_access_token]
+enabled = true
+uri = "pg-functions://postgres/public/custom_access_token_hook"
+
+[functions.openai-webhook-responses]
+enabled = true
+verify_jwt = false
+import_map = "./functions/openai-webhook-responses/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/openai-webhook-responses/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/openai-webhook-responses/*.html" ]
+
+[functions.buscar-bibliografia]
+enabled = true
+verify_jwt = true
+import_map = "./functions/buscar-bibliografia/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/buscar-bibliografia/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/buscar-bibliografia/*.html" ]
+
+[functions.carbone-io-wrapper]
+enabled = true
+verify_jwt = true
+import_map = "./functions/carbone-io-wrapper/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/carbone-io-wrapper/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/carbone-io-wrapper/*.html" ]

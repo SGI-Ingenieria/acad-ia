@@ -1,0 +1,1 @@
+alter table "public"."lineas_plan" add column "color" text;
