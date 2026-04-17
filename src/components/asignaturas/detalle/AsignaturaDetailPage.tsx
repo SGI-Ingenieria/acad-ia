@@ -229,7 +229,7 @@ function DatosGenerales({
   if (isLoading) return <p>Cargando información...</p>
 
   return (
-    <div className="animate-in fade-in mx-auto max-w-7xl space-y-8 px-4 py-8 duration-500">
+    <div className="animate-in fade-in space-y-6 pb-8 duration-500">
       {/* Encabezado de la Sección */}
       <div className="flex flex-col justify-between gap-4 border-b pb-6 md:flex-row md:items-center">
         <div>

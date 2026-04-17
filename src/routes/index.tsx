@@ -16,7 +16,7 @@ function App() {
           alt="logo"
         />
         <p>
-          Edit <code>src/routes/index.tsx</code> and save to reload.
+          Hola Pull Request!!
         </p>
         <a
           className="text-[#61dafb] hover:underline"
