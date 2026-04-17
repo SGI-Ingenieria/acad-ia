@@ -759,19 +759,16 @@ function MapaCurricularPage() {
   }
 
   const generateExcel = async () =>{
-    console.log("generando excel ");
     try {
-  const formato = 'xlsx'; // O el valor que venga de tu UI
+  const formato = 'xlsx'; 
   const blob = await fetchPlanExcel({
     plan_estudio_id: planId,
     convertTo: formato,
   })
-
   const url = window.URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.href = url
-  // Cambia .pdf por la variable del formato
-  link.download = `${"prueba"}.${formato}` 
+  link.download = `${data?.nombre}.${formato}` 
   document.body.appendChild(link)
   link.click()
 
