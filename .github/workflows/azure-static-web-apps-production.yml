@@ -30,10 +30,7 @@ jobs:
         env:
           VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
-        run:
-          bunx --bun vite build
-          cp staticwebapp.config.json dist/staticwebapp.config.json
-
+        run: bunx --bun vite build
       - name: Deploy prebuilt app
         uses: Azure/static-web-apps-deploy@v1
         with:
