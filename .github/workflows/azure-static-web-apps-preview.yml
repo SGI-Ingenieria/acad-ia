@@ -47,13 +47,9 @@ jobs:
           GIT_BRANCH_NAME: ${{ github.head_ref }}
         run: |
           set -euo pipefail
-
-          supabase branches get "$GIT_BRANCH_NAME" \
-            --project-ref "$ROOT_PROJECT_REF" \
-            -o json > branch.json
-
-          echo "VITE_SUPABASE_URL=$(jq -r '.SUPABASE_URL' branch.json)" >> "$GITHUB_ENV"
-          echo "VITE_SUPABASE_ANON_KEY=$(jq -r '.SUPABASE_ANON_KEY' branch.json)" >> "$GITHUB_ENV"
+          DATA="$(supabase branches get "$GIT_BRANCH_NAME" --project-ref "$ROOT_PROJECT_REF" -o json)"
+          echo "VITE_SUPABASE_URL=$(jq -r '.SUPABASE_URL' <<< "$DATA")" >> "$GITHUB_ENV"
+          echo "VITE_SUPABASE_ANON_KEY=$(jq -r '.SUPABASE_ANON_KEY' <<< "$DATA")" >> "$GITHUB_ENV"
 
       - run: bun install
       - run: bunx --bun vite build
