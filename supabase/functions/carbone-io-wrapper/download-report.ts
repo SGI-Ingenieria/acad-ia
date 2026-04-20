@@ -47,53 +47,61 @@ async function prepararDatosParaExcel(
 ) {
   const { data: plan, error: planError } = await supabase
     .from("planes_estudio")
-    .select("*, planes_estudio_datos:datos, estructura:estructuras_plan(*)")
+    .select("*, estructura:estructuras_plan(*)")
     .eq("id", planEstudioId)
     .single();
 
   const { data: asignaturas, error: asigError } = await supabase
     .from("asignaturas")
-    .select("*, linea:lineas_plan(nombre)")
+    .select("*, linea:lineas_plan(nombre)") 
     .eq("plan_estudio_id", planEstudioId)
     .order("numero_ciclo", { ascending: true });
 
-  if (planError || asigError) throw new Error("Error obteniendo datos");
+  if (planError || asigError) throw new Error("Error obteniendo datos de la base de datos.");
 
-  // 1. Calcular el máximo de materias por ciclo
+  // --- MAPA DE BÚSQUEDA PARA PRERREQUISITOS ---
+  const mapaClaves = asignaturas.reduce((acc, asig) => {
+    acc[asig.id] = asig.codigo;
+    return acc;
+  }, {} as Record<string, string>);
+
+  // 1. Cálculo de métricas de estructura
   const materiasPorCiclo = Array.from({ length: plan.numero_ciclos }, (_, i) => 
     asignaturas.filter(a => a.numero_ciclo === i + 1).length
   );
   const maxMaterias = Math.max(...materiasPorCiclo);
 
-  // 2. Transformación con padding de nulls
+  // 2. Transformación de Semestres (con datos por materia)
   const semestres = Array.from({ length: plan.numero_ciclos }, (_, i) => {
     const materiasDelCiclo = asignaturas.filter(a => a.numero_ciclo === i + 1);
     
-    // Calculamos totales
     const totalHi = materiasDelCiclo.reduce((sum, a) => sum + (a.horas_independientes || 0), 0);
     const totalHp = materiasDelCiclo.reduce((sum, a) => sum + (a.horas_academicas || 0), 0);
     const totalCreditos = materiasDelCiclo.reduce((sum, a) => sum + (Number(a.creditos) || 0), 0);
 
-    // Mapeamos las materias reales
-    const listaMaterias = materiasDelCiclo.map(a => ({
-      clave: a.codigo,
-      nombre: a.nombre,
-      clave_prerrequisito: null, // Si necesitas lógica adicional, aquí va
-      tipo: a.tipo,
-      instalacion: (a.datos as any)?.instalacion || "Aula",
-      creditos: Number(a.creditos),
-      hi: a.horas_independientes,
-      hp: a.horas_academicas
-    }));
+    const listaMaterias = materiasDelCiclo.map(a => {
+      const idPrerrequisito = a.prerrequisito_asignatura_id;
+      const clavePrerrequisito = idPrerrequisito ? (mapaClaves[idPrerrequisito] || null) : null;
 
-    // 3. Aplicamos el padding: rellenamos con null hasta llegar al máximo
+      return {
+        clave: a.codigo,
+        nombre: a.nombre,
+        clave_prerrequisito: clavePrerrequisito,
+        tipo: a.tipo,
+        instalacion: (a.datos as any)?.instalacion || "Aula",
+        creditos: Number(a.creditos),
+        hi: a.horas_independientes,
+        hp: a.horas_academicas
+      };
+    });
+
     const materiasRellenas = [
       ...listaMaterias,
       ...Array(maxMaterias - listaMaterias.length).fill(null)
     ];
 
     return {
-      nombre: ["Primer", "Segundo", "Tercer", "Cuarto", "Quinto", "Sexto", "Séptimo", "Octavo"][i] || `Ciclo ${i + 1}`,
+      nombre: ["Primer", "Segundo", "Tercer", "Cuarto", "Quinto", "Sexto", "Séptimo", "Octavo", "Noveno", "Décimo"][i] || `Ciclo ${i + 1}`,
       creditos: totalCreditos,
       hi: totalHi,
       hp: totalHp,
@@ -101,22 +109,27 @@ async function prepararDatosParaExcel(
     };
   });
 
-    const totalPlanCreditos = semestres.reduce((sum, s) => sum + s.creditos, 0);
-    const totalPlanHi = semestres.reduce((sum, s) => sum + s.hi, 0);
-    const totalPlanHp = semestres.reduce((sum, s) => sum + s.hp, 0);
+  // --- CÁLCULO DE TOTALES GLOBALES ---
+  const totalPlanCreditos = semestres.reduce((sum, s) => sum + s.creditos, 0);
+  const totalPlanHi = semestres.reduce((sum, s) => sum + s.hi, 0);
+  const totalPlanHp = semestres.reduce((sum, s) => sum + s.hp, 0);
 
+  // --- RETORNO DEL JSON FINAL ---
   return {
+    nombre_plan: plan.nombre,      // Tomado de planes_estudio.nombre
     tipo_ciclo: plan.tipo_ciclo,
+    modalidad: "Presencial",       // Valor default solicitado
     semestres,
     lineas_plan: [...new Set(asignaturas.map(a => a.linea?.nombre).filter(Boolean))].map(n => ({ nombre: n })),
-    creditos: totalPlanCreditos,
-    hi: totalPlanHi,
-    hp: totalPlanHp,
+      creditos: totalPlanCreditos,
+      hi: totalPlanHi,
+      hp: totalPlanHp,
+    // Estos se usan para el post-procesado de celdas
     config: {
       ciclos: plan.numero_ciclos,
       maxMaterias: maxMaterias
     }
-    };
+  };
 }
 export async function postProcessExcel(buffer: Uint8Array, config: { ciclos: number, maxMaterias: number }) {
   const workbook = new Workbook();
@@ -347,7 +360,7 @@ export async function handleDownloadReportAction(args: {
       const datosExcel = await prepararDatosParaExcel(args.supabase, input.plan_estudio_id);
 
       const result = await carbone.render(
-        "1385464409176924930",
+        "1402917575045089616",
         { data: datosExcel },
         { download: true, format: "xlsx" }
       );
