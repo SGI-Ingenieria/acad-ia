@@ -10,3 +10,8 @@ count.txt
 .wrangler
 diff.txt
 supabase/.temp/
+# Azure Functions / Azurite locales
+api/local.settings.json
+api/__azurite_db*__.json
+api/__blobstorage__
+api/__queuestorage__
