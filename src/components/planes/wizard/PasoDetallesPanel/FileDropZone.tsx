@@ -13,6 +13,7 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { supabaseBrowser } from '@/data'
 import {
+  deleteArchivo,
   uploadOpenAIForArchivo,
   uploadSingleFile,
   UploadSingleFileError,
@@ -20,7 +21,7 @@ import {
 import { formatFileSize } from '@/features/planes/utils/format-file-size'
 import { cn } from '@/lib/utils'
 
-export type FileUploadStatus = 'subiendo' | 'exito' | 'error'
+export type FileUploadStatus = 'subiendo' | 'exito' | 'error' | 'eliminando'
 
 export interface UploadedFile {
   id: string // Necesario para React (key)
@@ -113,6 +114,7 @@ export function FileDropzone({
       if (!current) return
       if (
         current.uploadStatus === 'subiendo' ||
+        current.uploadStatus === 'eliminando' ||
         current.uploadStatus === 'exito'
       ) {
         return
@@ -375,17 +377,56 @@ export function FileDropzone({
   )
 
   // Función para eliminar un archivo específico por su ID
-  const removeFile = useCallback((fileId: string) => {
-    setFiles((previousFiles) => {
-      console.log(
-        'previous files',
-        previousFiles.map((f) => f.file.name),
+  const removeFile = useCallback(async (fileId: string) => {
+    const current = filesRef.current.find((f) => f.id === fileId)
+    if (!current) return
+
+    if (
+      current.uploadStatus === 'subiendo' ||
+      current.uploadStatus === 'eliminando'
+    ) {
+      return
+    }
+
+    // Si nunca se subió a BD/Storage, solo remover local
+    if (!current.archivoId) {
+      setFiles((previousFiles) =>
+        previousFiles.filter((uploadedFile) => uploadedFile.id !== fileId),
       )
-      const remainingFiles = previousFiles.filter(
-        (uploadedFile) => uploadedFile.id !== fileId,
+      return
+    }
+
+    const prevStatus = current.uploadStatus
+    const prevError = current.uploadError
+
+    setFiles((prev) =>
+      prev.map((f) =>
+        f.id === fileId
+          ? { ...f, uploadStatus: 'eliminando', uploadError: undefined }
+          : f,
+      ),
+    )
+
+    try {
+      await deleteArchivo({ archivoId: current.archivoId })
+
+      setFiles((previousFiles) =>
+        previousFiles.filter((uploadedFile) => uploadedFile.id !== fileId),
       )
-      return remainingFiles
-    })
+    } catch (e) {
+      const message =
+        e instanceof Error ? e.message : 'Error eliminando archivo.'
+
+      setFiles((prev) =>
+        prev.map((f) =>
+          f.id === fileId
+            ? { ...f, uploadStatus: prevStatus, uploadError: prevError }
+            : f,
+        ),
+      )
+
+      toast.error(message)
+    }
   }, [])
 
   // Mantener la referencia actualizada de la función callback externa para evitar loops en useEffect
@@ -524,7 +565,10 @@ export function FileDropzone({
             {[...files].reverse().map((uploadedFile) => (
               <div
                 key={uploadedFile.id}
-                className="bg-accent/50 border-border fade-in flex items-center gap-3 rounded-lg border p-3"
+                className={cn(
+                  'bg-accent/50 border-border fade-in flex items-center gap-3 rounded-lg border p-3',
+                  uploadedFile.uploadStatus === 'eliminando' && 'opacity-60',
+                )}
               >
                 {getFileIcon(uploadedFile.file.type)}
                 <div className="min-w-0 flex-1">
@@ -542,7 +586,8 @@ export function FileDropzone({
                   ) : null}
                 </div>
 
-                {uploadedFile.uploadStatus === 'subiendo' ? (
+                {uploadedFile.uploadStatus === 'subiendo' ||
+                uploadedFile.uploadStatus === 'eliminando' ? (
                   <Loader2 className="text-muted-foreground h-4 w-4 animate-spin" />
                 ) : uploadedFile.uploadStatus === 'exito' ? (
                   <CheckCircle2 className="text-success h-5 w-5" />
@@ -562,7 +607,11 @@ export function FileDropzone({
                   variant="ghost"
                   size="icon"
                   className="text-muted-foreground hover:text-destructive h-8 w-8"
-                  onClick={() => removeFile(uploadedFile.id)}
+                  onClick={() => void removeFile(uploadedFile.id)}
+                  disabled={
+                    uploadedFile.uploadStatus === 'subiendo' ||
+                    uploadedFile.uploadStatus === 'eliminando'
+                  }
                 >
                   <X className="h-4 w-4" />
                 </Button>

@@ -197,12 +197,45 @@ export class OpenAIService {
   }
 
   async deleteFile(fileId: string) {
-    // OpenAI SDK uses `del` for delete operations.
-    const deleted = await (
-      this.openai.files as unknown as {
-        del: (id: string) => Promise<unknown>
+    const filesAny = this.openai.files as unknown as {
+      delete?: (id: string) => Promise<unknown>
+      del?: (id: string) => Promise<unknown>
+    }
+
+    if (typeof filesAny.delete === 'function') {
+      const deleted = await filesAny.delete(fileId)
+      return deleted as OpenAIFileDeleted
+    }
+
+    if (typeof filesAny.del === 'function') {
+      const deleted = await filesAny.del(fileId)
+      return deleted as OpenAIFileDeleted
+    }
+
+    throw new TypeError(
+      'OpenAI SDK no expone files.delete/files.del; revisa la versión del paquete openai.',
+    )
+  }
+
+  async deleteVectorStoreFile(vectorStoreId: string, openaiFileId: string) {
+    const vectorStoresAny = this.openai as unknown as {
+      vectorStores?: {
+        files?: {
+          delete?: (
+            fileId: string,
+            opts: { vector_store_id: string },
+          ) => Promise<unknown>
+        }
       }
-    ).del(fileId)
-    return deleted as OpenAIFileDeleted
+    }
+
+    const del = vectorStoresAny.vectorStores?.files?.delete
+    if (typeof del !== 'function') {
+      throw new TypeError(
+        'OpenAI SDK no expone vectorStores.files.delete; revisa la versión del paquete openai.',
+      )
+    }
+
+    return del(openaiFileId, { vector_store_id: vectorStoreId })
   }
 }

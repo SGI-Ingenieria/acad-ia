@@ -393,34 +393,16 @@ Deno.serve(async (req: Request): Promise<Response> => {
         }
 
         // 5) Si se borró de public.archivos: borrar de vector stores y luego de OpenAI
-        const apiKey = Deno.env.get('OPENAI_API_KEY') ?? ''
-
         const deletedVectorStoreFiles: Array<unknown> = []
         if (openaiFileId && vectorStoreIds.length > 0) {
-          if (!apiKey) {
-            throw new HttpError(
-              500,
-              'Configuración del servidor incompleta.',
-              'MISSING_ENV',
-              { missing: ['OPENAI_API_KEY'] },
-            )
-          }
-
           for (const vsId of vectorStoreIds) {
-            const endpoint = `https://api.openai.com/v1/vector_stores/${encodeURIComponent(vsId)}/files/${encodeURIComponent(openaiFileId)}`
-            const resp = await fetch(endpoint, {
-              method: 'DELETE',
-              headers: {
-                Authorization: `Bearer ${apiKey}`,
-                'Content-Type': 'application/json',
-              },
-            })
-
-            const responseBody = await resp
-              .json()
-              .catch(() => ({ error: 'invalid_json_response' }))
-
-            if (!resp.ok) {
+            try {
+              const deletedVectorStoreFile = await svc.deleteVectorStoreFile(
+                vsId,
+                openaiFileId,
+              )
+              deletedVectorStoreFiles.push(deletedVectorStoreFile)
+            } catch (e) {
               throw new HttpError(
                 502,
                 'No se pudo borrar el archivo de uno de los repositorios (vector store).',
@@ -428,13 +410,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
                 {
                   vector_store_id: vsId,
                   openai_file_id: openaiFileId,
-                  status: resp.status,
-                  body: responseBody,
+                  cause: e,
                 },
               )
             }
-
-            deletedVectorStoreFiles.push(responseBody)
           }
         }
 

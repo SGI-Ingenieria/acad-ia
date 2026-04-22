@@ -89,6 +89,22 @@ export async function uploadOpenAIForArchivo(input: {
   return { openaiFileId }
 }
 
+export async function deleteArchivo(input: { archivoId: string }): Promise<{
+  archivoId: string
+  openaiFileId: string | null
+  vectorStoreIds: Array<string>
+}> {
+  return invokeEdge<{
+    archivoId: string
+    openaiFileId: string | null
+    vectorStoreIds: Array<string>
+  }>(
+    `openai-files/files/${input.archivoId}`,
+    { archivoId: input.archivoId },
+    { method: 'DELETE', headers: { 'Content-Type': 'application/json' } },
+  )
+}
+
 const sanitizeKeySegment = (input: string): string => {
   const withoutDiacritics = input
     .normalize('NFD')
