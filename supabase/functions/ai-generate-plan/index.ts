@@ -13,7 +13,7 @@ import { z } from "zod";
 import { systemPrompt } from "./prompts.ts";
 import { OpenAIService } from "../_shared/openai-service.ts";
 import type { StructuredResponseOptions } from "../_shared/openai-service.ts";
-// Typed aliases for strict field unions
+// Typed aliases for strict field unions.
 type NivelType =
   Database["public"]["Tables"]["planes_estudio"]["Insert"]["nivel"];
 type TipoCicloType =
