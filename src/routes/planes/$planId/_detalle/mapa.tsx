@@ -714,7 +714,9 @@ function MapaCurricularPage() {
     lineaId: string | null,
   ) => {
     e.preventDefault()
-    if (!draggedAsignatura) return
+    if (!draggedAsignatura) {
+      return
+    }
 
     // Solo disparamos la lógica si realmente hay un cambio de posición
     procesarCambioAsignatura(draggedAsignatura, {
