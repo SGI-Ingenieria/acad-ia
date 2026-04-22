@@ -30,7 +30,6 @@ import { Separator } from '@/components/ui/separator'
 import {
   Tooltip,
   TooltipContent,
-  TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import {
@@ -45,7 +44,9 @@ import {
 } from '@/data'
 import { cn } from '@/lib/utils'
 import { generarColorContrastante } from '@/utils/colors'
-import { fetchPlanExcel, fetchPlanPdf } from '@/data/api/document.api'
+import { fetchPlanExcel } from '@/data/api/document.api'
+import { VisualizadorSeriacionModal } from '@/components/planes/detalle/mapa/VisualizadorSeriacionModal'
+import AsignaturaCardItem from '@/components/planes/detalle/mapa/AsignaturaCardItem'
 
 // --- Mapeadores (Fuera del componente para mayor limpieza) ---
 const palette = [
@@ -128,40 +129,6 @@ function StatItem({
   )
 }
 
-const estadoConfig: Record<
-  Asignatura['estado'],
-  {
-    label: string
-    dot: string
-    soft: string
-    icon: React.ComponentType<{ className?: string }>
-  }
-> = {
-  borrador: {
-    label: 'Borrador',
-    dot: 'bg-slate-500',
-    soft: 'bg-slate-100 text-slate-700',
-    icon: Icons.FileText,
-  },
-  revisada: {
-    label: 'Revisada',
-    dot: 'bg-amber-500',
-    soft: 'bg-amber-100 text-amber-700',
-    icon: Icons.ScanSearch,
-  },
-  aprobada: {
-    label: 'Aprobada',
-    dot: 'bg-emerald-500',
-    soft: 'bg-emerald-100 text-emerald-700',
-    icon: Icons.BadgeCheck,
-  },
-  generando: {
-    label: 'Generando',
-    dot: 'bg-sky-500',
-    soft: 'bg-sky-100 text-sky-700',
-    icon: Icons.LoaderCircle,
-  },
-}
 
 function hexToRgba(hex: string, alpha: number) {
   const clean = hex.replace('#', '')
@@ -170,145 +137,6 @@ function hexToRgba(hex: string, alpha: number) {
   const g = (bigint >> 8) & 255
   const b = bigint & 255
   return `rgba(${r}, ${g}, ${b}, ${alpha})`
-}
-
-function AsignaturaCardItem({
-  asignatura,
-  lineaColor,
-  lineaNombre,
-  onDragStart,
-  isDragging,
-  onClick,
-}: {
-  asignatura: Asignatura
-  lineaColor: string
-  lineaNombre?: string
-  onDragStart: (e: React.DragEvent, id: string) => void
-  isDragging: boolean
-  onClick: () => void
-}) {
-  const estado = estadoConfig[asignatura.estado]
-  const EstadoIcon = estado.icon
-
-  return (
-    <TooltipProvider delayDuration={150}>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <button
-            draggable
-            onDragStart={(e) => onDragStart(e, asignatura.id)}
-            onClick={onClick}
-            className={[
-              'group bg-background relative h-50 w-40 shrink-0 overflow-hidden rounded-[22px] border text-left',
-              'transition-all duration-300 ease-out',
-              'focus-visible:ring-ring/30 focus-visible:ring-2 focus-visible:outline-none',
-              'cursor-grab active:cursor-grabbing',
-              isDragging
-                ? 'scale-[0.985] opacity-45 shadow-none'
-                : 'hover:-translate-y-1 hover:shadow-lg',
-            ].join(' ')}
-            style={{
-              borderColor: lineaColor,
-            }}
-            title={asignatura.nombre}
-          >
-            <div className="relative flex h-full flex-col p-4">
-              {/* top */}
-              <div className="flex items-start justify-between gap-2">
-                <div
-                  className="inline-flex h-8 max-w-32 items-center gap-1.5 rounded-full border px-2.5 text-[11px] font-semibold"
-                  style={{
-                    borderColor: hexToRgba(lineaColor, 0.2),
-                    backgroundColor: hexToRgba(lineaColor, 0.1),
-                    color: lineaColor,
-                  }}
-                >
-                  <Icons.KeyRound className="h-3.5 w-3.5 shrink-0" />
-                  <span className="truncate">
-                    {asignatura.clave || 'Sin clave'}
-                  </span>
-                </div>
-
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div className="bg-background/70 flex h-8 items-center rounded-full px-2 backdrop-blur-sm">
-                      <EstadoIcon className="text-foreground/65 h-3.5 w-3.5" />
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent side="right">
-                    <span className="text-xs font-semibold">
-                      {estado.label}
-                    </span>
-                  </TooltipContent>
-                </Tooltip>
-              </div>
-
-              {/* titulo */}
-              <div className="mt-4 min-h-18">
-                <h3
-                  className="text-foreground overflow-hidden pb-1 text-sm leading-[1.08]"
-                  style={{
-                    display: '-webkit-box',
-                    WebkitLineClamp: 3,
-                    WebkitBoxOrient: 'vertical',
-                  }}
-                >
-                  {asignatura.nombre}
-                </h3>
-              </div>
-
-              {/* bottom */}
-              <div className="mt-auto grid grid-cols-3 gap-2">
-                <div className="bg-muted/70 border-border/70 flex flex-col items-center rounded-2xl border px-2.5 py-2">
-                  {/* <Icons.Award className="h-3.5 w-3.5" /> */}
-                  <span className="text-muted-foreground mb-1 text-[10px] font-medium tracking-wide uppercase">
-                    CR
-                  </span>
-
-                  <div className="text-foreground text-sm font-bold">
-                    {asignatura.creditos}
-                  </div>
-                </div>
-
-                <div className="bg-muted/70 border-border/70 flex flex-col items-center rounded-2xl border px-2.5 py-2">
-                  <span className="text-muted-foreground mb-1 text-[10px] font-medium tracking-wide uppercase">
-                    HD
-                  </span>
-
-                  <div className="text-foreground text-sm font-bold">
-                    {asignatura.hd}
-                  </div>
-                </div>
-
-                <div className="bg-muted/70 border-border/70 flex flex-col items-center rounded-2xl border px-2.5 py-2">
-                  <span className="text-muted-foreground mb-1 text-[10px] font-medium tracking-wide uppercase">
-                    HI
-                  </span>
-
-                  <div className="text-foreground text-sm font-bold">
-                    {asignatura.hi}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </button>
-        </TooltipTrigger>
-
-        <TooltipContent side="bottom">
-          <div className="text-lg">
-            {/* ciclo */}
-            {asignatura.ciclo ? (
-              <span className="font-bold">C{asignatura.ciclo} · </span>
-            ) : null}
-            {lineaNombre ? (
-              <span className="font-medium">{lineaNombre} · </span>
-            ) : null}
-            {asignatura.nombre}
-          </div>
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
-  )
 }
 
 export const Route = createFileRoute('/planes/$planId/_detalle/mapa')({
@@ -346,6 +174,10 @@ function MapaCurricularPage() {
     resolve: (value: boolean) => void
     mensaje: string
   } | null>(null)
+
+  const [selectedVisualizacion, setSelectedVisualizacion] = useState<Asignatura | null>(null);
+const [isVisualizadorOpen, setIsVisualizadorOpen] = useState(false);
+
 
   const validarConInterrupcion = async (
     asignaturaId: string,
@@ -398,39 +230,6 @@ function MapaCurricularPage() {
     }
   }, [selectedLineaOption])
 
-  const handleCambioCicloSeguro = async (
-    asignatura: Asignatura,
-    nuevoCiclo: number,
-  ) => {
-    // 1. Esperamos la interacción del usuario
-    const acepto = await validarConInterrupcion(asignatura.id, nuevoCiclo)
-
-    // 2. Limpiamos el estado del modal ANTES de seguir
-    setConfirmState(null)
-
-    // 3. Verificamos la respuesta
-    if (acepto === false) {
-      return // Detenemos la ejecución aquí
-    }
-
-    // 4. Solo si acepto es true, ejecutamos la API
-    const patch = { numero_ciclo: nuevoCiclo }
-    updateAsignatura(
-      { asignaturaId: asignatura.id, patch: patch as any },
-      {
-        onSuccess: () => {
-          setAsignaturas((prev) =>
-            prev.map((m) =>
-              m.id === asignatura.id ? { ...m, ciclo: nuevoCiclo } : m,
-            ),
-          )
-        },
-        onError: (err) => {
-          console.error('Error al actualizar:', err)
-        },
-      },
-    )
-  }
 
   const manejarAgregarLinea = (nombre: string, color: string, hue: number) => {
     const nombreNormalizado = nombre.trim()
@@ -981,6 +780,10 @@ function MapaCurricularPage() {
                           lineaNombre={linea.nombre}
                           isDragging={draggedAsignatura === m.id}
                           onDragStart={handleDragStart}
+                          onViewSeriacion={(asig) => {
+                            setSelectedVisualizacion(asig);
+                            setIsVisualizadorOpen(true);
+                          }}
                           onClick={() => {
                             setEditingData(m)
                             setIsEditModalOpen(true)
@@ -1565,6 +1368,13 @@ function MapaCurricularPage() {
           descripcion={confirmState.mensaje}
         />
       )}
+
+      <VisualizadorSeriacionModal 
+      asignatura={selectedVisualizacion}
+      todasLasAsignaturas={asignaturas}
+      isOpen={isVisualizadorOpen}
+      onClose={() => setIsVisualizadorOpen(false)}
+    />
     </div>
   )
 }
