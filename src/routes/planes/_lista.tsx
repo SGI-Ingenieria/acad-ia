@@ -244,9 +244,6 @@ function RouteComponent() {
                         params: {
                           planId: plan.id,
                         },
-                        state: {
-                          realId: plan.id, // 👈 ID largo oculto
-                        } as any,
                       })
                     }
                   />

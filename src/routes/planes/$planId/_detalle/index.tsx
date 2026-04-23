@@ -231,40 +231,42 @@ function DatosGeneralesPage() {
           return (
             <div
               key={campo.id}
-              className={`bg-card rounded-xl border transition-all ${
+              className={`bg-card rounded-2xl border transition-all ${
                 isEditing
-                  ? 'border-primary ring-primary/20 shadow-lg ring-2'
-                  : 'hover:shadow-md'
+                  ? 'border-primary/50 ring-primary/20 shadow-lg ring-2'
+                  : 'border-border/70 hover:border-border hover:shadow-md'
               }`}
             >
               {/* Header de la Card */}
               <TooltipProvider>
-                <div className="bg-muted/30 flex items-center justify-between border-b px-5 py-3">
-                  <div className="flex items-center gap-2">
+                <div className="bg-muted/30 flex items-center justify-between gap-4 border-b px-6 py-4">
+                  <div className="flex min-w-0 items-center gap-2.5">
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <h3 className="text-foreground cursor-help text-sm font-medium">
+                        <h3 className="text-foreground cursor-help text-base font-semibold tracking-tight">
                           {campo.label}
                         </h3>
                       </TooltipTrigger>
-                      <TooltipContent className="max-w-xs text-xs">
+                      <TooltipContent className="max-w-xs text-xs leading-relaxed">
                         {campo.helperText || 'Información del campo'}
                       </TooltipContent>
                     </Tooltip>
 
                     {campo.requerido && (
-                      <span className="text-destructive text-xs">*</span>
+                      <span className="text-destructive text-xs leading-none font-semibold">
+                        *
+                      </span>
                     )}
                   </div>
 
                   {!isEditing && (
-                    <div className="flex gap-1">
+                    <div className="flex shrink-0 items-center gap-1">
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="text-primary hover:text-primary/90 h-8 w-8"
+                            className="text-primary hover:text-primary/90 h-8 w-8 rounded-full"
                             onClick={() => handleIARequest(campo)}
                           >
                             <Sparkles size={14} />
@@ -278,7 +280,7 @@ function DatosGeneralesPage() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="text-muted-foreground hover:text-foreground h-8 w-8"
+                            className="text-muted-foreground hover:text-foreground h-8 w-8 rounded-full"
                             onClick={() => handleEdit(campo)}
                           >
                             <Pencil size={14} />
@@ -292,13 +294,13 @@ function DatosGeneralesPage() {
               </TooltipProvider>
 
               {/* Contenido de la Card */}
-              <div className="p-5">
+              <div className="px-6 py-5">
                 {isEditing ? (
                   <div className="space-y-3">
                     <Textarea
                       value={editValue}
                       onChange={(e) => setEditValue(e.target.value)}
-                      className="placeholder:text-muted-foreground/70 min-h-30 not-italic placeholder:italic"
+                      className="placeholder:text-muted-foreground/70 min-h-30 text-sm not-italic placeholder:italic"
                       placeholder={`Ej. ${campo.holder[0]}`}
                     />
                     <div className="flex justify-end gap-2">
@@ -315,9 +317,9 @@ function DatosGeneralesPage() {
                     </div>
                   </div>
                 ) : (
-                  <div className="min-h-25">
+                  <div className="min-h-25 pt-0.5">
                     {campo.value ? (
-                      <div className="text-muted-foreground text-sm leading-relaxed">
+                      <div className="text-muted-foreground text-sm leading-6">
                         {campo.tipo === 'lista' ? (
                           <ul className="space-y-1">
                             {campo.value.split('\n').map((item, i) => (

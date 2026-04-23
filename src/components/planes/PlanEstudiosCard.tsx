@@ -31,6 +31,10 @@ export default function PlanEstudiosCard({
   colorFacultad,
   onClick,
 }: PlanEstudiosCardProps) {
+  const colorFacultadOscuro = `color-mix(in srgb, ${colorFacultad} 84%, #111 16%)`
+  const colorFacultadBorde = `color-mix(in srgb, ${colorFacultad} 42%, transparent)`
+  const colorFacultadFondo = `color-mix(in srgb, ${colorFacultad} 14%, transparent)`
+
   const badgeStyle = colorEstadoHex
     ? ({
         backgroundColor: colorEstadoHex,
@@ -47,14 +51,29 @@ export default function PlanEstudiosCard({
     >
       <div className="flex grow flex-col">
         <CardHeader className="pb-2">
-          {/* Círculo del ícono con el color de la facultad */}
-          <div
-            className="mb-2 w-fit rounded-full p-2.5"
-            style={{
-              backgroundColor: `color-mix(in srgb, ${colorFacultad}, transparent 85%)`,
-            }}
-          >
-            <Icono size={24} style={{ color: colorFacultad }} />
+          {/* Grupo integrado de facultad */}
+          <div className="mb-3 flex items-center gap-3">
+            <div
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border"
+              style={{
+                borderColor: colorFacultadBorde,
+                backgroundColor: colorFacultadFondo,
+              }}
+            >
+              <Icono size={18} style={{ color: colorFacultad }} />
+            </div>
+
+            <div className="min-w-0">
+              <p className="text-muted-foreground text-[11px] leading-none tracking-wide uppercase">
+                Facultad de
+              </p>
+              <p
+                className="truncate text-sm leading-tight font-semibold"
+                style={{ color: colorFacultadOscuro }}
+              >
+                {facultad}
+              </p>
+            </div>
           </div>
 
           {/* Título del Programa */}
@@ -63,15 +82,14 @@ export default function PlanEstudiosCard({
           </h4>
         </CardHeader>
 
-        <CardContent className="text-muted-foreground space-y-1 text-sm">
+        <CardContent className="text-muted-foreground text-sm">
           <p className="text-foreground font-medium">
             {nivel} • {ciclos}
           </p>
-          <p>{facultad}</p>
         </CardContent>
       </div>
 
-      <CardFooter className="flex items-center justify-between pt-0 pb-6">
+      <CardFooter className="flex items-center justify-between">
         <Badge
           style={badgeStyle}
           className={cn(
@@ -86,8 +104,8 @@ export default function PlanEstudiosCard({
 
         {/* Flecha animada */}
         <div
-          className="rounded-full p-1 transition-transform duration-300 group-hover:translate-x-1"
-          style={{ color: colorFacultad }}
+          className="rounded-full p-1.5 transition-transform duration-300 group-hover:translate-x-1"
+          style={{ color: colorFacultadOscuro }}
         >
           <ArrowRight size={20} />
         </div>
