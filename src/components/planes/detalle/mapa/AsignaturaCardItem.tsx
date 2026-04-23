@@ -1,6 +1,8 @@
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import * as Icons from 'lucide-react'
+
 import type { Asignatura } from '@/types/plan'
+
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 
 const estadoConfig: Record<
   Asignatura['estado'],
@@ -65,7 +67,8 @@ export default function AsignaturaCardItem({
 }) {
   const estado = estadoConfig[asignatura.estado]
   const EstadoIcon = estado.icon
-
+  console.log(asignatura);
+  
   return (
     <div className="relative group shrink-0">
     <TooltipProvider delayDuration={150}>
@@ -89,6 +92,7 @@ export default function AsignaturaCardItem({
             }}
             title={asignatura.nombre}
           >
+            
             <div className="relative flex h-full flex-col p-4">
               {/* top */}
               <div className="flex items-start justify-between gap-2">
@@ -121,18 +125,25 @@ export default function AsignaturaCardItem({
               </div>
 
               {/* titulo */}
-              <div className="mt-4 min-h-18">
-                <h3
-                  className="text-foreground overflow-hidden pb-1 text-sm leading-[1.08]"
-                  style={{
-                    display: '-webkit-box',
-                    WebkitLineClamp: 3,
-                    WebkitBoxOrient: 'vertical',
-                  }}
-                >
-                  {asignatura.nombre}
-                </h3>
-              </div>
+              <div className="mt-4 min-h-18 flex flex-col items-center text-center">
+                  <h3
+                    className="text-foreground overflow-hidden pb-1 text-sm leading-[1.08]"
+                    style={{
+                      display: '-webkit-box',
+                      WebkitLineClamp: 3,
+                      WebkitBoxOrient: 'vertical',
+                    }}
+                  >
+                    {asignatura.nombre}
+                  </h3>
+
+                  {/* 🔥 semestre abajo */}
+                  {asignatura.ciclo && (
+                    <span className="mt-1 text-[11px] font-semibold text-muted-foreground">
+                      C {asignatura.ciclo}
+                    </span>
+                  )}
+              </div> 
 
               {/* bottom */}
               <div className="mt-auto grid grid-cols-3 gap-2">
