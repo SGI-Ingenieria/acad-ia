@@ -207,6 +207,30 @@ export function WizardControls({
             ? wizard.datosBasicos.numCiclos
             : 1
 
+        const adjuntos = wizard.iaConfig?.archivosAdjuntos ?? []
+        if (adjuntos.some((a) => a.uploadStatus !== 'exito')) {
+          throw new Error(
+            'Aún se están subiendo los archivos adjuntos. Espera a que todos estén en éxito.',
+          )
+        }
+
+        const openaiFileIds = adjuntos
+          .map((a) => a.openaiFileId)
+          .filter((x): x is string => Boolean(x))
+
+        if (openaiFileIds.length !== adjuntos.length) {
+          throw new Error(
+            'Faltan adjuntos en OpenAI. Reintenta los archivos con error e intenta de nuevo.',
+          )
+        }
+
+        const archivosReferencia = Array.from(
+          new Set([
+            ...(wizard.iaConfig?.archivosReferencia ?? []),
+            ...openaiFileIds,
+          ]),
+        )
+
         const aiInput: AIGeneratePlanInput = {
           datosBasicos: {
             nombrePlan: wizard.datosBasicos.nombrePlan,
@@ -222,9 +246,8 @@ export function WizardControls({
               wizard.iaConfig?.descripcionEnfoqueAcademico || '',
             instruccionesAdicionalesIA:
               wizard.iaConfig?.instruccionesAdicionalesIA || '',
-            archivosReferencia: wizard.iaConfig?.archivosReferencia || [],
+            archivosReferencia,
             repositoriosIds: wizard.iaConfig?.repositoriosReferencia || [],
-            archivosAdjuntos: wizard.iaConfig?.archivosAdjuntos || [],
           },
         }
 

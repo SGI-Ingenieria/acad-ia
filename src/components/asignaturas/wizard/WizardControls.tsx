@@ -317,6 +317,13 @@ export function WizardControls({
           )
         }
 
+        const archivosReferencia = Array.from(
+          new Set([
+            ...(wizard.iaConfig?.archivosReferencia ?? []),
+            ...openaiFileIds,
+          ]),
+        )
+
         const payload: AISubjectUnifiedInput = {
           datosUpdate: {
             id: subjectId,
@@ -335,7 +342,8 @@ export function WizardControls({
               wizard.iaConfig?.descripcionEnfoqueAcademico ?? undefined,
             instruccionesAdicionalesIA:
               wizard.iaConfig?.instruccionesAdicionalesIA ?? undefined,
-            archivosAdjuntos: openaiFileIds,
+            archivosReferencia,
+            repositoriosIds: wizard.iaConfig?.repositoriosReferencia ?? [],
           },
         }
 
@@ -392,6 +400,13 @@ export function WizardControls({
           )
         }
 
+        const archivosReferencia = Array.from(
+          new Set([
+            ...(wizard.iaConfig?.archivosReferencia ?? []),
+            ...openaiFileIds,
+          ]),
+        )
+
         const placeholders: Array<TablesInsert<'asignaturas'>> = selected.map(
           (s): TablesInsert<'asignaturas'> => ({
             plan_estudio_id: wizard.plan_estudio_id,
@@ -447,7 +462,8 @@ export function WizardControls({
               descripcionEnfoqueAcademico: s.descripcion,
               instruccionesAdicionalesIA:
                 wizard.iaConfig?.instruccionesAdicionalesIA ?? undefined,
-              archivosAdjuntos: openaiFileIds,
+              archivosReferencia,
+              repositoriosIds: wizard.iaConfig?.repositoriosReferencia ?? [],
             },
           }
 

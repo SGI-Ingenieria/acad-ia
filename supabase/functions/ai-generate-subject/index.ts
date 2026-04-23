@@ -39,11 +39,12 @@ const IAConfigSchema = z
   .object({
     descripcionEnfoqueAcademico: z.string().optional(),
     instruccionesAdicionalesIA: z.string().optional(),
-    // Ahora se reciben directamente IDs de OpenAI Files (no UUIDs de `archivos`).
-    archivosAdjuntos: z.array(z.string().min(1)).optional().default([]),
+    // Se reciben directamente IDs de OpenAI Files (no UUIDs de `archivos`).
+    archivosReferencia: z.array(z.string().min(1)).optional().default([]),
+    repositoriosIds: z.array(z.string().uuid()).optional().default([]),
   })
   .strict()
-  .default({ archivosAdjuntos: [] })
+  .default({ archivosReferencia: [], repositoriosIds: [] })
 
 const UnifiedJsonSchema = z
   .object({
@@ -339,9 +340,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
     }
 
     // ---------------------------------
-    // Adjuntos: ahora llegan como IDs de OpenAI Files ya subidos.
+    // Referencias: OpenAI file IDs ya subidos.
     // ---------------------------------
-    const openaiFileIds = iaConfig.archivosAdjuntos.filter((x) => Boolean(x))
+    const openaiFileIds = iaConfig.archivosReferencia.filter((x) => Boolean(x))
 
     // Crear/actualizar stub en estado 'generando'
     let asignaturaId: string
@@ -368,7 +369,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
                 iaConfig.descripcionEnfoqueAcademico ?? null,
               instruccionesAdicionalesIA:
                 iaConfig.instruccionesAdicionalesIA ?? null,
-              archivosAdjuntos: iaConfig.archivosAdjuntos,
+              archivosReferencia: iaConfig.archivosReferencia,
+              repositoriosIds: iaConfig.repositoriosIds,
             },
           } as unknown as Json,
         }
@@ -412,7 +414,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
                 iaConfig.descripcionEnfoqueAcademico ?? null,
               instruccionesAdicionalesIA:
                 iaConfig.instruccionesAdicionalesIA ?? null,
-              archivosAdjuntos: iaConfig.archivosAdjuntos,
+              archivosReferencia: iaConfig.archivosReferencia,
+              repositoriosIds: iaConfig.repositoriosIds,
             },
           } as unknown as Json,
         }
@@ -460,8 +463,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
     const systemPrompt = `Eres un asistente experto en diseño curricular. Responde únicamente con JSON válido que cumpla estrictamente el JSON Schema proporcionado.`
 
-    const archivosAdjuntosTexto = openaiFileIds.length
-      ? `\n- Archivos adjuntos (referencia): ${openaiFileIds.length}`
+    const archivosReferenciaTexto = openaiFileIds.length
+      ? `\n- Archivos de referencia: ${openaiFileIds.length}`
       : ''
 
     const userPrompt =
@@ -484,7 +487,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       `- Instrucciones adicionales (sobre el formato de la respuesta generada): ${
         iaConfig.instruccionesAdicionalesIA ?? '(ninguna)'
       }` +
-      archivosAdjuntosTexto +
+      archivosReferenciaTexto +
       `\n\nREGLAS ESTRICTAS MATEMÁTICAS:\n` +
       `- Si generas el 'contenido_tematico', la suma total de las 'horasEstimadas' de todos los temas en todas las unidades DEBE coincidir exactamente con el total de Horas académicas indicadas arriba (${
         resolved.horas_academicas ?? 0
