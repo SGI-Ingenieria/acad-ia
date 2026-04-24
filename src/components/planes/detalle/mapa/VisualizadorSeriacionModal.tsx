@@ -30,6 +30,7 @@ const nodeTypes = {
 interface Props {
   asignatura: Asignatura | null
   todasLasAsignaturas: Array<Asignatura>
+   lineas: Array<{ id: string; color: string }> 
   isOpen: boolean
   onClose: () => void
 }
@@ -138,12 +139,21 @@ export function VisualizadorSeriacionModal({
   asignatura,
   todasLasAsignaturas,
   isOpen,
+  lineas,
   onClose
 }: Props) {
 
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
+    const hasSeriacion =
+  !!asignatura?.prerrequisito_asignatura_id ||
+  todasLasAsignaturas.some(
+    a => a.prerrequisito_asignatura_id === asignatura?.id
+  )
+  console.log(hasSeriacion);
+  
+
     if (isOpen) {
       const timer = setTimeout(() => setIsMounted(true), 100);
       return () => {
@@ -154,7 +164,13 @@ export function VisualizadorSeriacionModal({
   }, [isOpen]);
 
   
-
+const lineasMap = useMemo(() => {
+  const map: Record<string, string> = {}
+  lineas.forEach(l => {
+    map[l.id] = l.color
+  })
+  return map
+}, [lineas])
 
   
   const { nodes, edges } = useMemo(() => {
@@ -173,8 +189,7 @@ export function VisualizadorSeriacionModal({
       niveles.get(nivel)!.push(m);
     });
 
-    const nodeWidth = 200;
-    const nodeHeight = 180;
+   
 
     Array.from(niveles.entries())
       .sort((a, b) => a[0] - b[0])
@@ -189,9 +204,15 @@ export function VisualizadorSeriacionModal({
             position: { x: 0, y: 0 }, // 🔥 IMPORTANTE
            data: {
             asignatura: m,
-            lineaColor: "#2563eb",
-            isActive: m.id === asignatura.id, // 🔥 CLAVE
-            onViewSeriacion: () => {}
+            lineaColor: m.lineaCurricularId
+            ? lineasMap[m.lineaCurricularId] || '#1976d2'
+            : '#1976d2',
+            isActive: m.id === asignatura.id, 
+            onViewSeriacion: () => {},
+            isModalOpen: isOpen ,
+            hasSeriacion:
+            !!m.prerrequisito_asignatura_id ||
+            todasLasAsignaturas.some(a => a.prerrequisito_asignatura_id === m.id)
           }
           });
 
@@ -213,7 +234,7 @@ export function VisualizadorSeriacionModal({
     const layouted = getLayoutedElements(nodes, edges);
     return layouted;
 
-  }, [asignatura, todasLasAsignaturas]);
+  }, [asignatura, todasLasAsignaturas,lineasMap]);
 
   if (!asignatura) return null;
 

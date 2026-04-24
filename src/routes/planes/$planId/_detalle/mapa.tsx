@@ -406,7 +406,7 @@ const handleViewSeriacion = (asignatura: Asignatura) => {
     ) {
       const acepto = await validarConInterrupcion(
         asignaturaId,
-        nuevosDatos.ciclo,
+        nuevosDatos.ciclo ?? 0
       )
       setConfirmState(null)
       if (!acepto) return // El usuario canceló, no guardamos nada
@@ -818,7 +818,11 @@ const handleViewSeriacion = (asignatura: Asignatura) => {
                             setEditingData(m)
                             setIsEditModalOpen(true)
                           }}
-                          onViewSeriacion={handleViewSeriacion} // ✅ AQUÍ
+                          onViewSeriacion={handleViewSeriacion} 
+                          hasSeriacion={
+                            !!m.prerrequisito_asignatura_id ||
+                            asignaturas.some(a => a.prerrequisito_asignatura_id === m.id)
+                          } 
                         />
                       ))}
                   </div>
@@ -992,7 +996,7 @@ const handleViewSeriacion = (asignatura: Asignatura) => {
         onOpenChange={(open) => {
           setIsAddLineaDialogOpen(open)
           if (!open) {
-            setSelectedLineaOption(undefined)
+            setSelectedLineaOption('')
             setCustomLineaNombre('')
           }
         }}
@@ -1446,6 +1450,7 @@ const handleViewSeriacion = (asignatura: Asignatura) => {
       <VisualizadorSeriacionModal 
       asignatura={selectedVisualizacion}
       todasLasAsignaturas={asignaturas}
+      lineas={lineas}
       isOpen={isVisualizadorOpen}
       onClose={() => setIsVisualizadorOpen(false)}
     />

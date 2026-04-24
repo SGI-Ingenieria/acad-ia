@@ -3,8 +3,12 @@ import { Handle, Position } from "@xyflow/react";
 
 import AsignaturaCardItem from "./AsignaturaCardItem";
 
+
+
 export default function AsignaturaNode({ data }: any) {
   const isActive = data.isActive;
+  console.log(data);
+  
 
   return (
     <div
@@ -16,12 +20,7 @@ export default function AsignaturaNode({ data }: any) {
       <Handle type="target" position={Position.Top} />
 
       <div
-        style={{
-          boxShadow: isActive
-            ? "0 0 0 3px #2563eb, 0 10px 25px rgba(0,0,0,0.2)"
-            : "none",
-          borderRadius: 16,
-        }}
+        
       >
         <AsignaturaCardItem
           asignatura={data.asignatura}
@@ -30,6 +29,9 @@ export default function AsignaturaNode({ data }: any) {
           isDragging={false}
           onClick={() => {}}
           onViewSeriacion={data.onViewSeriacion}
+          isActive={data.isActive}
+          isModalOpen={data.isModalOpen}
+          hasSeriacion
         />
       </div>
 

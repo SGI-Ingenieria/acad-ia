@@ -55,7 +55,10 @@ export default function AsignaturaCardItem({
   onDragStart,
   isDragging,
   onClick,
-  onViewSeriacion
+  onViewSeriacion,
+  isActive = false,
+  isModalOpen,
+  hasSeriacion
 }: {
   asignatura: Asignatura
   lineaColor: string
@@ -63,11 +66,16 @@ export default function AsignaturaCardItem({
   onDragStart: (e: React.DragEvent, id: string) => void
   isDragging: boolean
   onClick: () => void
-  onViewSeriacion: (asignatura: Asignatura) => void
+  onViewSeriacion?: (asignatura: Asignatura) => void
+  isActive?: boolean
+  isModalOpen?: boolean
+  hasSeriacion?: any
+  onDragEnd?: () => void
 }) {
   const estado = estadoConfig[asignatura.estado]
   const EstadoIcon = estado.icon
-  console.log(asignatura);
+  console.log(hasSeriacion);
+  
   
   return (
     <div className="relative group shrink-0">
@@ -79,16 +87,25 @@ export default function AsignaturaCardItem({
             onDragStart={(e) => onDragStart(e, asignatura.id)}
             onClick={onClick}
             className={[
-              'group bg-background relative h-50 w-40 shrink-0 overflow-hidden rounded-[22px] border text-left',
+              'group bg-background relative h-50 w-40 shrink-0 overflow-hidden rounded-[22px] text-left',
               'transition-all duration-300 ease-out',
               'focus-visible:ring-ring/30 focus-visible:ring-2 focus-visible:outline-none',
               'cursor-grab active:cursor-grabbing',
+              isActive
+              ? 'border-2 scale-[1.03]'
+              : 'border',
               isDragging
                 ? 'scale-[0.985] opacity-45 shadow-none'
                 : 'hover:-translate-y-1 hover:shadow-lg',
             ].join(' ')}
             style={{
-              borderColor: lineaColor,
+              borderColor: isActive
+                ? lineaColor
+                : hexToRgba(lineaColor, 0.6),
+
+              boxShadow: isActive
+                ? `0 0 0 2px ${hexToRgba(lineaColor, 0.25)}, 0 8px 20px rgba(0,0,0,0.15)`
+                : undefined,
             }}
             title={asignatura.nombre}
           >
@@ -195,27 +212,20 @@ export default function AsignaturaCardItem({
           </div>
         </TooltipContent>
       </Tooltip>
-      <button
-        onClick={(e) => {
-          e.stopPropagation(); // Evita que se abra el modal de edición
-          onViewSeriacion(asignatura);
-        }}
-        className="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 bg-primary text-primary-foreground p-1.5 rounded-full shadow-lg transition-all hover:scale-110 z-20"
-        title="Ver seriación"
-      >
-        <Icons.Network size={14} /> {/* O cualquier icono de conexión/red */}
-      </button>
+      {!isModalOpen && hasSeriacion && onViewSeriacion && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onViewSeriacion(asignatura);
+          }}
+          className="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 bg-primary text-primary-foreground p-1.5 rounded-full shadow-lg transition-all hover:scale-110 z-30"
+          title="Ver seriación"
+        >
+          <Icons.Network size={14} />
+        </button>
+      )}
     </TooltipProvider>
-    <button
-        onClick={(e) => {
-          e.stopPropagation();
-          onViewSeriacion(asignatura);
-        }}
-        className="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 bg-primary text-primary-foreground p-1.5 rounded-full shadow-lg transition-all hover:scale-110 z-30"
-        title="Ver seriación"
-      >
-        <Icons.Network size={14} />
-      </button>
+   
     </div>
   )
 }
