@@ -16,7 +16,7 @@ import { systemPrompt } from './prompts.ts'
 import type { AIGeneratePlanInput } from './types.ts'
 import type { Database, Json } from '../_shared/database.types.ts'
 import type { StructuredResponseOptions } from '../_shared/openai-service.ts'
-// Typed aliases for strict field unions
+// Typed aliases for strict field unions.
 type NivelType =
   Database['public']['Tables']['planes_estudio']['Insert']['nivel']
 
