@@ -202,13 +202,15 @@ function DatosGeneralesPage() {
   }
 
   const handleIARequest = (campo: DatosGeneralesField) => {
+    console.log(campo);
+    
     navigate({
       to: '/planes/$planId/iaplan',
       params: {
         planId: planId,
       },
       state: {
-        campo_edit: campo.clave,
+        campo_edit: campo,
       } as any,
     })
   }
