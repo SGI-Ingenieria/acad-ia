@@ -39,11 +39,11 @@ jobs:
 
       - name: Deploy database migrations to development
         run: |
-          supabase db push --project-ref "$SUPABASE_PROJECT_REF"
+          supabase db push --debug --yes
 
       - name: Deploy Supabase Edge Functions to development
         run: |
-          supabase functions deploy --project-ref "$SUPABASE_PROJECT_REF"
+          supabase functions deploy
 
       - name: Push secrets to development project
         run: |
