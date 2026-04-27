@@ -164,34 +164,6 @@ export function WizardControls({
     })
   }
 
-  const uploadAiAttachments = async (args: {
-    planId: string
-    files: Array<{ file: File }>
-  }): Promise<Array<string>> => {
-    const supabase = supabaseBrowser()
-    if (!args.files.length) return []
-
-    const runId = crypto.randomUUID()
-    const basePath = `planes/${args.planId}/asignaturas/ai/${runId}`
-
-    const keys: Array<string> = []
-    for (const f of args.files) {
-      const safeName = (f.file.name || 'archivo').replace(/[\\/]+/g, '_')
-      const key = `${basePath}/${crypto.randomUUID()}-${safeName}`
-
-      const { error } = await supabase.storage
-        .from('ai-storage')
-        .upload(key, f.file, {
-          contentType: f.file.type || undefined,
-        })
-
-      if (error) throw new Error(error.message)
-      keys.push(key)
-    }
-
-    return keys
-  }
-
   const handleCreate = async () => {
     setWizard((w) => ({
       ...w,
@@ -328,12 +300,29 @@ export function WizardControls({
         startedWaiting = true
         beginSubjectWatch({ subjectId, planId: wizard.plan_estudio_id })
 
-        const archivosAdjuntos = await uploadAiAttachments({
-          planId: wizard.plan_estudio_id,
-          files: (wizard.iaConfig?.archivosAdjuntos ?? []).map((x) => ({
-            file: x.file,
-          })),
-        })
+        const adjuntos = wizard.iaConfig?.archivosAdjuntos ?? []
+        if (adjuntos.some((a) => a.uploadStatus !== 'exito')) {
+          throw new Error(
+            'Aún se están subiendo los archivos adjuntos. Espera a que todos estén en éxito.',
+          )
+        }
+
+        const openaiFileIds = adjuntos
+          .map((a) => a.openaiFileId)
+          .filter((x): x is string => Boolean(x))
+
+        if (openaiFileIds.length !== adjuntos.length) {
+          throw new Error(
+            'Faltan adjuntos en OpenAI. Reintenta los archivos con error e intenta de nuevo.',
+          )
+        }
+
+        const archivosReferencia = Array.from(
+          new Set([
+            ...(wizard.iaConfig?.archivosReferencia ?? []),
+            ...openaiFileIds,
+          ]),
+        )
 
         const payload: AISubjectUnifiedInput = {
           datosUpdate: {
@@ -353,7 +342,8 @@ export function WizardControls({
               wizard.iaConfig?.descripcionEnfoqueAcademico ?? undefined,
             instruccionesAdicionalesIA:
               wizard.iaConfig?.instruccionesAdicionalesIA ?? undefined,
-            archivosAdjuntos,
+            archivosReferencia,
+            repositoriosIds: wizard.iaConfig?.repositoriosReferencia ?? [],
           },
         }
 
@@ -393,12 +383,29 @@ export function WizardControls({
 
         setIsSpinningIA(true)
 
-        const archivosAdjuntos = await uploadAiAttachments({
-          planId: wizard.plan_estudio_id,
-          files: (wizard.iaConfig?.archivosAdjuntos ?? []).map((x) => ({
-            file: x.file,
-          })),
-        })
+        const adjuntos = wizard.iaConfig?.archivosAdjuntos ?? []
+        if (adjuntos.some((a) => a.uploadStatus !== 'exito')) {
+          throw new Error(
+            'Aún se están subiendo los archivos adjuntos. Espera a que todos estén en éxito.',
+          )
+        }
+
+        const openaiFileIds = adjuntos
+          .map((a) => a.openaiFileId)
+          .filter((x): x is string => Boolean(x))
+
+        if (openaiFileIds.length !== adjuntos.length) {
+          throw new Error(
+            'Faltan adjuntos en OpenAI. Reintenta los archivos con error e intenta de nuevo.',
+          )
+        }
+
+        const archivosReferencia = Array.from(
+          new Set([
+            ...(wizard.iaConfig?.archivosReferencia ?? []),
+            ...openaiFileIds,
+          ]),
+        )
 
         const placeholders: Array<TablesInsert<'asignaturas'>> = selected.map(
           (s): TablesInsert<'asignaturas'> => ({
@@ -455,7 +462,8 @@ export function WizardControls({
               descripcionEnfoqueAcademico: s.descripcion,
               instruccionesAdicionalesIA:
                 wizard.iaConfig?.instruccionesAdicionalesIA ?? undefined,
-              archivosAdjuntos,
+              archivosReferencia,
+              repositoriosIds: wizard.iaConfig?.repositoriosReferencia ?? [],
             },
           }
 

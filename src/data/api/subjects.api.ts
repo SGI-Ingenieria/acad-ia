@@ -282,7 +282,8 @@ export type AISubjectUnifiedInput = {
   iaConfig?: {
     descripcionEnfoqueAcademico?: string
     instruccionesAdicionalesIA?: string
-    archivosAdjuntos?: Array<string>
+    archivosReferencia?: Array<string>
+    repositoriosIds?: Array<string>
   }
 }
 

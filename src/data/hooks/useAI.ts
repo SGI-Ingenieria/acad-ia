@@ -36,14 +36,14 @@ export function useAIPlanChat() {
       content: string
       campos?: Array<string>
       conversacionId?: string
+      archivosReferencia?: Array<string>
+      repositoriosIds?: Array<string>
     }) => {
       let currentId = payload.conversacionId
 
       // 1. Si no hay ID, creamos la conversación
       if (!currentId) {
         const response = await create_conversation(payload.planId)
-
-        // CAMBIO AQUÍ: Accedemos a la estructura correcta según tu consola
         currentId = response.conversation_plan.id
       }
 
@@ -52,6 +52,8 @@ export function useAIPlanChat() {
         conversacionId: currentId!,
         content: payload.content,
         campos: payload.campos,
+        archivosReferencia: payload.archivosReferencia,
+        repositoriosIds: payload.repositoriosIds,
       })
 
       // Retornamos el resultado del chat y el ID para el estado del componente
@@ -208,6 +210,8 @@ export function useAISubjectChat() {
       content: string
       campos?: Array<string>
       conversacionId?: string
+      archivosReferencia?: Array<string>
+      repositoriosIds?: Array<string>
     }) => {
       let currentId = payload.conversacionId
 
@@ -222,6 +226,8 @@ export function useAISubjectChat() {
         conversacionId: currentId!,
         content: payload.content,
         campos: payload.campos,
+        archivosReferencia: payload.archivosReferencia,
+        repositoriosIds: payload.repositoriosIds,
       })
 
       return { ...result, conversacionId: currentId }

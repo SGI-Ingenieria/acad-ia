@@ -36,50 +36,27 @@ export type Database = {
     Tables: {
       archivos: {
         Row: {
-          bytes: number | null
+          created_at: string
+          hash: string | null
           id: string
-          mime_type: string | null
-          nombre: string
-          notas: string | null
           openai_file_id: string | null
-          ruta_storage: string
-          subido_en: string
-          subido_por: string | null
-          temporal: boolean
+          path: string
         }
         Insert: {
-          bytes?: number | null
-          id?: string
-          mime_type?: string | null
-          nombre: string
-          notas?: string | null
+          created_at?: string
+          hash?: string | null
+          id: string
           openai_file_id?: string | null
-          ruta_storage: string
-          subido_en?: string
-          subido_por?: string | null
-          temporal?: boolean
+          path: string
         }
         Update: {
-          bytes?: number | null
+          created_at?: string
+          hash?: string | null
           id?: string
-          mime_type?: string | null
-          nombre?: string
-          notas?: string | null
           openai_file_id?: string | null
-          ruta_storage?: string
-          subido_en?: string
-          subido_por?: string | null
-          temporal?: boolean
+          path?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: 'archivos_subido_por_fkey'
-            columns: ['subido_por']
-            isOneToOne: false
-            referencedRelation: 'usuarios_app'
-            referencedColumns: ['id']
-          },
-        ]
+        Relationships: []
       }
       asignatura_mensajes_ia: {
         Row: {
@@ -628,6 +605,7 @@ export type Database = {
       estados_plan: {
         Row: {
           clave: string
+          color: string | null
           es_final: boolean
           etiqueta: string
           id: string
@@ -635,6 +613,7 @@ export type Database = {
         }
         Insert: {
           clave: string
+          color?: string | null
           es_final?: boolean
           etiqueta: string
           id?: string
@@ -642,6 +621,7 @@ export type Database = {
         }
         Update: {
           clave?: string
+          color?: string | null
           es_final?: boolean
           etiqueta?: string
           id?: string
@@ -1440,7 +1420,7 @@ export type Database = {
       fuente_cambio: 'HUMANO' | 'IA'
       nivel_plan_estudio:
         | 'Licenciatura'
-        | 'Maestría'
+        | 'Maestr├¡a'
         | 'Doctorado'
         | 'Especialidad'
         | 'Diplomado'
@@ -1615,7 +1595,7 @@ export const Constants = {
       fuente_cambio: ['HUMANO', 'IA'],
       nivel_plan_estudio: [
         'Licenciatura',
-        'Maestría',
+        'Maestr├¡a',
         'Doctorado',
         'Especialidad',
         'Diplomado',

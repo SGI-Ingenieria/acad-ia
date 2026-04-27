@@ -1,51 +1,61 @@
-import { Hono } from "jsr:@hono/hono";
-import { corsHeaders, withCors } from "./lib/cors.ts";
-import { HttpError, jsonResponse } from "./lib/errors.ts";
-import { getOpenAI } from "./lib/openai.ts";
-import { getSupabaseServiceClient, requireUser } from "./lib/supabase.ts";
-import { assertUuid, pickSchemaFields, safePlanForPrompt,pickSchemaAsignaturaFields, safeAsignaturaForPrompt, getAsignaturaSystemPrompt } from "./lib/plan.ts";
-import { OpenAIService } from "../_shared/openai-service.ts";
+import { Hono } from 'hono'
+
+import { OpenAIService } from '../_shared/openai-service.ts'
+
+import { corsHeaders, withCors } from './lib/cors.ts'
+import { HttpError, jsonResponse } from './lib/errors.ts'
+import { getOpenAI } from './lib/openai.ts'
+import {
+  assertUuid,
+  getAsignaturaSystemPrompt,
+  pickSchemaAsignaturaFields,
+  pickSchemaFields,
+  safePlanForPrompt,
+} from './lib/plan.ts'
+import { getSupabaseServiceClient } from './lib/supabase.ts'
 
 type CreateBody = {
-  plan_estudio_id: string;
-  instanciador?: string;
-  system_prompt?: string;
-};
+  plan_estudio_id: string
+  asignatura_id?: string
+  instanciador?: string
+  system_prompt?: string
+}
 
 type AddMessageBody = {
   // Guarda mensaje en OpenAI conversation
-  content: string;
+  content: string
+  // IDs de archivos ya subidos a OpenAI (files) para usarlos como referencia.
+  archivosReferencia?: Array<string>
+  // IDs de vector stores de OpenAI para file_search.
+  repositoriosIds?: Array<string>
   // Si quieres forzar mejoras estructuradas:
-  campos?: string[];
-  user_prompt?: string; // si no mandas, usa content
-  model?: string; // default gpt-5-nano
-};
+  campos?: Array<string>
+  user_prompt?: string // si no mandas, usa content
+  model?: string // default gpt-5-nano
+}
 
-const app = new Hono();
+const app = new Hono()
 
-addEventListener("beforeunload", (ev: any) => {
-  console.error(
-    "ALERTA: La función se va a apagar. Razón:",
-    ev?.detail?.reason,
-  );
-});
+type BeforeUnloadWithDetail = Event & { detail?: { reason?: unknown } }
+
+addEventListener('beforeunload', (ev: BeforeUnloadWithDetail) => {
+  console.error('ALERTA: La función se va a apagar. Razón:', ev.detail?.reason)
+})
 
 // Preflight CORS
 app.options(
-  "*",
-  (c) => new Response(null, { status: 204, headers: corsHeaders }),
-);
+  '*',
+  (_c) => new Response(null, { status: 204, headers: corsHeaders }),
+)
 
-const prefix = "/create-chat-conversation";
+const prefix = '/create-chat-conversation'
 // Model names (module-level) — pueden ser sobrescritos por variables de entorno
-const CREATE_CHAT_CONVERSATION_NONSTRUCTURED_MODELO = Deno.env.get(
-  "CREATE_CHAT_CONVERSATION_NONSTRUCTURED_MODELO",
-) ?? "gpt-5-nano";
-const CREATE_CHAT_CONVERSATION_STRUCTURED_MODELO = Deno.env.get(
-  "CREATE_CHAT_CONVERSATION_STRUCTURED_MODELO",
-) ?? "gpt-5-nano";
+const CREATE_CHAT_CONVERSATION_NONSTRUCTURED_MODELO =
+  Deno.env.get('CREATE_CHAT_CONVERSATION_NONSTRUCTURED_MODELO') ?? 'gpt-5-nano'
+const CREATE_CHAT_CONVERSATION_STRUCTURED_MODELO =
+  Deno.env.get('CREATE_CHAT_CONVERSATION_STRUCTURED_MODELO') ?? 'gpt-5-nano'
 
-app.get(`${prefix}/health`, (c) => withCors(jsonResponse({ ok: true })));
+app.get(`${prefix}/health`, (_c) => withCors(jsonResponse({ ok: true })))
 
 /**
  * POST /conversations
@@ -56,132 +66,147 @@ app.post(`${prefix}/plan/conversations`, async (c) => {
     /*     const auth = c.req.header("authorization");
     const user = await requireUser(auth); */
 
-    const body = (await c.req.json().catch(() => ({}))) as Partial<CreateBody>;
-    const plan_estudio_id = body.plan_estudio_id;
-    assertUuid(plan_estudio_id ?? "", "plan_estudio_id");
+    const body = (await c.req.json().catch(() => ({}))) as Partial<CreateBody>
+    const plan_estudio_id = body.plan_estudio_id
+    assertUuid(plan_estudio_id ?? '', 'plan_estudio_id')
 
-    const instanciador = /* user.email ?? user.id ?? */ body.instanciador ??
-      "unknown";
-    const system_prompt = body.system_prompt ??
-      "En caso de que te pidan algo que no tiene nada que ver con planes de estudio o asignatura responde con un refusal.";
+    const instanciador =
+      /* user.email ?? user.id ?? */ body.instanciador ?? 'unknown'
+    const system_prompt =
+      body.system_prompt ??
+      'En caso de que te pidan algo que no tiene nada que ver con planes de estudio o asignatura responde con un refusal.'
 
-    const supabase = getSupabaseServiceClient();
-    const openai = getOpenAI();
+    const supabase = getSupabaseServiceClient()
+    const openai = getOpenAI()
 
     // Cargar plan + estructura
     const { data: plan, error: planErr } = await supabase
-      .from("planes_estudio")
-      .select("*, estructuras_plan (definicion)")
-      .eq("id", plan_estudio_id)
-      .single();
+      .from('planes_estudio')
+      .select('*, estructuras_plan (definicion)')
+      .eq('id', plan_estudio_id)
+      .single()
 
     if (planErr || !plan) {
       throw new HttpError(
         404,
-        "plan_not_found",
-        "Plan de estudio no encontrado",
+        'plan_not_found',
+        'Plan de estudio no encontrado',
         planErr,
-      );
+      )
     }
 
     // Crear conversación en OpenAI
     const conv = await openai.conversations.create({
       metadata: {
-        tabla: "planes_estudio",
+        tabla: 'planes_estudio',
         id: plan.id,
         instanciador,
       },
-      items: [{ type: "message", role: "system", content: system_prompt }],
-    });
+      items: [{ type: 'message', role: 'system', content: system_prompt }],
+    })
 
     // Crear registro en Supabase
     const { data: row, error: insErr } = await supabase
-      .from("conversaciones_plan")
+      .from('conversaciones_plan')
       .insert({
         openai_conversation_id: conv.id,
         plan_estudio_id: plan.id,
-        estado: "ACTIVA",
+        estado: 'ACTIVA',
       })
-      .select("id, plan_estudio_id, openai_conversation_id, estado")
-      .single();
+      .select('id, plan_estudio_id, openai_conversation_id, estado')
+      .single()
 
     if (insErr || !row) {
       // rollback best-effort
       try {
-        await openai.conversations.delete(conv.id);
-      } catch (_) {}
+        await openai.conversations.delete(conv.id)
+      } catch {
+        /* ignore rollback */
+      }
       throw new HttpError(
         500,
-        "db_insert_failed",
-        "No se pudo registrar la conversación",
+        'db_insert_failed',
+        'No se pudo registrar la conversación',
         insErr,
-      );
+      )
     }
 
-    return withCors(jsonResponse({ conversation_plan: row }, 201));
+    return withCors(jsonResponse({ conversation_plan: row }, 201))
   } catch (err) {
-    return withCors(handleErr(err));
+    return withCors(handleErr(err))
   }
-});
+})
 app.post(`${prefix}/asignatura/conversations`, async (c) => {
   try {
-    const body = (await c.req.json().catch(() => ({}))) as Partial<CreateBody>;
-    const asignatura_id = body.asignatura_id;
-    assertUuid(asignatura_id ?? "", "asignatura_id");
+    const body = (await c.req.json().catch(() => ({}))) as Partial<CreateBody>
+    const asignatura_id = body.asignatura_id
+    assertUuid(asignatura_id ?? '', 'asignatura_id')
 
-    const instanciador = body.instanciador ?? "unknown";
-    const system_prompt = body.system_prompt ?? 
-      "Eres un asistente experto en currículo académico. Si te piden algo ajeno a la asignatura, responde con un refusal.";
+    const instanciador = body.instanciador ?? 'unknown'
+    const system_prompt =
+      body.system_prompt ??
+      'Eres un asistente experto en currículo académico. Si te piden algo ajeno a la asignatura, responde con un refusal.'
 
-    const supabase = getSupabaseServiceClient();
-    const openai = getOpenAI();
+    const supabase = getSupabaseServiceClient()
+    const openai = getOpenAI()
 
     // 1. Verificar que la asignatura existe
     const { data: asignatura, error: asigErr } = await supabase
-      .from("asignaturas")
-      .select("*")
-      .eq("id", asignatura_id)
-      .single();
+      .from('asignaturas')
+      .select('*')
+      .eq('id', asignatura_id)
+      .single()
 
     if (asigErr || !asignatura) {
-      throw new HttpError(404, "asignatura_not_found", "Asignatura no encontrada");
+      throw new HttpError(
+        404,
+        'asignatura_not_found',
+        'Asignatura no encontrada',
+      )
     }
 
     // 2. Crear conversación en OpenAI
     const conv = await openai.conversations.create({
       metadata: {
-        tabla: "asignaturas",
+        tabla: 'asignaturas',
         id: asignatura.id,
         instanciador,
       },
-      items: [{ type: "message", role: "system", content: system_prompt }],
-    });
+      items: [{ type: 'message', role: 'system', content: system_prompt }],
+    })
 
     // 3. Insertar en conversaciones_asignatura (coincidiendo con tu SQL)
     const { data: row, error: insErr } = await supabase
-      .from("conversaciones_asignatura")
+      .from('conversaciones_asignatura')
       .insert({
         openai_conversation_id: conv.id,
         asignatura_id: asignatura.id,
-        estado: "ACTIVA",
+        estado: 'ACTIVA',
         conversacion_json: [], // Inicializamos como array vacío para los mensajes
         // creado_por: user.id // Opcional si tienes el ID del usuario
       })
-      .select("id, asignatura_id, openai_conversation_id, estado")
-      .single();
+      .select('id, asignatura_id, openai_conversation_id, estado')
+      .single()
 
     if (insErr || !row) {
-      try { await openai.conversations.delete(conv.id); } catch (_) {}
-      throw new HttpError(500, "db_insert_failed", "Error al registrar conversación", insErr);
+      try {
+        await openai.conversations.delete(conv.id)
+      } catch {
+        /* ignore rollback */
+      }
+      throw new HttpError(
+        500,
+        'db_insert_failed',
+        'Error al registrar conversación',
+        insErr,
+      )
     }
 
-    return withCors(jsonResponse({ conversation_asignatura: row }, 201));
+    return withCors(jsonResponse({ conversation_asignatura: row }, 201))
   } catch (err) {
-    return withCors(handleErr(err));
+    return withCors(handleErr(err))
   }
-});
-
-
+})
 
 /**
  * POST /conversations/:conversation_plan_id/messages
@@ -189,226 +214,339 @@ app.post(`${prefix}/asignatura/conversations`, async (c) => {
  */
 app.post(`${prefix}/conversations/plan/:id/messages`, async (c) => {
   try {
-    const conversation_plan_id = c.req.param("id");
-    assertUuid(conversation_plan_id, "conversation_plan_id");
+    const conversation_plan_id = c.req.param('id')
+    assertUuid(conversation_plan_id, 'conversation_plan_id')
 
-    const body = (await c.req.json().catch(() => ({}))) as Partial<AddMessageBody>;
-    if (!body.content || typeof body.content !== "string") {
-      throw new HttpError(400, "bad_input", "content es requerido");
+    const body = (await c.req
+      .json()
+      .catch(() => ({}))) as Partial<AddMessageBody>
+    if (!body.content || typeof body.content !== 'string') {
+      throw new HttpError(400, 'bad_input', 'content es requerido')
     }
 
-    console.log("Iniciando generación en background para mensaje_id:");
-    const supabase = getSupabaseServiceClient();
-    const svc = OpenAIService.fromEnv();
+    console.log('Iniciando generación en background para mensaje_id:')
+    const supabase = getSupabaseServiceClient()
+    const svc = OpenAIService.fromEnv()
+    if (!(svc instanceof OpenAIService)) {
+      throw new HttpError(
+        500,
+        'openai_misconfigured',
+        'OpenAI no está configurado',
+        svc,
+      )
+    }
 
     // 1. Validar existencia y estado de la conversación
     const { data: row, error } = await supabase
-      .from("conversaciones_plan")
-      .select("id, openai_conversation_id, plan_estudio_id, estado, planes_estudio(*, estructuras_plan(definicion))")
-      .eq("id", conversation_plan_id)
-      .single();
+      .from('conversaciones_plan')
+      .select(
+        'id, openai_conversation_id, plan_estudio_id, estado, planes_estudio(*, estructuras_plan(definicion))',
+      )
+      .eq('id', conversation_plan_id)
+      .single()
 
-    if (error || !row) throw new HttpError(404, "not_found", "Conversación no encontrada");
-    if (row.estado === "ARCHIVADA") throw new HttpError(409, "archived", "Conversación archivada");
+    if (error || !row)
+      throw new HttpError(404, 'not_found', 'Conversación no encontrada')
+    if (row.estado === 'ARCHIVADA')
+      throw new HttpError(409, 'archived', 'Conversación archivada')
 
-    const plan = (row as any).planes_estudio;
-    const definicion = plan?.estructuras_plan?.definicion;
-    const isStructured = !!definicion;
+    const plan =
+      (row as unknown as { planes_estudio?: Record<string, unknown> | null })
+        .planes_estudio ?? null
+    const definicion = (
+      plan?.['estructuras_plan'] as Record<string, unknown> | null
+    )?.['definicion']
+    const isStructured = !!definicion
 
     // 2. Insertar el mensaje en estado PENDIENTE
     // Guardamos los metadatos necesarios para procesar la respuesta después
     const { data: mensajeInsertado, error: insertErr } = await supabase
-      .from("plan_mensajes_ia")
+      .from('plan_mensajes_ia')
       .insert({
-        conversacion_plan_id:conversation_plan_id,
-        enviado_por: "00000000-0000-0000-0000-000000000000", 
+        conversacion_plan_id: conversation_plan_id,
+        enviado_por: '00000000-0000-0000-0000-000000000000',
         mensaje: body.content,
         campos: body.campos ?? [],
-        estado: "PROCESANDO", // Estado inicial
+        estado: 'PROCESANDO', // Estado inicial
       })
       .select()
-      .single();
+      .single()
 
-    if (insertErr) throw new HttpError(500, "db_error", "No se pudo crear el registro");
+    if (insertErr)
+      throw new HttpError(500, 'db_error', 'No se pudo crear el registro')
 
     // 3. Preparar Schema y Prompt
-    const schema = isStructured ? pickSchemaFields(definicion, body.campos ?? []) : {
-      type: "object",
-      properties: { "ai-message": { type: "string" }, "is_refusal": { type: "boolean" } }
-    };
+    const schema = isStructured
+      ? pickSchemaFields(definicion, body.campos ?? [])
+      : {
+          type: 'object',
+          properties: {
+            'ai-message': { type: 'string' },
+            is_refusal: { type: 'boolean' },
+          },
+        }
+
+    const openaiFileIds = (body.archivosReferencia ?? []).filter(
+      (id): id is string => typeof id === 'string' && id.length > 0,
+    )
+    const vectorStoreIds = (body.repositoriosIds ?? []).filter(
+      (id): id is string => typeof id === 'string' && id.length > 0,
+    )
+    const promptText = body.user_prompt ?? body.content
+    const userContent = openaiFileIds.length
+      ? [
+          ...openaiFileIds.map((id) => ({
+            type: 'input_file' as const,
+            file_id: id,
+          })),
+          {
+            type: 'input_text' as const,
+            text: `Usa estos archivos como referencia.\n\n${promptText}`,
+          },
+        ]
+      : promptText
 
     // 4. Llamada asincrónica a OpenAI con Webhook
     // Nota: El SDK de OpenAI permite pasar webhooks en ciertos modelos/endpoints
-    console.log("mandando a openaai ");
-    
+    console.log('mandando a openaai ')
+
     const aiResult = await svc.createStructuredResponse({
       conversation: row.openai_conversation_id,
-      model: isStructured ? CREATE_CHAT_CONVERSATION_STRUCTURED_MODELO : CREATE_CHAT_CONVERSATION_NONSTRUCTURED_MODELO,
+      model: isStructured
+        ? CREATE_CHAT_CONVERSATION_STRUCTURED_MODELO
+        : CREATE_CHAT_CONVERSATION_NONSTRUCTURED_MODELO,
       background: true, // <--- ESTO ES LO QUE TE FALTABA
       metadata: {
-        tabla: "plan_mensajes_ia",
+        tabla: 'plan_mensajes_ia',
         mensaje_id: String(mensajeInsertado.id), // Siempre string
-        is_structured: String(isStructured)
+        is_structured: String(isStructured),
       },
-      text: { 
-        format: { 
-          type: "json_schema", 
-          name: "definicion", 
-          schema: schema 
-        } 
+      tools: vectorStoreIds.length
+        ? [
+            {
+              type: 'file_search',
+              vector_store_ids: vectorStoreIds,
+            },
+          ]
+        : undefined,
+      text: {
+        format: {
+          type: 'json_schema',
+          name: 'definicion',
+          schema: schema,
+        },
       },
       input: [
-        { role: "system", content: `Asistente de plan: ${JSON.stringify(safePlanForPrompt(plan))}` },
-        { role: "user", content: body.content },
+        {
+          role: 'system',
+          content: `Asistente de plan: ${JSON.stringify(safePlanForPrompt(plan))}`,
+        },
+        { role: 'user', content: userContent },
       ],
-    });
+    })
 
     if (!aiResult.ok) {
-        throw new HttpError(500, "openai_error", "No se pudo encolar la respuesta");
+      throw new HttpError(
+        500,
+        'openai_error',
+        'No se pudo encolar la respuesta',
+      )
     }
 
     // 5. Responder al cliente de inmediato
-    return withCors(jsonResponse({
-      ok: true,
-      mensaje_id: mensajeInsertado.id,
-      openai_response_id: aiResult.responseId // Para seguimiento
-    }));
-
+    return withCors(
+      jsonResponse({
+        ok: true,
+        mensaje_id: mensajeInsertado.id,
+        openai_response_id: aiResult.responseId, // Para seguimiento
+      }),
+    )
   } catch (err) {
-    return withCors(handleErr(err));
+    return withCors(handleErr(err))
   }
-});
-
-
-
-
-
+})
 
 app.post(`${prefix}/conversations/asignatura/:id/messages`, async (c) => {
   try {
-    const conversation_asig_id = c.req.param("id");
-    assertUuid(conversation_asig_id, "conversation_asig_id");
+    const conversation_asig_id = c.req.param('id')
+    assertUuid(conversation_asig_id, 'conversation_asig_id')
 
-    const body = (await c.req.json().catch(() => ({}))) as Partial<AddMessageBody>;
-    if (!body.content || typeof body.content !== "string") {
-      throw new HttpError(400, "bad_input", "content es requerido");
+    const body = (await c.req
+      .json()
+      .catch(() => ({}))) as Partial<AddMessageBody>
+    if (!body.content || typeof body.content !== 'string') {
+      throw new HttpError(400, 'bad_input', 'content es requerido')
     }
 
-    const supabase = getSupabaseServiceClient();
+    const supabase = getSupabaseServiceClient()
     // Usamos el servicio que ya tienes configurado para background
-    const svc = OpenAIService.fromEnv(); 
+    const svc = OpenAIService.fromEnv()
+    if (!(svc instanceof OpenAIService)) {
+      throw new HttpError(
+        500,
+        'openai_misconfigured',
+        'OpenAI no está configurado',
+        svc,
+      )
+    }
 
     // 1. Traer datos de la asignatura
     const { data: row, error } = await supabase
-      .from("conversaciones_asignatura")
-      .select(`id, openai_conversation_id, asignatura_id, asignaturas(*, estructuras_asignatura(definicion))`)
-      .eq("id", conversation_asig_id)
-      .single();
+      .from('conversaciones_asignatura')
+      .select(
+        `id, openai_conversation_id, asignatura_id, asignaturas(*, estructuras_asignatura(definicion))`,
+      )
+      .eq('id', conversation_asig_id)
+      .single()
 
-    if (error || !row) throw new HttpError(404, "not_found", "Conversación no encontrada");
+    if (error || !row)
+      throw new HttpError(404, 'not_found', 'Conversación no encontrada')
 
-    const asignatura = (row as any).asignaturas;
-    const definicion = asignatura?.estructuras_asignatura?.definicion;
-    const campos = body.campos ?? [];
-    const isStructured = !!definicion && campos.length > 0;
+    const asignatura =
+      (
+        row as unknown as {
+          asignaturas?: Record<string, unknown> | null
+        }
+      ).asignaturas ?? null
+    const definicion = (
+      asignatura?.['estructuras_asignatura'] as Record<string, unknown> | null
+    )?.['definicion']
+    const campos = body.campos ?? []
+    const isStructured = !!definicion && campos.length > 0
     // 2. Insertar el mensaje en estado PROCESANDO (para que el front vea el spinner)
     const { data: mensajeInsertado, error: insertErr } = await supabase
-      .from("asignatura_mensajes_ia")
+      .from('asignatura_mensajes_ia')
       .insert({
         conversacion_asignatura_id: conversation_asig_id,
-        enviado_por: "00000000-0000-0000-0000-000000000000",
+        enviado_por: '00000000-0000-0000-0000-000000000000',
         mensaje: body.content,
         campos: body.campos ?? [],
-        estado: "PROCESANDO", 
+        estado: 'PROCESANDO',
       })
       .select()
-      .single();
+      .single()
 
-    if (insertErr) throw new HttpError(500, "db_error", "No se pudo crear el registro");
+    if (insertErr)
+      throw new HttpError(500, 'db_error', 'No se pudo crear el registro')
 
     // 3. Preparar Schema (Usando tu lógica de asignatura)
-    const schema = isStructured 
-      ? pickSchemaAsignaturaFields(definicion, body.campos ?? []) 
+    const schema = isStructured
+      ? pickSchemaAsignaturaFields(definicion, body.campos ?? [])
       : {
-          type: "object",
-          properties: { 
-            "ai-message": { type: "string" }, 
-            "is_refusal": { type: "boolean" } 
+          type: 'object',
+          properties: {
+            'ai-message': { type: 'string' },
+            is_refusal: { type: 'boolean' },
           },
-          required: ["ai-message", "is_refusal"],
-          additionalProperties: false
-        };
+          required: ['ai-message', 'is_refusal'],
+          additionalProperties: false,
+        }
 
-     
-        
+    const openaiFileIds = (body.archivosReferencia ?? []).filter(
+      (id): id is string => typeof id === 'string' && id.length > 0,
+    )
+    const vectorStoreIds = (body.repositoriosIds ?? []).filter(
+      (id): id is string => typeof id === 'string' && id.length > 0,
+    )
+    const promptText = body.user_prompt ?? body.content
+    const userContent = openaiFileIds.length
+      ? [
+          ...openaiFileIds.map((id) => ({
+            type: 'input_file' as const,
+            file_id: id,
+          })),
+          {
+            type: 'input_text' as const,
+            text: `Usa estos archivos como referencia.\n\n${promptText}`,
+          },
+        ]
+      : promptText
+
     // 4. Llamada asincrónica con background: true
     const aiResult = await svc.createStructuredResponse({
       conversation: row.openai_conversation_id,
-      model: isStructured ? CREATE_CHAT_CONVERSATION_STRUCTURED_MODELO : CREATE_CHAT_CONVERSATION_NONSTRUCTURED_MODELO,
+      model: isStructured
+        ? CREATE_CHAT_CONVERSATION_STRUCTURED_MODELO
+        : CREATE_CHAT_CONVERSATION_NONSTRUCTURED_MODELO,
       background: true, // <--- Ahora sí, activamos el modo background
       metadata: {
-        tabla: "asignatura_mensajes_ia", // El webhook usará esto para saber dónde hacer el UPDATE
+        tabla: 'asignatura_mensajes_ia', // El webhook usará esto para saber dónde hacer el UPDATE
         mensaje_id: String(mensajeInsertado.id),
         is_structured: String(isStructured),
-        conversation_id: conversation_asig_id // Extra para el webhook si lo necesita
+        conversation_id: conversation_asig_id, // Extra para el webhook si lo necesita
       },
-      text: { 
-        format: { 
-          type: "json_schema", 
-          name: "mejoras_asignatura",
-          schema: schema 
-        } 
+      tools: vectorStoreIds.length
+        ? [
+            {
+              type: 'file_search',
+              vector_store_ids: vectorStoreIds,
+            },
+          ]
+        : undefined,
+      text: {
+        format: {
+          type: 'json_schema',
+          name: 'mejoras_asignatura',
+          schema: schema,
+        },
       },
       input: [
-        { role: "system", content: getAsignaturaSystemPrompt(asignatura, campos) },
-        { role: "user", content: body.content },
+        {
+          role: 'system',
+          content: getAsignaturaSystemPrompt(asignatura, campos),
+        },
+        { role: 'user', content: userContent },
       ],
-    });
+    })
 
     if (!aiResult.ok) {
-      throw new HttpError(500, "openai_error", "No se pudo encolar la respuesta");
+      throw new HttpError(
+        500,
+        'openai_error',
+        'No se pudo encolar la respuesta',
+      )
     }
 
     // 5. Responder al cliente de inmediato
-    return withCors(jsonResponse({
-      ok: true,
-      mensaje_id: mensajeInsertado.id,
-      openai_response_id: aiResult.responseId
-    }));
-
+    return withCors(
+      jsonResponse({
+        ok: true,
+        mensaje_id: mensajeInsertado.id,
+        openai_response_id: aiResult.responseId,
+      }),
+    )
   } catch (err) {
-    return withCors(handleErr(err));
+    return withCors(handleErr(err))
   }
-});
-
-
+})
 
 /**
  * Unknown routes
  */
-app.all(
-  "*",
-  (c) =>
-    withCors(
-      jsonResponse({
-        error: "not_found",
+app.all('*', (c) =>
+  withCors(
+    jsonResponse(
+      {
+        error: 'not_found',
         message: `Route ${c.req.url} not found`,
-      }, 404),
+      },
+      404,
     ),
-);
+  ),
+)
 
 function handleErr(err: unknown): Response {
   if (err instanceof HttpError) {
     return jsonResponse(
       { error: err.code, message: err.message, details: err.details ?? null },
       err.status,
-    );
+    )
   }
-  console.error("Unhandled error:", err);
+  console.error('Unhandled error:', err)
   return jsonResponse(
-    { error: "internal_error", message: "Unexpected error" },
+    { error: 'internal_error', message: 'Unexpected error' },
     500,
-  );
+  )
 }
 
-Deno.serve(app.fetch);
+Deno.serve(app.fetch)

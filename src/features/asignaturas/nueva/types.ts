@@ -76,6 +76,7 @@ export type NewSubjectWizardState = {
   resumen: {
     previewAsignatura?: AsignaturaPreview
   }
+  archivosAdjuntosDedupePending?: number
   isLoading: boolean
   errorMessage: string | null
 }

@@ -1,6 +1,7 @@
 import { RouterProvider, createRouter } from '@tanstack/react-router'
 import { StrictMode } from 'react'
 import ReactDOM from 'react-dom/client'
+import { Toaster } from 'sonner'
 
 import reportWebVitals from './reportWebVitals.ts'
 import { routeTree } from './routeTree.gen'
@@ -40,6 +41,7 @@ if (rootElement && !rootElement.innerHTML) {
   root.render(
     <StrictMode>
       <TanStackQueryProvider.Provider {...TanStackQueryProviderContext}>
+        <Toaster richColors />
         <RouterProvider router={router} />
       </TanStackQueryProvider.Provider>
     </StrictMode>,

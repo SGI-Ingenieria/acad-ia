@@ -15,7 +15,6 @@ import type {
   TipoCiclo,
   UUID,
 } from '../types/domain'
-import type { UploadedFile } from '@/components/planes/wizard/PasoDetallesPanel/FileDropZone'
 
 const EDGE = {
   plans_create_manual: 'plans_create_manual',
@@ -363,10 +362,8 @@ export type AIGeneratePlanInput = {
   iaConfig: {
     descripcionEnfoqueAcademico: string
     instruccionesAdicionalesIA?: string
-    archivosReferencia?: Array<UUID>
+    archivosReferencia?: Array<string>
     repositoriosIds?: Array<UUID>
-    archivosAdjuntos: Array<UploadedFile>
-    usarMCP?: boolean
   }
 }
 
@@ -377,16 +374,7 @@ export async function ai_generate_plan(
 
   const edgeFunctionBody = new FormData()
   edgeFunctionBody.append('datosBasicos', JSON.stringify(input.datosBasicos))
-  edgeFunctionBody.append(
-    'iaConfig',
-    JSON.stringify({
-      ...input.iaConfig,
-      archivosAdjuntos: undefined, // los manejamos aparte
-    }),
-  )
-  input.iaConfig.archivosAdjuntos.forEach((file) => {
-    edgeFunctionBody.append(`archivosAdjuntos`, file.file)
-  })
+  edgeFunctionBody.append('iaConfig', JSON.stringify(input.iaConfig))
 
   return invokeEdge<any>(
     EDGE.ai_generate_plan,

@@ -36,6 +36,7 @@ export function useNuevaAsignaturaWizard(planId: string) {
       isLoading: false,
     },
     resumen: {},
+    archivosAdjuntosDedupePending: 0,
     isLoading: false,
     errorMessage: null,
   })

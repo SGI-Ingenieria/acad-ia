@@ -91,6 +91,9 @@ export function PasoDetallesPanel({
           selectedArchivoIds={wizard.iaConfig?.archivosReferencia || []}
           selectedRepositorioIds={wizard.iaConfig?.repositoriosReferencia || []}
           uploadedFiles={wizard.iaConfig?.archivosAdjuntos || []}
+          enableSha256Dedupe={true}
+          enableAutoUpload={true}
+          autoScrollToDropzone={true}
           onToggleArchivo={(id, checked) =>
             onChange((w): NewPlanWizardState => {
               const prev = w.iaConfig?.archivosReferencia || []

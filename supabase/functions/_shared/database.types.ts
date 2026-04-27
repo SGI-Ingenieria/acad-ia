@@ -1,4 +1,4 @@
-export type Json =
+﻿export type Json =
   | string
   | number
   | boolean
@@ -7,56 +7,89 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "14.1"
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
   }
   public: {
     Tables: {
       archivos: {
         Row: {
-          bytes: number | null
+          created_at: string
+          hash: string | null
           id: string
-          mime_type: string | null
-          nombre: string
-          notas: string | null
           openai_file_id: string | null
-          ruta_storage: string
-          subido_en: string
-          subido_por: string | null
-          temporal: boolean
+          path: string
+          size: number | null
         }
         Insert: {
-          bytes?: number | null
-          id?: string
-          mime_type?: string | null
-          nombre: string
-          notas?: string | null
+          created_at?: string
+          hash?: string | null
+          id: string
           openai_file_id?: string | null
-          ruta_storage: string
-          subido_en?: string
-          subido_por?: string | null
-          temporal?: boolean
+          path: string
+          size?: number | null
         }
         Update: {
-          bytes?: number | null
+          created_at?: string
+          hash?: string | null
           id?: string
-          mime_type?: string | null
-          nombre?: string
-          notas?: string | null
           openai_file_id?: string | null
-          ruta_storage?: string
-          subido_en?: string
-          subido_por?: string | null
-          temporal?: boolean
+          path?: string
+          size?: number | null
+        }
+        Relationships: []
+      }
+      archivos_repositorios: {
+        Row: {
+          archivo_id: string
+          created_at: string
+          repositorio_id: string
+        }
+        Insert: {
+          archivo_id: string
+          created_at?: string
+          repositorio_id: string
+        }
+        Update: {
+          archivo_id?: string
+          created_at?: string
+          repositorio_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "archivos_subido_por_fkey"
-            columns: ["subido_por"]
+            foreignKeyName: "archivos_repositorios_archivo_id_fkey"
+            columns: ["archivo_id"]
             isOneToOne: false
-            referencedRelation: "usuarios_app"
+            referencedRelation: "archivos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "archivos_repositorios_repositorio_id_fkey"
+            columns: ["repositorio_id"]
+            isOneToOne: false
+            referencedRelation: "repositorios"
             referencedColumns: ["id"]
           },
         ]
@@ -608,6 +641,7 @@ export type Database = {
       estados_plan: {
         Row: {
           clave: string
+          color: string | null
           es_final: boolean
           etiqueta: string
           id: string
@@ -615,6 +649,7 @@ export type Database = {
         }
         Insert: {
           clave: string
+          color?: string | null
           es_final?: boolean
           etiqueta: string
           id?: string
@@ -622,6 +657,7 @@ export type Database = {
         }
         Update: {
           clave?: string
+          color?: string | null
           es_final?: boolean
           etiqueta?: string
           id?: string
@@ -813,6 +849,7 @@ export type Database = {
         Row: {
           actualizado_en: string
           area: string | null
+          color: string | null
           creado_en: string
           id: string
           nombre: string
@@ -822,6 +859,7 @@ export type Database = {
         Insert: {
           actualizado_en?: string
           area?: string | null
+          color?: string | null
           creado_en?: string
           id?: string
           nombre: string
@@ -831,6 +869,7 @@ export type Database = {
         Update: {
           actualizado_en?: string
           area?: string | null
+          color?: string | null
           creado_en?: string
           id?: string
           nombre?: string
@@ -1047,6 +1086,27 @@ export type Database = {
             referencedColumns: ["estructura_id"]
           },
         ]
+      }
+      repositorios: {
+        Row: {
+          created_at: string
+          id: string
+          nombre: string | null
+          openai_vector_store_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          nombre?: string | null
+          openai_vector_store_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          nombre?: string | null
+          openai_vector_store_id?: string | null
+        }
+        Relationships: []
       }
       responsables_asignatura: {
         Row: {
@@ -1417,7 +1477,7 @@ export type Database = {
       fuente_cambio: "HUMANO" | "IA"
       nivel_plan_estudio:
         | "Licenciatura"
-        | "Maestría"
+        | "Maestr├¡a"
         | "Doctorado"
         | "Especialidad"
         | "Diplomado"
@@ -1580,6 +1640,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       estado_asignatura: ["borrador", "revisada", "aprobada", "generando"],
@@ -1589,7 +1652,7 @@ export const Constants = {
       fuente_cambio: ["HUMANO", "IA"],
       nivel_plan_estudio: [
         "Licenciatura",
-        "Maestría",
+        "Maestr├¡a",
         "Doctorado",
         "Especialidad",
         "Diplomado",
@@ -1639,3 +1702,4 @@ export const Constants = {
     },
   },
 } as const
+

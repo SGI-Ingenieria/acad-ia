@@ -1,14 +1,40 @@
-import { Upload, File, X, FileText } from 'lucide-react'
+import {
+  Upload,
+  File,
+  X,
+  FileText,
+  Loader2,
+  CheckCircle2,
+  RotateCcw,
+} from 'lucide-react'
 import { useState, useCallback, useEffect, useRef } from 'react'
+import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
+import { supabaseBrowser } from '@/data'
+import {
+  deleteArchivo,
+  uploadOpenAIForArchivo,
+  uploadSingleFile,
+  UploadSingleFileError,
+} from '@/data/api/files.api'
 import { formatFileSize } from '@/features/planes/utils/format-file-size'
 import { cn } from '@/lib/utils'
+
+export type FileUploadStatus = 'subiendo' | 'exito' | 'error' | 'eliminando'
 
 export interface UploadedFile {
   id: string // Necesario para React (key)
   file: File // La fuente de verdad (contiene name, size, type)
   preview?: string // Opcional: si fueran imágenes
+  sha256?: string // Hash SHA256 (hex) calculado en frontend
+
+  // Estado del flujo: Storage -> BD -> OpenAI
+  uploadStatus?: FileUploadStatus
+  uploadError?: string
+  archivoId?: string
+  path?: string
+  openaiFileId?: string
 }
 
 interface FileDropzoneProps {
@@ -19,6 +45,9 @@ interface FileDropzoneProps {
   title?: string
   description?: string
   autoScrollToDropzone?: boolean
+  enableSha256Dedupe?: boolean
+  onDedupePendingChange?: (pendingCount: number) => void
+  enableAutoUpload?: boolean
 }
 
 export function FileDropzone({
@@ -29,12 +58,233 @@ export function FileDropzone({
   title = 'Arrastra archivos aquí',
   description = 'o haz clic para seleccionar',
   autoScrollToDropzone = false,
+  enableSha256Dedupe = false,
+  onDedupePendingChange,
+  enableAutoUpload = false,
 }: FileDropzoneProps) {
   const [isDragging, setIsDragging] = useState(false)
   const [files, setFiles] = useState<Array<UploadedFile>>(persistentFiles ?? [])
   const onFilesChangeRef = useRef<typeof onFilesChange>(onFilesChange)
+  const onDedupePendingChangeRef = useRef<typeof onDedupePendingChange>(
+    onDedupePendingChange,
+  )
   const bottomRef = useRef<HTMLDivElement>(null)
   const prevFilesLengthRef = useRef(files.length)
+  const filesRef = useRef<Array<UploadedFile>>(files)
+
+  const pendingChecksRef = useRef(new Set<string>())
+  const [pendingChecks, setPendingChecks] = useState(0)
+
+  useEffect(() => {
+    onDedupePendingChangeRef.current = onDedupePendingChange
+  }, [onDedupePendingChange])
+
+  useEffect(() => {
+    filesRef.current = files
+  }, [files])
+
+  useEffect(() => {
+    onDedupePendingChangeRef.current?.(pendingChecks)
+  }, [pendingChecks])
+
+  const computeSha256Hex = useCallback(async (file: File): Promise<string> => {
+    const buf = await file.arrayBuffer()
+    const digest = await crypto.subtle.digest('SHA-256', buf)
+    const bytes = new Uint8Array(digest)
+    return Array.from(bytes)
+      .map((b) => b.toString(16).padStart(2, '0'))
+      .join('')
+  }, [])
+
+  const getBasename = (path: string) => {
+    const parts = path.split('/').filter(Boolean)
+    return parts.length ? parts[parts.length - 1] : path
+  }
+
+  const stripUuidPrefixFromBasename = (basename: string) => {
+    return basename.replace(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}-/i,
+      '',
+    )
+  }
+
+  const startUpload = useCallback(
+    async (fileId: string) => {
+      const current = filesRef.current.find((f) => f.id === fileId)
+      if (!current) return
+      if (
+        current.uploadStatus === 'subiendo' ||
+        current.uploadStatus === 'eliminando' ||
+        current.uploadStatus === 'exito'
+      ) {
+        return
+      }
+
+      setFiles((prev) =>
+        prev.map((f) =>
+          f.id === fileId
+            ? { ...f, uploadStatus: 'subiendo', uploadError: undefined }
+            : f,
+        ),
+      )
+
+      try {
+        const sha256 = current.sha256 ?? (await computeSha256Hex(current.file))
+
+        setFiles((prev) =>
+          prev.map((f) => (f.id === fileId ? { ...f, sha256 } : f)),
+        )
+
+        const result = await uploadSingleFile({ file: current.file, sha256 })
+
+        setFiles((prev) =>
+          prev.map((f) =>
+            f.id === fileId
+              ? {
+                  ...f,
+                  archivoId: result.archivoId,
+                  path: result.path,
+                  openaiFileId: result.openaiFileId,
+                  uploadStatus: 'exito',
+                  uploadError: undefined,
+                }
+              : f,
+          ),
+        )
+      } catch (e) {
+        const message =
+          e instanceof Error ? e.message : 'Error subiendo archivo.'
+        const archivoId =
+          e instanceof UploadSingleFileError ? e.archivoId : undefined
+        const path = e instanceof UploadSingleFileError ? e.path : undefined
+
+        setFiles((prev) =>
+          prev.map((f) =>
+            f.id === fileId
+              ? {
+                  ...f,
+                  uploadStatus: 'error',
+                  uploadError: message,
+                  ...(archivoId ? { archivoId } : {}),
+                  ...(path ? { path } : {}),
+                }
+              : f,
+          ),
+        )
+      }
+    },
+    [computeSha256Hex],
+  )
+
+  const retryUpload = useCallback(
+    async (fileId: string) => {
+      const current = filesRef.current.find((f) => f.id === fileId)
+      if (!current) return
+
+      // Si alcanzamos a crear el registro en BD/Storage, reintenta SOLO OpenAI.
+      if (current.archivoId) {
+        setFiles((prev) =>
+          prev.map((f) =>
+            f.id === fileId
+              ? { ...f, uploadStatus: 'subiendo', uploadError: undefined }
+              : f,
+          ),
+        )
+
+        try {
+          const { openaiFileId } = await uploadOpenAIForArchivo({
+            archivoId: current.archivoId,
+          })
+
+          setFiles((prev) =>
+            prev.map((f) =>
+              f.id === fileId
+                ? {
+                    ...f,
+                    openaiFileId,
+                    uploadStatus: 'exito',
+                    uploadError: undefined,
+                  }
+                : f,
+            ),
+          )
+        } catch (e) {
+          const message =
+            e instanceof Error ? e.message : 'Error subiendo archivo a OpenAI.'
+          setFiles((prev) =>
+            prev.map((f) =>
+              f.id === fileId
+                ? { ...f, uploadStatus: 'error', uploadError: message }
+                : f,
+            ),
+          )
+        }
+
+        return
+      }
+
+      await startUpload(fileId)
+    },
+    [startUpload],
+  )
+
+  const runDuplicateCheck = useCallback(
+    async (uploaded: UploadedFile) => {
+      if (!enableSha256Dedupe && !enableAutoUpload) return
+      if (pendingChecksRef.current.has(uploaded.id)) return
+
+      pendingChecksRef.current.add(uploaded.id)
+      setPendingChecks((n) => n + 1)
+
+      try {
+        const sha256 = await computeSha256Hex(uploaded.file)
+
+        setFiles((prev) =>
+          prev.map((f) => (f.id === uploaded.id ? { ...f, sha256 } : f)),
+        )
+
+        const supabase = supabaseBrowser()
+
+        const { data: existing, error } = enableSha256Dedupe
+          ? await supabase
+              .from('archivos')
+              .select('id,path')
+              .eq('hash', sha256)
+              .maybeSingle()
+          : { data: null, error: null }
+
+        if (error) {
+          console.error('Error buscando duplicados por hash:', error)
+          return
+        }
+
+        if (existing?.id) {
+          const nombreExistente = existing.path
+            ? stripUuidPrefixFromBasename(getBasename(String(existing.path)))
+            : ''
+
+          toast(
+            `Ese archivo ya existe en la base de datos${
+              nombreExistente ? ` con el nombre ${nombreExistente}` : ''
+            }.`,
+          )
+
+          setFiles((prev) => prev.filter((f) => f.id !== uploaded.id))
+          return
+        }
+
+        if (enableAutoUpload) {
+          void startUpload(uploaded.id)
+        }
+      } catch (e) {
+        console.error('Error calculando hash / dedupe:', e)
+      } finally {
+        pendingChecksRef.current.delete(uploaded.id)
+        setPendingChecks((n) => Math.max(0, n - 1))
+      }
+    },
+    [computeSha256Hex, enableAutoUpload, enableSha256Dedupe, startUpload],
+  )
 
   const addFiles = useCallback(
     (incomingFiles: Array<File>) => {
@@ -74,10 +324,20 @@ export function FileDropzone({
           ...previousFiles,
           ...filesToUpload.slice(0, room),
         ].slice(0, maxFiles)
+
+        // Lanzar dedupe/auto-upload no bloqueante (fuera del flujo de render)
+        if (enableSha256Dedupe || enableAutoUpload) {
+          window.setTimeout(() => {
+            filesToUpload.slice(0, room).forEach((u) => {
+              void runDuplicateCheck(u)
+            })
+          }, 0)
+        }
+
         return nextFiles
       })
     },
-    [maxFiles],
+    [enableAutoUpload, enableSha256Dedupe, maxFiles, runDuplicateCheck],
   )
 
   // Manejador para cuando se arrastran archivos sobre la zona
@@ -117,17 +377,56 @@ export function FileDropzone({
   )
 
   // Función para eliminar un archivo específico por su ID
-  const removeFile = useCallback((fileId: string) => {
-    setFiles((previousFiles) => {
-      console.log(
-        'previous files',
-        previousFiles.map((f) => f.file.name),
+  const removeFile = useCallback(async (fileId: string) => {
+    const current = filesRef.current.find((f) => f.id === fileId)
+    if (!current) return
+
+    if (
+      current.uploadStatus === 'subiendo' ||
+      current.uploadStatus === 'eliminando'
+    ) {
+      return
+    }
+
+    // Si nunca se subió a BD/Storage, solo remover local
+    if (!current.archivoId) {
+      setFiles((previousFiles) =>
+        previousFiles.filter((uploadedFile) => uploadedFile.id !== fileId),
       )
-      const remainingFiles = previousFiles.filter(
-        (uploadedFile) => uploadedFile.id !== fileId,
+      return
+    }
+
+    const prevStatus = current.uploadStatus
+    const prevError = current.uploadError
+
+    setFiles((prev) =>
+      prev.map((f) =>
+        f.id === fileId
+          ? { ...f, uploadStatus: 'eliminando', uploadError: undefined }
+          : f,
+      ),
+    )
+
+    try {
+      await deleteArchivo({ archivoId: current.archivoId })
+
+      setFiles((previousFiles) =>
+        previousFiles.filter((uploadedFile) => uploadedFile.id !== fileId),
       )
-      return remainingFiles
-    })
+    } catch (e) {
+      const message =
+        e instanceof Error ? e.message : 'Error eliminando archivo.'
+
+      setFiles((prev) =>
+        prev.map((f) =>
+          f.id === fileId
+            ? { ...f, uploadStatus: prevStatus, uploadError: prevError }
+            : f,
+        ),
+      )
+
+      toast.error(message)
+    }
   }, [])
 
   // Mantener la referencia actualizada de la función callback externa para evitar loops en useEffect
@@ -221,9 +520,11 @@ export function FileDropzone({
             </div>
             <div className="text-center">
               <p className="text-foreground text-sm font-medium">{title}</p>
-              {/* <p className="text-muted-foreground mt-1 text-xs">
-                {description}
-              </p> */}
+              {description ? (
+                <p className="text-muted-foreground mt-1 text-xs">
+                  {description}
+                </p>
+              ) : null}
               <p className="text-muted-foreground mt-1 text-xs">
                 Formatos:{' '}
                 {acceptedTypes
@@ -264,7 +565,10 @@ export function FileDropzone({
             {[...files].reverse().map((uploadedFile) => (
               <div
                 key={uploadedFile.id}
-                className="bg-accent/50 border-border fade-in flex items-center gap-3 rounded-lg border p-3"
+                className={cn(
+                  'bg-accent/50 border-border fade-in flex items-center gap-3 rounded-lg border p-3',
+                  uploadedFile.uploadStatus === 'eliminando' && 'opacity-60',
+                )}
               >
                 {getFileIcon(uploadedFile.file.type)}
                 <div className="min-w-0 flex-1">
@@ -274,12 +578,40 @@ export function FileDropzone({
                   <p className="text-muted-foreground text-xs">
                     {formatFileSize(uploadedFile.file.size)}
                   </p>
+                  {uploadedFile.uploadStatus === 'error' &&
+                  uploadedFile.uploadError ? (
+                    <p className="text-destructive mt-1 text-xs">
+                      {uploadedFile.uploadError}
+                    </p>
+                  ) : null}
                 </div>
+
+                {uploadedFile.uploadStatus === 'subiendo' ||
+                uploadedFile.uploadStatus === 'eliminando' ? (
+                  <Loader2 className="text-muted-foreground h-4 w-4 animate-spin" />
+                ) : uploadedFile.uploadStatus === 'exito' ? (
+                  <CheckCircle2 className="text-success h-5 w-5" />
+                ) : uploadedFile.uploadStatus === 'error' ? (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8"
+                    onClick={() => void retryUpload(uploadedFile.id)}
+                  >
+                    <RotateCcw className="mr-2 h-4 w-4" />
+                    Reintentar
+                  </Button>
+                ) : null}
+
                 <Button
                   variant="ghost"
                   size="icon"
                   className="text-muted-foreground hover:text-destructive h-8 w-8"
-                  onClick={() => removeFile(uploadedFile.id)}
+                  onClick={() => void removeFile(uploadedFile.id)}
+                  disabled={
+                    uploadedFile.uploadStatus === 'subiendo' ||
+                    uploadedFile.uploadStatus === 'eliminando'
+                  }
                 >
                   <X className="h-4 w-4" />
                 </Button>
