@@ -21,6 +21,8 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 
 import { ImprovementCard } from './SaveAsignatura/ImprovementCardProps'
 
+import type { UploadedFile } from '@/components/planes/wizard/PasoDetallesPanel/FileDropZone'
+
 import ReferenciasParaIA from '@/components/planes/wizard/PasoDetallesPanel/ReferenciasParaIA'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
@@ -100,7 +102,7 @@ export function IAAsignaturaTab() {
   const [selectedRepositorioIds, setSelectedRepositorioIds] = useState<
     Array<string>
   >([])
-  const [uploadedFiles, setUploadedFiles] = useState<Array<File>>([])
+  const [uploadedFiles, setUploadedFiles] = useState<Array<UploadedFile>>([])
   const [selectedImprovements, setSelectedImprovements] = useState<
     Array<string>
   >([])
@@ -375,11 +377,21 @@ export function IAAsignaturaTab() {
 
     setIsSending(true)
     try {
+      const openaiFileIdsFromUploads = uploadedFiles
+        .map((a) => a.openaiFileId)
+        .filter((x): x is string => Boolean(x))
+
+      const archivosReferencia = Array.from(
+        new Set([...(selectedArchivoIds || []), ...openaiFileIdsFromUploads]),
+      )
+
       const response = await sendMessage({
         subjectId: asignaturaId as any,
         content: text,
         campos: selectedFields.map((f) => f.key),
         conversacionId: activeChatId,
+        archivosReferencia,
+        repositoriosIds: selectedRepositorioIds || [],
       })
 
       if (response.conversacionId) {
@@ -975,6 +987,9 @@ export function IAAsignaturaTab() {
               selectedArchivoIds={selectedArchivoIds}
               selectedRepositorioIds={selectedRepositorioIds}
               uploadedFiles={uploadedFiles}
+              autoScrollToDropzone={false}
+              enableSha256Dedupe={true}
+              enableAutoUpload={true}
               onToggleArchivo={(id, checked) => {
                 setSelectedArchivoIds((prev) =>
                   checked ? [...prev, id] : prev.filter((a) => a !== id),

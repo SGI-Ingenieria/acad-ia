@@ -93,30 +93,30 @@ export const ARCHIVOS = [
 ]
 
 export const REPOSITORIOS = [
-  {
-    id: 'repo-1',
-    nombre: 'Asignaturales ISC 2024',
-    descripcion: 'Documentos de referencia para Ingeniería en Sistemas',
-    cantidadArchivos: 45,
-  },
-  {
-    id: 'repo-2',
-    nombre: 'Lineamientos SEP',
-    descripcion: 'Documentos oficiales y normativas SEP actualizadas',
-    cantidadArchivos: 12,
-  },
-  {
-    id: 'repo-3',
-    nombre: 'Bibliografía Digital',
-    descripcion: 'Recursos bibliográficos digitalizados',
-    cantidadArchivos: 128,
-  },
-  {
-    id: 'repo-4',
-    nombre: 'Plantillas Institucionales',
-    descripcion: 'Formatos y plantillas oficiales ULSA',
-    cantidadArchivos: 23,
-  },
+  // {
+  //   id: 'repo-1',
+  //   nombre: 'Asignaturales ISC 2024',
+  //   descripcion: 'Documentos de referencia para Ingeniería en Sistemas',
+  //   cantidadArchivos: 45,
+  // },
+  // {
+  //   id: 'repo-2',
+  //   nombre: 'Lineamientos SEP',
+  //   descripcion: 'Documentos oficiales y normativas SEP actualizadas',
+  //   cantidadArchivos: 12,
+  // },
+  // {
+  //   id: 'repo-3',
+  //   nombre: 'Bibliografía Digital',
+  //   descripcion: 'Recursos bibliográficos digitalizados',
+  //   cantidadArchivos: 128,
+  // },
+  // {
+  //   id: 'repo-4',
+  //   nombre: 'Plantillas Institucionales',
+  //   descripcion: 'Formatos y plantillas oficiales ULSA',
+  //   cantidadArchivos: 23,
+  // },
 ]
 
 export const PLANTILLAS_ANEXO_1 = [

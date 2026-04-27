@@ -492,6 +492,15 @@ function RouteComponent() {
     setInput('')
 
     try {
+      // Construir lista de archivosReferencia: union de selectedArchivoIds + openaiFileId de uploadedFiles
+      const openaiFileIdsFromUploads = uploadedFiles
+        .map((a) => a.openaiFileId)
+        .filter((x): x is string => Boolean(x))
+
+      const archivosReferencia = Array.from(
+        new Set([...(selectedArchivoIds || []), ...openaiFileIdsFromUploads]),
+      )
+
       const payload = {
         planId: planId as any,
         content: finalContent,
@@ -500,6 +509,8 @@ function RouteComponent() {
           currentFields.length > 0
             ? currentFields.map((f) => f.key)
             : undefined,
+        archivosReferencia,
+        repositoriosIds: selectedRepositorioIds || [],
       }
 
       const response = await sendChat(payload)
@@ -1157,6 +1168,9 @@ function RouteComponent() {
               selectedArchivoIds={selectedArchivoIds}
               selectedRepositorioIds={selectedRepositorioIds}
               uploadedFiles={uploadedFiles}
+              autoScrollToDropzone={false}
+              enableSha256Dedupe={true}
+              enableAutoUpload={true}
               onToggleArchivo={(id, checked) => {
                 setSelectedArchivoIds((prev) =>
                   checked ? [...prev, id] : prev.filter((a) => a !== id),
