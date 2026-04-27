@@ -39,7 +39,7 @@ jobs:
 
       - name: Deploy database migrations to development
         run: |
-          supabase db push --debug --yes
+          supabase db push --debug --yes --include-seed
 
       - name: Deploy Supabase Edge Functions to development
         run: |
