@@ -16,20 +16,14 @@ jobs:
     runs-on: ubuntu-latest
     environment: preview
 
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_DEV_PROJECT_REF }}
+      VITE_SUPABASE_URL: ${{ secrets.SUPABASE_DEV_URL }}
+      VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_DEV_ANON_KEY }}
+
     steps:
       - uses: actions/checkout@v4
-
-      - name: Wait for Supabase Preview
-        id: supabase_check
-        uses: fountainhead/action-wait-for-check@v1.2.0
-        with:
-          checkName: Supabase Preview
-          ref: ${{ github.event.pull_request.head.sha }}
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Stop if Supabase Preview failed
-        if: steps.supabase_check.outputs.conclusion != 'success'
-        run: exit 1
 
       - uses: oven-sh/setup-bun@v2
         with:
@@ -39,38 +33,32 @@ jobs:
         with:
           version: latest
 
-      - name: Resolve Supabase preview env
-        shell: bash
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          ROOT_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
-          GIT_BRANCH_NAME: ${{ github.head_ref }}
+      - name: Link Supabase development project
         run: |
-          set -euo pipefail
+          supabase link --project-ref "$SUPABASE_PROJECT_REF"
 
-          ENV_DATA="$(supabase branches get "$GIT_BRANCH_NAME" --project-ref "$ROOT_PROJECT_REF" -o env)"
-          eval "$ENV_DATA"
-          printf '%s\n' "$ENV_DATA" >> "$GITHUB_ENV"
-
-          echo "VITE_SUPABASE_URL=$SUPABASE_URL" >> "$GITHUB_ENV"
-          echo "VITE_SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY" >> "$GITHUB_ENV"
-          echo "PREVIEW_PROJECT_REF=$(sed -E 's#https://([^.]+)\.supabase\.co#\1#' <<< "$SUPABASE_URL")" >> "$GITHUB_ENV"
-
-      - name: Push secrets to preview branch
-        shell: bash
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      - name: Deploy database migrations to development
         run: |
-          set -euo pipefail
+          supabase db push --project-ref "$SUPABASE_PROJECT_REF"
+
+      - name: Deploy Supabase Edge Functions to development
+        run: |
+          supabase functions deploy --project-ref "$SUPABASE_PROJECT_REF"
+
+      - name: Push secrets to development project
+        run: |
           supabase secrets set \
             OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }} \
             CARBONE_API_TOKEN=${{ secrets.CARBONE_API_TOKEN }} \
-            --project-ref "$PREVIEW_PROJECT_REF"
+            --project-ref "$SUPABASE_PROJECT_REF"
 
-      - run: bun install
-      - run: bunx --bun vite build
+      - name: Install dependencies
+        run: bun install
 
-      - name: Deploy prebuilt app
+      - name: Build app
+        run: bunx --bun vite build
+
+      - name: Deploy Azure Static Web Apps preview
         uses: Azure/static-web-apps-deploy@v1
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_SWA_DEPLOYMENT_TOKEN }}
