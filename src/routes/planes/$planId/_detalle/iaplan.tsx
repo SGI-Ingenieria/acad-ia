@@ -371,11 +371,12 @@ function RouteComponent() {
 
   useEffect(() => {
     const state = routerState.location.state as any
-    if (!state?.campo_edit || availableFields.length === 0) return
     const field = availableFields.find(
       (f) =>
         f.value === state.campo_edit.label || f.key === state.campo_edit.clave,
     )
+    console.log(field);
+    
     if (!field) return
     setSelectedFields([field])
     setInput((prev) =>
