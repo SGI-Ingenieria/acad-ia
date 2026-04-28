@@ -142,7 +142,13 @@ export type FacultadInSubject = Pick<
 
 export type CarreraInSubject = Pick<
   CarreraRow,
-  'id' | 'facultad_id' | 'nombre' | 'nombre_corto' | 'clave_sep' | 'activa'
+  | 'id'
+  | 'facultad_id'
+  | 'nombre'
+  | 'nombre_corto'
+  | 'clave_sep'
+  | 'activa'
+  | 'nivel'
 > & {
   facultades: FacultadInSubject | null
 }
@@ -153,7 +159,6 @@ export type PlanEstudioInSubject = Pick<
   | 'carrera_id'
   | 'estructura_id'
   | 'nombre'
-  | 'nivel'
   | 'tipo_ciclo'
   | 'numero_ciclos'
   | 'datos'
@@ -193,8 +198,8 @@ export async function subjects_get(subjectId: UUID): Promise<AsignaturaDetail> {
       `
       id,plan_estudio_id,estructura_id,codigo,nombre,tipo,creditos,numero_ciclo,linea_plan_id,orden_celda,estado,datos,contenido_tematico,horas_academicas,horas_independientes,asignatura_hash,tipo_origen,meta_origen,creado_por,actualizado_por,creado_en,actualizado_en,criterios_de_evaluacion,prerrequisito_asignatura_id,
       planes_estudio(
-        id,carrera_id,estructura_id,nombre,nivel,tipo_ciclo,numero_ciclos,datos,estado_actual_id,activo,tipo_origen,meta_origen,creado_por,actualizado_por,creado_en,actualizado_en,
-        carreras(id,facultad_id,nombre,nombre_corto,clave_sep,activa, facultades(id,nombre,nombre_corto,color,icono))
+        id,carrera_id,estructura_id,nombre,tipo_ciclo,numero_ciclos,datos,estado_actual_id,activo,tipo_origen,meta_origen,creado_por,actualizado_por,creado_en,actualizado_en,
+        carreras(id,facultad_id,nombre,nombre_corto,clave_sep,activa,nivel, facultades(id,nombre,nombre_corto,color,icono))
       ),
       estructuras_asignatura(id,nombre,definicion)
     `,
@@ -607,9 +612,6 @@ export async function checkPrerrequisitoConflicts(
     .or(`prerrequisito_asignatura_id.eq.${asignaturaId},id.eq.${asignaturaId}`)
 
   if (error) throw error
-
-  // CORRECCIÓN 3: 'data' ahora está disponible porque lo desestructuramos arriba
-  if (!data) return []
 
   const conflictos: Array<string> = []
 
