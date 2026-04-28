@@ -103,7 +103,7 @@ export function PasoBasicosForm({
               const selected = filteredCarreras.find((c: any) => c.id === value)
               const nivel = String(selected?.nivel ?? '').trim()
 
-              // Defaults based on nivel (only prefill if user hasn't provided values)
+              // Defaults based on nivel
               const defaults: {
                 tipoCiclo?: TipoCiclo
                 numCiclos?: number | null
@@ -132,14 +132,10 @@ export function PasoBasicosForm({
                       id: value,
                       nombre: selected?.nombre || '',
                     },
-                    // Prefill nombrePlan only if empty
-                    nombrePlan: w.datosBasicos.nombrePlan || defaultNombre,
-                    // Prefill tipoCiclo and numCiclos only if not already set
-                    tipoCiclo: (w.datosBasicos.tipoCiclo ||
-                      defaults.tipoCiclo ||
-                      '') as any,
-                    numCiclos:
-                      w.datosBasicos.numCiclos ?? defaults.numCiclos ?? null,
+                    // Always reset to defaults whenever carrera changes
+                    nombrePlan: defaultNombre,
+                    tipoCiclo: (defaults.tipoCiclo || '') as any,
+                    numCiclos: defaults.numCiclos ?? null,
                   },
                 }),
               )
