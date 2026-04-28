@@ -39,7 +39,7 @@ set
       when x.nombre ilike 'Maestría en %' then REGEXP_REPLACE(x.nombre, '^Maestría en\s+', '')
       when x.nombre ilike 'Master en %' then REGEXP_REPLACE(x.nombre, '^Master en\s+', '')
       when x.nombre ilike 'Doctorado en %' then REGEXP_REPLACE(x.nombre, '^Doctorado en\s+', '')
-      when x.nombre ilike 'Especiliadad en %' then REGEXP_REPLACE(x.nombre, '^Especialidad en\s+', '')
+      when x.nombre ilike 'Especialidad en %' then REGEXP_REPLACE(x.nombre, '^Especialidad en\s+', '')
       else c.nombre
     end,
     c.nombre
