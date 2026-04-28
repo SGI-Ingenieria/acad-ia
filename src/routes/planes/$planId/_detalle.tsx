@@ -6,7 +6,7 @@ import {
   Hash,
   CalendarDays,
 } from 'lucide-react'
-import { useState, useEffect, forwardRef } from 'react'
+import { useState, useEffect, forwardRef, Activity } from 'react'
 
 import type { Database } from '@/types/supabase'
 
