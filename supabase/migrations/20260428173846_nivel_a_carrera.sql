@@ -206,8 +206,25 @@ where
   c.id = x.id
   and x.nuevo_nivel is not null;
 
+
+update planes_estudio p
+set
+  nombre = COALESCE(
+    case
+      when x.nombre ilike 'Licenciatura en %' then REGEXP_REPLACE(x.nombre, '^Licenciatura en\s+', '')
+      when x.nombre ilike 'Licenciatura %' then REGEXP_REPLACE(x.nombre, '^Licenciatura\s+', '')
+      when x.nombre ilike 'Maestría en %' then REGEXP_REPLACE(x.nombre, '^Maestría en\s+', '')
+      when x.nombre ilike 'Master en %' then REGEXP_REPLACE(x.nombre, '^Master en\s+', '')
+      when x.nombre ilike 'Doctorado en %' then REGEXP_REPLACE(x.nombre, '^Doctorado en\s+', '')
+      when x.nombre ilike 'Especialidad en %' then REGEXP_REPLACE(x.nombre, '^Especialidad en\s+', '')
+      else p.nombre
+    end,
+    p.nombre
+);
+
 UPDATE facultades
 SET nombre = regexp_replace(nombre, '^Facultad de (.+)$', '\1', 'i');
 
 UPDATE facultades
 SET nombre = regexp_replace(nombre, '^Facultad Mexicana de (.+)$', '\1', 'i');
+
