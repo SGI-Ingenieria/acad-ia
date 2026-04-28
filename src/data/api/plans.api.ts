@@ -115,7 +115,7 @@ export async function plans_list(
   if (filters.search?.trim()) {
     const cleanTerm = cleanText(filters.search.trim())
     // Usamos la columna nueva creada en el Paso 1
-    q = q.filter('concat(nivel,nombre_search)', 'ilike', `%${cleanTerm}%`)
+    q = q.ilike('nombre_search', `%${cleanTerm}%`)
   }
 
   if (filters.carreraId && filters.carreraId !== 'todas') {

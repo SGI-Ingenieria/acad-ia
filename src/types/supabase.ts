@@ -1420,7 +1420,7 @@ export type Database = {
       fuente_cambio: 'HUMANO' | 'IA'
       nivel_plan_estudio:
         | 'Licenciatura'
-        | 'Maestr├¡a'
+        | 'Maestría'
         | 'Doctorado'
         | 'Especialidad'
         | 'Diplomado'

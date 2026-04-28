@@ -27,6 +27,14 @@ import { cn } from '@/lib/utils'
 
 type NivelPlanEstudio = Database['public']['Enums']['nivel_plan_estudio']
 
+const defaultPlanesSearch = {
+  q: '',
+  facultad: 'todas',
+  carrera: 'todas',
+  estado: 'todos',
+  page: 0,
+}
+
 export const Route = createFileRoute('/planes/$planId/_detalle')({
   loader: async ({ context: { queryClient }, params: { planId } }) => {
     try {
@@ -125,6 +133,7 @@ function RouteComponent() {
         <div className="px-6 py-2">
           <Link
             to="/planes"
+            search={defaultPlanesSearch}
             className="text-muted-foreground hover:text-foreground flex w-fit items-center gap-1 text-xs transition-colors"
           >
             <ChevronLeft size={14} /> Volver a planes
