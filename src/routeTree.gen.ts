@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as ReferenciasRouteRouteImport } from './routes/referencias/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as PlanesListaRouteImport } from './routes/planes/_lista'
 import { Route as DemoTanstackQueryRouteImport } from './routes/demo/tanstack-query'
@@ -42,6 +43,11 @@ const LoginRoute = LoginRouteImport.update({
 const DashboardRoute = DashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReferenciasRouteRoute = ReferenciasRouteRouteImport.update({
+  id: '/referencias',
+  path: '/referencias',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -173,6 +179,7 @@ const PlanesPlanIdAsignaturasAsignaturaIdBibliografiaNuevaRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/referencias': typeof ReferenciasRouteRoute
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
@@ -199,6 +206,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/referencias': typeof ReferenciasRouteRoute
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
@@ -223,6 +231,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/referencias': typeof ReferenciasRouteRoute
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
@@ -251,6 +260,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/referencias'
     | '/dashboard'
     | '/login'
     | '/demo/tanstack-query'
@@ -277,6 +287,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/referencias'
     | '/dashboard'
     | '/login'
     | '/demo/tanstack-query'
@@ -300,6 +311,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/referencias'
     | '/dashboard'
     | '/login'
     | '/demo/tanstack-query'
@@ -327,6 +339,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ReferenciasRouteRoute: typeof ReferenciasRouteRoute
   DashboardRoute: typeof DashboardRoute
   LoginRoute: typeof LoginRoute
   DemoTanstackQueryRoute: typeof DemoTanstackQueryRoute
@@ -349,6 +362,13 @@ declare module '@tanstack/react-router' {
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/referencias': {
+      id: '/referencias'
+      path: '/referencias'
+      fullPath: '/referencias'
+      preLoaderRoute: typeof ReferenciasRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -609,6 +629,7 @@ const PlanesPlanIdAsignaturasAsignaturaIdRouteRouteWithChildren =
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ReferenciasRouteRoute: ReferenciasRouteRoute,
   DashboardRoute: DashboardRoute,
   LoginRoute: LoginRoute,
   DemoTanstackQueryRoute: DemoTanstackQueryRoute,
