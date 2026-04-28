@@ -297,14 +297,18 @@ function RouteComponent() {
                   <section key={nivel} className="">
                     <h2 className="mb-2 text-lg font-semibold">
                       {nivel}{' '}
-                      <span className="text-muted-foreground text-sm">({groupedByNivel[nivel].length})</span>
+                      <span className="text-muted-foreground text-sm">
+                        ({groupedByNivel[nivel].length})
+                      </span>
                     </h2>
 
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                       {groupedByNivel[nivel].map((plan) => {
                         const facultad = plan.carreras?.facultades
                         const estado = plan.estados_plan
-                        const estadoColorHex = (estado as any)?.color as string | undefined
+                        const estadoColorHex = (estado as any)?.color as
+                          | string
+                          | undefined
 
                         return (
                           <Link
@@ -320,7 +324,9 @@ function RouteComponent() {
                               facultad={facultad?.nombre ?? 'Sin Facultad'}
                               estado={estado?.etiqueta ?? 'Desconocido'}
                               colorEstadoHex={estadoColorHex}
-                              claseColorEstado={!estadoColorHex ? 'bg-secondary' : ''}
+                              claseColorEstado={
+                                !estadoColorHex ? 'bg-secondary' : ''
+                              }
                               colorFacultad={facultad?.color ?? '#000000'}
                             />
                           </Link>
