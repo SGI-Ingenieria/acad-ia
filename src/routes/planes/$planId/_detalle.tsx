@@ -219,7 +219,13 @@ function RouteComponent() {
           <InfoCard
             icon={<Clock className="text-muted-foreground" />}
             label="Duración"
-            value={`${data?.numero_ciclos || 0} Ciclos`}
+            value={`${data?.numero_ciclos || 0} ${
+              data?.tipo_ciclo === 'Otro'
+                ? 'ciclos'
+                : data?.tipo_ciclo
+                  ? `${data.tipo_ciclo.toLocaleLowerCase()}s`
+                  : ''
+            }`}
           />
           <InfoCard
             icon={<Hash className="text-muted-foreground" />}

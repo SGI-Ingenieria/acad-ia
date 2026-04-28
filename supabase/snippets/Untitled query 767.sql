@@ -50,3 +50,9 @@ from
 where
   c.id = x.id
   and x.nuevo_nivel is not null;
+
+UPDATE facultades
+SET nombre = regexp_replace(nombre, '^Facultad de (.+)$', '\1', 'i');
+
+UPDATE facultades
+SET nombre = regexp_replace(nombre, '^Facultad Mexicana de (.+)$', '\1', 'i');
