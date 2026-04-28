@@ -119,11 +119,21 @@ function RouteComponent() {
       routeSearch.facultad === 'todas'
         ? rawCarreras
         : rawCarreras.filter((c) => c.facultad_id === routeSearch.facultad)
+    // Agrupamos por `nivel` para mostrar secciones en el selector
+    const groups = new Map<string, Array<{ value: string; label: string }>>()
+    filtered.forEach((c) => {
+      const nivel = c.nivel ?? 'Sin nivel'
+      const arr = groups.get(nivel) ?? []
+      arr.push({ value: c.id, label: c.nombre })
+      groups.set(nivel, arr)
+    })
 
-    return [
-      { value: 'todas', label: 'Todas las carreras' },
-      ...filtered.map((c) => ({ value: c.id, label: c.nombre })),
-    ]
+    const grouped = Array.from(groups.entries()).map(([nivel, opts]) => ({
+      label: nivel,
+      options: opts,
+    }))
+
+    return [{ value: 'todas', label: 'Todas las carreras' }, ...grouped]
   }, [catalogos.carreras, routeSearch.facultad])
 
   const estadosOptions = useMemo(
@@ -156,17 +166,6 @@ function RouteComponent() {
     routeSearch.facultad === 'todas' &&
     routeSearch.carrera === 'todas' &&
     routeSearch.estado === 'todos'
-
-  // Agrupar resultados por `nivel` para renderizado por secciones
-  const groupedByNivel = useMemo(() => {
-    const list = planesData?.data ?? []
-    return list.reduce<Record<string, typeof list>>((acc, p) => {
-      const nivel = (p.carreras as any)?.nivel ?? 'Sin nivel'
-      if (!acc[nivel]) acc[nivel] = []
-      acc[nivel].push(p)
-      return acc
-    }, {})
-  }, [planesData?.data])
 
   // Renderizado condicional básico
   if (isError)
@@ -274,7 +273,7 @@ function RouteComponent() {
             </div>
           </div>
 
-          {/* Grid de Resultados agrupados por Nivel */}
+          {/* Grid de Resultados */}
           {isLoading ? (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {/* Skeleton básico o Spinner */}
@@ -285,56 +284,46 @@ function RouteComponent() {
                 />
               ))}
             </div>
-          ) : planesData?.data.length === 0 ? (
-            <div className="text-muted-foreground col-span-full py-10 text-center">
-              No se encontraron planes con estos filtros.
-            </div>
           ) : (
-            <div className="flex flex-col gap-6">
-              {Object.keys(groupedByNivel)
-                .sort()
-                .map((nivel) => (
-                  <section key={nivel} className="">
-                    <h2 className="mb-2 text-lg font-semibold">
-                      {nivel}{' '}
-                      <span className="text-muted-foreground text-sm">
-                        ({groupedByNivel[nivel].length})
-                      </span>
-                    </h2>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {planesData?.data.map((plan) => {
+                // Mapeo de datos: DB -> Props Componente
+                const facultad = plan.carreras?.facultades
+                const estado = plan.estados_plan
 
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                      {groupedByNivel[nivel].map((plan) => {
-                        const facultad = plan.carreras?.facultades
-                        const estado = plan.estados_plan
-                        const estadoColorHex = (estado as any)?.color as
-                          | string
-                          | undefined
+                // NOTA: El color del estado no viene en BD por defecto,
+                // puedes crear un mapa de colores o agregar columna 'color' a tabla 'estados_plan'
+                // Aquí uso un fallback simple.
+                const estadoColorHex = (estado as any)?.color as
+                  | string
+                  | undefined
 
-                        return (
-                          <Link
-                            to="/planes/$planId"
-                            params={{ planId: plan.id }}
-                            key={plan.id}
-                          >
-                            <PlanEstudiosCard
-                              Icono={getIconByName(facultad?.icono ?? null)}
-                              nombrePrograma={plan.nombre}
-                              nivel={plan.carreras?.nivel ?? ''}
-                              ciclos={`${plan.numero_ciclos} ${plan.tipo_ciclo.toLowerCase()}s`}
-                              facultad={facultad?.nombre ?? 'Sin Facultad'}
-                              estado={estado?.etiqueta ?? 'Desconocido'}
-                              colorEstadoHex={estadoColorHex}
-                              claseColorEstado={
-                                !estadoColorHex ? 'bg-secondary' : ''
-                              }
-                              colorFacultad={facultad?.color ?? '#000000'}
-                            />
-                          </Link>
-                        )
-                      })}
-                    </div>
-                  </section>
-                ))}
+                return (
+                  <Link
+                    to="/planes/$planId"
+                    params={{ planId: plan.id }}
+                    key={plan.id}
+                  >
+                    <PlanEstudiosCard
+                      Icono={getIconByName(facultad?.icono ?? null)}
+                      nombrePrograma={plan.nombre}
+                      nivel={plan.carreras?.nivel ?? ''}
+                      ciclos={`${plan.numero_ciclos} ${plan.tipo_ciclo.toLowerCase()}s`}
+                      facultad={facultad?.nombre ?? 'Sin Facultad'}
+                      estado={estado?.etiqueta ?? 'Desconocido'}
+                      colorEstadoHex={estadoColorHex}
+                      claseColorEstado={!estadoColorHex ? 'bg-secondary' : ''}
+                      colorFacultad={facultad?.color ?? '#000000'}
+                    />
+                  </Link>
+                )
+              })}
+
+              {planesData?.data.length === 0 && (
+                <div className="text-muted-foreground col-span-full py-10 text-center">
+                  No se encontraron planes con estos filtros.
+                </div>
+              )}
             </div>
           )}
         </div>
