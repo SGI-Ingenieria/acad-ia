@@ -20,7 +20,7 @@ jobs:
         run: supabase db dump -f supabase/seed.sql --data-only
       - name: Generar tipos de Supabase
         run: |
-          supabase gen types typescript --schema public > supabase/functions/_shared/database.types.ts
+          supabase gen types typescript --linked --schema public > supabase/functions/_shared/database.types.ts
           cp supabase/functions/_shared/database.types.ts src/types/supabase.ts
       - name: Check for changes
         id: git_status
