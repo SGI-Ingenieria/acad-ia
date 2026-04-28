@@ -3,7 +3,7 @@ import { ArrowRight } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card'
+import { Card, CardFooter, CardHeader } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 
 interface PlanEstudiosCardProps {
@@ -23,7 +23,6 @@ export default function PlanEstudiosCard({
   Icono,
   nombrePrograma,
   nivel,
-  ciclos,
   facultad,
   estado,
   claseColorEstado = '',
@@ -82,9 +81,9 @@ export default function PlanEstudiosCard({
           </h4>
         </CardHeader>
 
-        <CardContent className="text-muted-foreground text-sm">
+        {/*         <CardContent className="text-muted-foreground text-sm">
           <p className="text-foreground font-medium">{ciclos}</p>
-        </CardContent>
+        </CardContent> */}
       </div>
 
       <CardFooter className="flex items-center justify-between">
