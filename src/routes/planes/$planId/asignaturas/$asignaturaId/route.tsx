@@ -1,4 +1,3 @@
-import { useQueryClient } from '@tanstack/react-query'
 import {
   createFileRoute,
   Outlet,
@@ -16,7 +15,7 @@ import {
   CalendarDays,
   Tag,
 } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { Activity, useEffect, useMemo, useRef, useState } from 'react'
 
 import { AlertaConflicto } from '@/components/asignaturas/detalle/mapa/AlertaConflicto'
 import { Badge } from '@/components/ui/badge'
@@ -40,8 +39,12 @@ function InlineEditTitle({
 }) {
   const [isEditing, setIsEditing] = useState(false)
   const [tempVal, setTempVal] = useState(value)
+  const inputRef = useRef<HTMLInputElement | null>(null)
 
   useEffect(() => setTempVal(value), [value])
+  useEffect(() => {
+    if (isEditing) inputRef.current?.focus()
+  }, [isEditing])
 
   const handleSave = () => {
     setIsEditing(false)
@@ -52,7 +55,7 @@ function InlineEditTitle({
   if (isEditing) {
     return (
       <input
-        autoFocus
+        ref={inputRef}
         value={tempVal}
         onChange={(e) => setTempVal(e.target.value)}
         onBlur={handleSave}
@@ -70,14 +73,15 @@ function InlineEditTitle({
   }
 
   return (
-    <h1
-      onClick={() => setIsEditing(true)}
-      // Texto blanco por defecto, fondo blanco sutil al hover
-      className="group flex cursor-pointer items-center gap-3 rounded-md px-2 py-1 text-3xl font-bold text-white transition-colors hover:bg-white/5"
-    >
-      {value}
-      {/* Lápiz blanco sutil */}
-      <Pencil className="h-5 w-5 text-white/50 opacity-0 transition-all group-hover:opacity-100 hover:text-white" />
+    <h1 className="text-3xl font-bold text-white">
+      <button
+        type="button"
+        onClick={() => setIsEditing(true)}
+        className="group flex items-center gap-3 rounded-md px-2 py-1 transition-colors hover:bg-white/5"
+      >
+        {value}
+        <Pencil className="h-5 w-5 text-white/50 opacity-0 transition-all group-hover:opacity-100 hover:text-white" />
+      </button>
     </h1>
   )
 }
@@ -100,8 +104,12 @@ function InlineEditBadge({
 }) {
   const [isEditing, setIsEditing] = useState(false)
   const [tempVal, setTempVal] = useState(value)
+  const inputRef = useRef<HTMLInputElement | null>(null)
 
   useEffect(() => setTempVal(value), [value])
+  useEffect(() => {
+    if (isEditing) inputRef.current?.focus()
+  }, [isEditing])
 
   const handleSave = () => {
     setIsEditing(false)
@@ -118,7 +126,7 @@ function InlineEditBadge({
           {label}:
         </span>
         <input
-          autoFocus
+          ref={inputRef}
           type={type}
           value={tempVal}
           onChange={(e) => setTempVal(e.target.value)}
@@ -157,18 +165,13 @@ function InlineEditBadge({
   )
 }
 
-interface DatosPlan {
-  nombre?: string
-}
-
 function AsignaturaLayout() {
   const location = useLocation()
   const { asignaturaId, planId } = useParams({
     from: '/planes/$planId/asignaturas/$asignaturaId',
   })
 
-  const { data: asignaturaApi, isLoading } =
-    useSubject(asignaturaId)
+  const { data: asignaturaApi, isLoading } = useSubject(asignaturaId)
   const { data: todasLasAsignaturas } = usePlanAsignaturas(planId)
   const [confirmState, setConfirmState] = useState<{
     isOpen: boolean
@@ -211,12 +214,15 @@ function AsignaturaLayout() {
   const updateAsignatura = useUpdateAsignatura()
 
   // Reemplaza tu useState y useEffect de headerData con esto:
-const headerData = useMemo(() => ({
-  codigo: asignaturaApi?.codigo ?? '',
-  nombre: asignaturaApi?.nombre ?? '',
-  creditos: asignaturaApi?.creditos ?? 0,
-  ciclo: asignaturaApi?.numero_ciclo ?? 0,
-}), [asignaturaApi]);
+  const headerData = useMemo(
+    () => ({
+      codigo: asignaturaApi?.codigo ?? '',
+      nombre: asignaturaApi?.nombre ?? '',
+      creditos: asignaturaApi?.creditos ?? 0,
+      ciclo: asignaturaApi?.numero_ciclo ?? 0,
+    }),
+    [asignaturaApi],
+  )
 
   const handleUpdateHeader = async (key: string, value: string | number) => {
     // 1. Validación de ciclo
@@ -243,22 +249,19 @@ const headerData = useMemo(() => ({
   })
 
   useEffect(() => {
-    
     if ((location.state as any)?.showConfetti) {
       lateralConfetti()
       window.history.replaceState({}, document.title)
     }
   }, [location.state])
 
-  if ( isLoading || !asignaturaApi) {
+  if (isLoading || !asignaturaApi) {
     return (
       <div className="bg-background text-foreground flex h-screen items-center justify-center">
         Cargando asignatura...
       </div>
     )
   }
-
-  if (!asignaturaApi) return null
 
   return (
     <div className="bg-background min-h-screen">
@@ -329,7 +332,16 @@ const headerData = useMemo(() => ({
               <GraduationCap className="h-4 w-4 shrink-0 text-white/60" />
               <span>Pertenece al plan:</span>
               <span className="font-medium text-white">
-                {(asignaturaApi.planes_estudio as DatosPlan | undefined)?.nombre ?? ''}
+                <Activity
+                  mode={
+                    asignaturaApi.planes_estudio?.carreras?.nivel === 'Otro'
+                      ? 'hidden'
+                      : 'visible'
+                  }
+                >
+                  {`${asignaturaApi.planes_estudio?.carreras?.nivel} en `}
+                </Activity>{' '}
+                {asignaturaApi.planes_estudio?.nombre ?? ''}
               </span>
             </div>
           </div>

@@ -1,7 +1,17 @@
-import { createFileRoute, Outlet, useNavigate } from '@tanstack/react-router'
+import {
+  createFileRoute,
+  Link,
+  Outlet,
+  stripSearchParams,
+  useLoaderData,
+  useNavigate,
+} from '@tanstack/react-router'
 import * as Icons from 'lucide-react'
-import { useState, useMemo } from 'react'
-import { useDebounce } from 'use-debounce'
+import { useMemo } from 'react'
+
+import { defaultPlanesSearch } from './search'
+
+import type { PlanesListaSearch } from './search'
 
 // Componentes
 import BarraBusqueda from '@/components/planes/BarraBusqueda'
@@ -9,36 +19,74 @@ import Filtro from '@/components/planes/Filtro'
 import PlanEstudiosCard from '@/components/planes/PlanEstudiosCard'
 // Hooks y Utils (ajusta las rutas de importación)
 import { Button } from '@/components/ui/button'
-import { usePlanes, useCatalogosPlanes } from '@/data/hooks/usePlans'
+import { getCatalogos, qk } from '@/data'
+import { usePlanes } from '@/data/hooks/usePlans'
 import { getIconByName } from '@/features/planes/utils/icon-utils'
 
+const parsePlanesSearch = (
+  search: Record<string, unknown>,
+): PlanesListaSearch => {
+  const q = typeof search.q === 'string' ? search.q : defaultPlanesSearch.q
+  const facultad =
+    typeof search.facultad === 'string'
+      ? search.facultad
+      : defaultPlanesSearch.facultad
+  const carrera =
+    typeof search.carrera === 'string'
+      ? search.carrera
+      : defaultPlanesSearch.carrera
+  const estado =
+    typeof search.estado === 'string'
+      ? search.estado
+      : defaultPlanesSearch.estado
+
+  const rawPage =
+    typeof search.page === 'number' || typeof search.page === 'string'
+      ? Number(search.page)
+      : defaultPlanesSearch.page
+
+  const page =
+    Number.isFinite(rawPage) && rawPage >= 0 ? Math.floor(rawPage) : 0
+
+  return {
+    q,
+    facultad,
+    carrera,
+    estado,
+    page,
+  }
+}
+
 export const Route = createFileRoute('/planes/_lista')({
+  validateSearch: parsePlanesSearch,
+  search: {
+    middlewares: [stripSearchParams(defaultPlanesSearch)],
+  },
   component: RouteComponent,
+  loader: async ({ context }) => {
+    return context.queryClient.ensureQueryData({
+      queryKey: qk.estructurasPlan(),
+      queryFn: getCatalogos,
+      staleTime: 1000 * 60 * 60, // 1 hora de caché (estos datos casi no cambian)
+    })
+  },
+  preload: true, // Opcional: precarga esta ruta para mejorar la UX al navegar desde otras partes de la app
 })
 
 function RouteComponent() {
-  const navigate = useNavigate()
+  const navigateFromLista = useNavigate({ from: Route.fullPath })
+  const routeSearch = Route.useSearch()
 
-  // 1. Estados de Filtros
-  const [search, setSearch] = useState('')
-  // Debounce para evitar llamadas excesivas a la API
-  const [debouncedSearch] = useDebounce(search, 500)
-
-  const [facultadSel, setFacultadSel] = useState<string>('todas')
-  const [carreraSel, setCarreraSel] = useState<string>('todas')
-  const [estadoSel, setEstadoSel] = useState<string>('todos')
-
-  // Paginación (opcional si la implementas en UI)
-  const [page, setPage] = useState(0)
+  // 1. Estados de Filtros (driven por URL search params)
   const pageSize = 12
 
   // 2. Carga de datos remotos
-  const { data: catalogos } = useCatalogosPlanes()
+  const catalogos = useLoaderData({ from: '/planes/_lista' })
 
   // Limpiamos el texto de búsqueda (quitar acentos) para enviarlo limpio a la API
   // O lo puedes limpiar en el servicio. Aquí lo enviamos tal cual viene del debounce.
   // Nota: Si usaste la solución "unaccent" en BD, envía el texto tal cual, postgres lo maneja.
-  const cleanSearchTerm = debouncedSearch.trim()
+  const cleanSearchTerm = routeSearch.q.trim()
 
   const {
     data: planesData,
@@ -46,68 +94,69 @@ function RouteComponent() {
     isError,
   } = usePlanes({
     search: cleanSearchTerm,
-    facultadId: facultadSel,
-    carreraId: carreraSel,
-    estadoId: estadoSel,
+    facultadId: routeSearch.facultad,
+    carreraId: routeSearch.carrera,
+    estadoId: routeSearch.estado,
     limit: pageSize,
-    offset: page * pageSize,
+    offset: routeSearch.page * pageSize,
   })
 
   // 3. Preparación de Opciones para Selects (Derived State)
   const facultadesOptions = useMemo(
     () => [
       { value: 'todas', label: 'Todas las facultades' },
-      ...(catalogos?.facultades.map((f) => ({
+      ...catalogos.facultades.map((f) => ({
         value: f.id,
         label: f.nombre,
-      })) ?? []),
+      })),
     ],
-    [catalogos?.facultades],
+    [catalogos.facultades],
   )
 
   const carrerasOptions = useMemo(() => {
     // Filtramos las carreras del catálogo base según la facultad seleccionada
-    const rawCarreras = catalogos?.carreras ?? []
+    const rawCarreras = catalogos.carreras
     const filtered =
-      facultadSel === 'todas'
+      routeSearch.facultad === 'todas'
         ? rawCarreras
-        : rawCarreras.filter((c) => c.facultad_id === facultadSel)
+        : rawCarreras.filter((c) => c.facultad_id === routeSearch.facultad)
 
     return [
       { value: 'todas', label: 'Todas las carreras' },
       ...filtered.map((c) => ({ value: c.id, label: c.nombre })),
     ]
-  }, [catalogos?.carreras, facultadSel])
+  }, [catalogos.carreras, routeSearch.facultad])
 
   const estadosOptions = useMemo(
     () => [
       { value: 'todos', label: 'Todos los estados' },
-      ...(catalogos?.estados.map((e) => ({ value: e.id, label: e.etiqueta })) ??
-        []),
+      ...catalogos.estados.map((e) => ({ value: e.id, label: e.etiqueta })),
     ],
-    [catalogos?.estados],
+    [catalogos.estados],
   )
 
   // 4. Handlers
   const resetFilters = () => {
-    setSearch('')
-    setFacultadSel('todas')
-    setCarreraSel('todas')
-    setEstadoSel('todos')
-    setPage(0)
+    navigateFromLista({
+      search: () => defaultPlanesSearch,
+      resetScroll: false,
+    })
   }
 
   const handleSearchChange = (val: string) => {
-    setSearch(val)
-    setPage(0) // Resetear página al buscar
+    navigateFromLista({
+      search: (prev) => ({ ...prev, q: val, page: 0 }),
+      replace: true,
+      resetScroll: false,
+    })
   }
 
   // Deshabilitar el botón 'Limpiar' si no hay filtros distintos al valor por defecto
   const isClearDisabled =
-    cleanSearchTerm === '' &&
-    facultadSel === 'todas' &&
-    carreraSel === 'todas' &&
-    estadoSel === 'todos'
+    routeSearch.q === '' &&
+    routeSearch.facultad === 'todas' &&
+    routeSearch.carrera === 'todas' &&
+    routeSearch.estado === 'todos'
 
   // Renderizado condicional básico
   if (isError)
@@ -136,7 +185,11 @@ function RouteComponent() {
               onClick={() => {
                 console.log('planId')
 
-                navigate({ to: '/planes/nuevo', resetScroll: false })
+                navigateFromLista({
+                  to: '/planes/nuevo',
+                  search: (prev) => prev,
+                  resetScroll: false,
+                })
               }}
               className="shadow-md"
             >
@@ -148,7 +201,7 @@ function RouteComponent() {
           <div className="flex flex-col items-stretch gap-2 lg:flex-row lg:items-center">
             <div className="min-w-0 flex-1">
               <BarraBusqueda
-                value={search}
+                value={routeSearch.q}
                 onChange={handleSearchChange}
                 placeholder="Buscar por programa..."
               />
@@ -157,11 +210,17 @@ function RouteComponent() {
               <div className="w-full lg:w-44">
                 <Filtro
                   options={facultadesOptions}
-                  value={facultadSel}
+                  value={routeSearch.facultad}
                   onChange={(v) => {
-                    setFacultadSel(v)
-                    setCarreraSel('todas')
-                    setPage(0)
+                    navigateFromLista({
+                      search: (prev) => ({
+                        ...prev,
+                        facultad: v,
+                        carrera: 'todas',
+                        page: 0,
+                      }),
+                      resetScroll: false,
+                    })
                   }}
                   placeholder="Facultad"
                 />
@@ -169,22 +228,26 @@ function RouteComponent() {
               <div className="w-full lg:w-44">
                 <Filtro
                   options={carrerasOptions}
-                  value={carreraSel}
+                  value={routeSearch.carrera}
                   onChange={(v) => {
-                    setCarreraSel(v)
-                    setPage(0)
+                    navigateFromLista({
+                      search: (prev) => ({ ...prev, carrera: v, page: 0 }),
+                      resetScroll: false,
+                    })
                   }}
                   placeholder="Carrera"
-                  disabled={facultadSel === 'todas'}
+                  disabled={routeSearch.facultad === 'todas'}
                 />
               </div>
               <div className="w-full lg:w-44">
                 <Filtro
                   options={estadosOptions}
-                  value={estadoSel}
+                  value={routeSearch.estado}
                   onChange={(v) => {
-                    setEstadoSel(v)
-                    setPage(0)
+                    navigateFromLista({
+                      search: (prev) => ({ ...prev, estado: v, page: 0 }),
+                      resetScroll: false,
+                    })
                   }}
                   placeholder="Estado"
                 />
@@ -227,26 +290,23 @@ function RouteComponent() {
                   | undefined
 
                 return (
-                  <PlanEstudiosCard
+                  <Link
+                    to="/planes/$planId"
+                    params={{ planId: plan.id }}
                     key={plan.id}
-                    Icono={getIconByName(facultad?.icono ?? null)}
-                    nombrePrograma={plan.nombre}
-                    nivel={plan.nivel}
-                    ciclos={`${plan.numero_ciclos} ${plan.tipo_ciclo.toLowerCase()}s`}
-                    facultad={facultad?.nombre ?? 'Sin Facultad'}
-                    estado={estado?.etiqueta ?? 'Desconocido'}
-                    colorEstadoHex={estadoColorHex}
-                    claseColorEstado={!estadoColorHex ? 'bg-secondary' : ''}
-                    colorFacultad={facultad?.color ?? '#000000'}
-                    onClick={() =>
-                      navigate({
-                        to: '/planes/$planId',
-                        params: {
-                          planId: plan.id,
-                        },
-                      })
-                    }
-                  />
+                  >
+                    <PlanEstudiosCard
+                      Icono={getIconByName(facultad?.icono ?? null)}
+                      nombrePrograma={plan.nombre}
+                      nivel={plan.carreras?.nivel ?? ''}
+                      ciclos={`${plan.numero_ciclos} ${plan.tipo_ciclo.toLowerCase()}s`}
+                      facultad={facultad?.nombre ?? 'Sin Facultad'}
+                      estado={estado?.etiqueta ?? 'Desconocido'}
+                      colorEstadoHex={estadoColorHex}
+                      claseColorEstado={!estadoColorHex ? 'bg-secondary' : ''}
+                      colorFacultad={facultad?.color ?? '#000000'}
+                    />
+                  </Link>
                 )
               })}
 
