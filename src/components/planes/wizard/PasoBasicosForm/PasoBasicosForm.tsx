@@ -99,7 +99,30 @@ export function PasoBasicosForm({
           <Label htmlFor="carrera">Carrera</Label>
           <Select
             value={wizard.datosBasicos.carrera.id}
-            onValueChange={(value) =>
+            onValueChange={(value) => {
+              const selected = filteredCarreras.find((c: any) => c.id === value)
+              const nivel = String(selected?.nivel ?? '').trim()
+
+              // Defaults based on nivel (only prefill if user hasn't provided values)
+              const defaults: {
+                tipoCiclo?: TipoCiclo
+                numCiclos?: number | null
+              } = {}
+              if (nivel === 'Maestría' || nivel === 'Especialidad') {
+                defaults.tipoCiclo = 'Cuatrimestre' as any
+                defaults.numCiclos = 6
+              } else if (nivel === 'Licenciatura') {
+                defaults.tipoCiclo = 'Semestre' as any
+                defaults.numCiclos = 9
+              } else if (nivel === 'Doctorado') {
+                defaults.tipoCiclo = 'Semestre' as any
+                defaults.numCiclos = 8
+              }
+
+              const defaultNombre = selected
+                ? `${selected.nombre} (${new Date().getFullYear()})`
+                : ''
+
               onChange(
                 (w): NewPlanWizardState => ({
                   ...w,
@@ -107,14 +130,20 @@ export function PasoBasicosForm({
                     ...w.datosBasicos,
                     carrera: {
                       id: value,
-                      nombre:
-                        filteredCarreras.find((c) => c.id === value)?.nombre ||
-                        '',
+                      nombre: selected?.nombre || '',
                     },
+                    // Prefill nombrePlan only if empty
+                    nombrePlan: w.datosBasicos.nombrePlan || defaultNombre,
+                    // Prefill tipoCiclo and numCiclos only if not already set
+                    tipoCiclo: (w.datosBasicos.tipoCiclo ||
+                      defaults.tipoCiclo ||
+                      '') as any,
+                    numCiclos:
+                      w.datosBasicos.numCiclos ?? defaults.numCiclos ?? null,
                   },
                 }),
               )
-            }
+            }}
             disabled={!wizard.datosBasicos.facultad.id}
           >
             <SelectTrigger
