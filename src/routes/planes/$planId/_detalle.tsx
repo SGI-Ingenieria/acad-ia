@@ -14,13 +14,7 @@ import type { Database } from '@/types/supabase'
 
 import { Badge } from '@/components/ui/badge'
 import { NotFoundPage } from '@/components/ui/NotFoundPage'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+// Nivel is derived from `carreras` and must not be editable here.
 import { Skeleton } from '@/components/ui/skeleton'
 import { plans_get } from '@/data/api/plans.api'
 import { usePlan, useUpdatePlanFields } from '@/data/hooks/usePlans'
@@ -74,14 +68,7 @@ function RouteComponent() {
     }
   }, [data])
 
-  const niveles: Array<NivelPlanEstudio> = [
-    'Licenciatura',
-    'Maestría',
-    'Doctorado',
-    'Especialidad',
-    'Diplomado',
-    'Otro',
-  ]
+  // Nivel values are kept for reference only; UI must not allow editing nivel here.
 
   const MAX_CHARACTERS = 200
 
@@ -223,27 +210,9 @@ function RouteComponent() {
               <p className="text-muted-foreground mb-0.5 truncate text-[10px] font-bold tracking-wider uppercase">
                 Nivel
               </p>
-              <Select
-                value={nivelPlan}
-                onValueChange={(value) => {
-                  const nuevoNivel = value as NivelPlanEstudio
-                  setNivelPlan(nuevoNivel)
-                  if (nuevoNivel !== data?.carreras?.nivel) {
-                    mutate({ planId, patch: { nivel: nuevoNivel } })
-                  }
-                }}
-              >
-                <SelectTrigger className="w-full" size="sm">
-                  <SelectValue placeholder="---" />
-                </SelectTrigger>
-                <SelectContent>
-                  {niveles.map((n) => (
-                    <SelectItem key={n} value={n}>
-                      {n}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <p className="text-foreground truncate text-sm font-semibold">
+                {data?.carreras?.nivel || '---'}
+              </p>
             </div>
           </div>
 
