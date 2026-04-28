@@ -11,11 +11,7 @@ import type { RealtimeChannel } from '@supabase/supabase-js'
 
 import { Button } from '@/components/ui/button'
 import { plans_get_maybe } from '@/data/api/plans.api'
-import {
-  useCreatePlanManual,
-  useDeletePlanEstudio,
-  useGeneratePlanAI,
-} from '@/data/hooks/usePlans'
+import { useCreatePlanManual, useGeneratePlanAI } from '@/data/hooks/usePlans'
 import { supabaseBrowser } from '@/data/supabase/client'
 
 export function WizardControls({
@@ -43,7 +39,6 @@ export function WizardControls({
   const queryClient = useQueryClient()
   const generatePlanAI = useGeneratePlanAI()
   const createPlanManual = useCreatePlanManual()
-  const deletePlan = useDeletePlanEstudio()
   const [isSpinningIA, setIsSpinningIA] = useState(false)
   const cancelledRef = useRef(false)
   const realtimeChannelRef = useRef<RealtimeChannel | null>(null)
@@ -113,25 +108,18 @@ export function WizardControls({
         return
       }
 
-      if (clave.startsWith('FALLID')) {
+      if (clave.startsWith('FALLIDO')) {
         stopPlanWatch()
         setIsSpinningIA(false)
 
-        deletePlan
-          .mutateAsync(plan.id)
-          .catch(() => {
-            // Si falla el borrado, igual mostramos el error.
-          })
-          .finally(() => {
-            setWizard((w) => ({
-              ...w,
-              isLoading: false,
-              errorMessage: 'La generación del plan falló',
-            }))
-          })
+        setWizard((w) => ({
+          ...w,
+          isLoading: false,
+          errorMessage: 'La generación del plan falló',
+        }))
       }
     },
-    [deletePlan, navigate, setWizard, stopPlanWatch, queryClient],
+    [navigate, setWizard, stopPlanWatch, queryClient],
   )
 
   const beginPlanWatch = useCallback(
@@ -395,7 +383,7 @@ export function WizardControls({
               ? 'text-muted-foreground h-6 w-6 animate-spin'
               : 'h-6 w-6 opacity-0'
           }
-          aria-hidden={!(wizard.tipoOrigen === 'IA' && isSpinningIA)}
+          aria-hidden={!isSpinningIA}
         />
       </div>
       {isLastStep ? (
