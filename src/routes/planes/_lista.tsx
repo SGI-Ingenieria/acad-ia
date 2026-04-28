@@ -119,11 +119,21 @@ function RouteComponent() {
       routeSearch.facultad === 'todas'
         ? rawCarreras
         : rawCarreras.filter((c) => c.facultad_id === routeSearch.facultad)
+    // Agrupamos por `nivel` para mostrar secciones en el selector
+    const groups = new Map<string, Array<{ value: string; label: string }>>()
+    filtered.forEach((c) => {
+      const nivel = c.nivel ?? 'Sin nivel'
+      const arr = groups.get(nivel) ?? []
+      arr.push({ value: c.id, label: c.nombre })
+      groups.set(nivel, arr)
+    })
 
-    return [
-      { value: 'todas', label: 'Todas las carreras' },
-      ...filtered.map((c) => ({ value: c.id, label: c.nombre })),
-    ]
+    const grouped = Array.from(groups.entries()).map(([nivel, opts]) => ({
+      label: nivel,
+      options: opts,
+    }))
+
+    return [{ value: 'todas', label: 'Todas las carreras' }, ...grouped]
   }, [catalogos.carreras, routeSearch.facultad])
 
   const estadosOptions = useMemo(

@@ -25,9 +25,10 @@ import {
 import { cn } from '@/lib/utils'
 
 export type Option = { value: string; label: string }
+export type OptionGroup = { label: string; options: Option[] }
 
 type Props = {
-  options: Array<Option>
+  options: Array<Option | OptionGroup>
   value: string | null
   onChange: (value: string) => void
   placeholder?: string
@@ -78,26 +79,57 @@ const Filtro: React.FC<Props> = ({
           <CommandInput placeholder="Buscar…" className="h-9" />
           <CommandList>
             <CommandEmpty>Sin resultados.</CommandEmpty>
-            <CommandGroup>
-              {options.map((opt) => (
-                <CommandItem
-                  key={opt.value}
-                  value={opt.value}
-                  onSelect={(currentValue) => {
-                    onChange(currentValue)
-                    setOpen(false)
-                  }}
-                >
-                  {opt.label}
-                  <CheckIcon
-                    className={cn(
-                      'ml-auto',
-                      value === opt.value ? 'opacity-100' : 'opacity-0',
-                    )}
-                  />
-                </CommandItem>
-              ))}
-            </CommandGroup>
+            {options.map((optOrGroup) => {
+              // If this item is a group (has `options`), render a CommandGroup with heading
+              if ((optOrGroup as OptionGroup).options) {
+                const grp = optOrGroup as OptionGroup
+                return (
+                  <CommandGroup key={grp.label} heading={grp.label}>
+                    {grp.options.map((opt) => (
+                      <CommandItem
+                        key={opt.value}
+                        value={opt.value}
+                        onSelect={(currentValue) => {
+                          onChange(currentValue)
+                          setOpen(false)
+                        }}
+                      >
+                        {opt.label}
+                        <CheckIcon
+                          className={cn(
+                            'ml-auto',
+                            value === opt.value ? 'opacity-100' : 'opacity-0',
+                          )}
+                        />
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                )
+              }
+
+              // Otherwise render a single-item group (no heading)
+              const opt = optOrGroup as Option
+              return (
+                <CommandGroup key={opt.value}>
+                  <CommandItem
+                    key={opt.value}
+                    value={opt.value}
+                    onSelect={(currentValue) => {
+                      onChange(currentValue)
+                      setOpen(false)
+                    }}
+                  >
+                    {opt.label}
+                    <CheckIcon
+                      className={cn(
+                        'ml-auto',
+                        value === opt.value ? 'opacity-100' : 'opacity-0',
+                      )}
+                    />
+                  </CommandItem>
+                </CommandGroup>
+              )
+            })}
           </CommandList>
         </Command>
       </PopoverContent>
