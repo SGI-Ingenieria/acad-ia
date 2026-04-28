@@ -1,3 +1,4 @@
+import { useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { Loader2 } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -39,6 +40,7 @@ export function WizardControls({
   setWizard: React.Dispatch<React.SetStateAction<NewPlanWizardState>>
 }) {
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const generatePlanAI = useGeneratePlanAI()
   const createPlanManual = useCreatePlanManual()
   const deletePlan = useDeletePlanEstudio()
@@ -96,6 +98,14 @@ export function WizardControls({
         stopPlanWatch()
         setIsSpinningIA(false)
         setWizard((w) => ({ ...w, isLoading: false }))
+
+        // Invalidar lista de planes para forzar refresco cuando el usuario vuelva
+        try {
+          queryClient.invalidateQueries({ queryKey: ['planes', 'list'] })
+        } catch {
+          // noop
+        }
+
         navigate({
           to: `/planes/${plan.id}`,
           state: { showConfetti: true },
@@ -121,7 +131,7 @@ export function WizardControls({
           })
       }
     },
-    [deletePlan, navigate, setWizard, stopPlanWatch],
+    [deletePlan, navigate, setWizard, stopPlanWatch, queryClient],
   )
 
   const beginPlanWatch = useCallback(
@@ -267,6 +277,72 @@ export function WizardControls({
         return
       }
 
+      if (wizard.tipoOrigen === 'CLONADO_TRADICIONAL') {
+        const tipoCicloSafe = (wizard.datosBasicos.tipoCiclo ||
+          'Semestre') as any
+        const numCiclosSafe =
+          typeof wizard.datosBasicos.numCiclos === 'number'
+            ? wizard.datosBasicos.numCiclos
+            : 1
+
+        const attached = wizard.clonTradicional?.archivoPlanId
+        if (!attached) {
+          throw new Error(
+            'Sube el Word del plan de estudios antes de continuar.',
+          )
+        }
+
+        if (attached.uploadStatus !== 'exito') {
+          throw new Error(
+            'El archivo aún no ha terminado de subirse. Espera a que esté en éxito.',
+          )
+        }
+
+        const openaiFileId = attached.openaiFileId
+        if (!openaiFileId) {
+          throw new Error('Falta el archivo en OpenAI. Reintenta la subida.')
+        }
+
+        const aiInput: AIGeneratePlanInput = {
+          datosBasicos: {
+            nombrePlan: wizard.datosBasicos.nombrePlan,
+            carreraId: wizard.datosBasicos.carrera.id,
+            facultadId: wizard.datosBasicos.facultad.id,
+            nivel: wizard.datosBasicos.nivel as string,
+            tipoCiclo: tipoCicloSafe,
+            numCiclos: numCiclosSafe,
+            estructuraPlanId: wizard.datosBasicos.estructuraPlanId as string,
+          },
+          iaConfig: {
+            descripcionEnfoqueAcademico:
+              'Clonar el plan de estudios mediante extracción textual del documento Word adjunto: extrae literal y estructuralmente ciclos, asignaturas, créditos, prerrequisitos, contenidos y toda información relevante. No inventes materias ni datos; si falta información, marca las secciones faltantes.',
+            instruccionesAdicionalesIA:
+              'Procesa el texto extraído del Word y genera un plan que siga la estructura esperada por el sistema. Mantén nombres, códigos y contenidos tal cual aparecen en el documento. Devuelve el resultado listo para insertarse en la base de datos siguiendo las convenciones del backend.',
+            archivosReferencia: [openaiFileId],
+            repositoriosIds: [],
+          },
+        }
+
+        console.log(
+          `${new Date().toISOString()} - Enviando a generar clon desde Word (IA)`,
+        )
+
+        setIsSpinningIA(true)
+        const resp: any = await generatePlanAI.mutateAsync(aiInput as any)
+        const planId = resp?.plan?.id ?? resp?.id
+        console.log(
+          `${new Date().toISOString()} - Plan IA generado (clon)`,
+          resp,
+        )
+
+        if (!planId) {
+          throw new Error('No se pudo obtener el id del plan generado por IA')
+        }
+
+        beginPlanWatch(String(planId))
+        return
+      }
+
       if (wizard.tipoOrigen === 'MANUAL') {
         // Crear plan vacío manualmente usando el hook
         const plan = await createPlanManual.mutateAsync({
@@ -315,7 +391,7 @@ export function WizardControls({
       <div className="mx-2 flex w-5 items-center justify-center">
         <Loader2
           className={
-            wizard.tipoOrigen === 'IA' && isSpinningIA
+            isSpinningIA
               ? 'text-muted-foreground h-6 w-6 animate-spin'
               : 'h-6 w-6 opacity-0'
           }

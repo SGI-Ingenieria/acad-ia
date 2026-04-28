@@ -2062,10 +2062,11 @@ INSERT INTO "public"."carreras" ("id", "facultad_id", "nombre", "nombre_corto", 
 --
 
 INSERT INTO "public"."estados_plan" ("id", "clave", "etiqueta", "orden", "es_final", "color") VALUES
-	('18f49b67-8077-4371-be6e-2019a3be3562', 'BORRADOR', 'Borrador', 10, false, '#cccccc'),
-	('40b640aa-3ec3-430c-9eb6-90f5ceffbbf7', 'REVISION', 'En revisión', 20, false, '#ffcc00'),
-	('f01c06c2-1166-46db-9e49-5d74b4190a0e', 'APROBADO', 'Aprobado', 30, true, '#00cc66'),
-	('f2abc804-1d7e-40d5-81bd-02f3a8e48f6f', 'GENERANDO', 'generando', 0, false, '#ff6600');
+  ('18f49b67-8077-4371-be6e-2019a3be3562', 'BORRADOR', 'Borrador', 10, false, '#cccccc'),
+  ('40b640aa-3ec3-430c-9eb6-90f5ceffbbf7', 'REVISION', 'En revisión', 30, false, '#ffcc00'),
+  ('f01c06c2-1166-46db-9e49-5d74b4190a0e', 'APROBADO', 'Aprobado', 40, true, '#00cc66'),
+  ('f2abc804-1d7e-40d5-81bd-02f3a8e48f6f', 'GENERANDO', 'Generando', 0, false, '#ff6600'),
+  ('c87a5d31-1e9a-4f51-b8f2-5d8f6c4a3b2e', 'FALLIDO', 'Fallido', 20, true, '#ef4444');
 
 
 --

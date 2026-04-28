@@ -29,9 +29,7 @@ export function useNuevoPlanWizard() {
     // },
     clonInterno: { planOrigenId: null },
     clonTradicional: {
-      archivoWordPlanId: null,
-      archivoMapaExcelId: null,
-      archivoAsignaturasExcelId: null,
+      archivoPlanId: null,
     },
     iaConfig: {
       descripcionEnfoqueAcademico: '',
@@ -73,10 +71,7 @@ export function useNuevoPlanWizard() {
     if (wizard.tipoOrigen === 'CLONADO_TRADICIONAL') {
       const t = wizard.clonTradicional
       if (!t) return false
-      const tieneWord = !!t.archivoWordPlanId
-      const tieneAlMenosUnExcel =
-        !!t.archivoMapaExcelId || !!t.archivoAsignaturasExcelId
-      return tieneWord && tieneAlMenosUnExcel
+      return !!t.archivoPlanId
     }
     return false
   })()
