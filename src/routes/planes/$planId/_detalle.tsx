@@ -145,10 +145,11 @@ function RouteComponent() {
             <div>
               <h1 className="text-foreground flex flex-wrap items-baseline gap-2 text-3xl leading-tight font-bold tracking-tight">
                 {/* El prefijo "Nivel en" lo mantenemos simple */}
-
-                <span className="shrink-0">
-                  {nivelPlan?.toLowerCase() !== 'otro' && `${nivelPlan} en`}
-                </span>
+                <Activity mode={nivelPlan?.toLowerCase() !== 'otro' ? "visible" : "hidden"}>
+                  <span className="shrink-0">
+                    {nivelPlan} en
+                  </span>
+                </Activity>
                 <span
                   role="textbox"
                   tabIndex={0}
