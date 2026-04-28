@@ -1,5 +1,3 @@
-import { Activity } from 'react'
-
 import type {
   EstructuraPlanRow,
   FacultadRow,
@@ -12,12 +10,15 @@ import { Label } from '@/components/ui/label'
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
+  SelectSeparator,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
 import { useCatalogosPlanes } from '@/data/hooks/usePlans'
-import { TIPOS_CICLO } from '@/features/planes/nuevo/catalogs'
+import { NIVELES, TIPOS_CICLO } from '@/features/planes/nuevo/catalogs'
 import { cn } from '@/lib/utils'
 
 export function PasoBasicosForm({
@@ -34,6 +35,30 @@ export function PasoBasicosForm({
   const rawCarreras = catalogos?.carreras ?? []
   const estructurasPlanList = catalogos?.estructurasPlan ?? []
 
+  const carrerasFiltradas = rawCarreras.filter((c: any) => {
+    const facId = wizard.datosBasicos.facultad.id
+    if (!facId) return true
+    // soportar ambos shapes: `facultad_id` (BD) o `facultadId` (local)
+    return c.facultad_id ? c.facultad_id === facId : c.facultadId === facId
+  })
+
+  const carrerasPorNivel = carrerasFiltradas.reduce<Record<string, Array<any>>>(
+    (acc, carrera: any) => {
+      const nivel = String(carrera.nivel ?? '').trim() || 'Otro'
+      acc[nivel] = acc[nivel] ?? []
+      acc[nivel].push(carrera)
+      return acc
+    },
+    {},
+  )
+
+  const nivelesCarreras = [
+    ...NIVELES.filter((nivel) => (carrerasPorNivel[nivel] ?? []).length > 0),
+    ...Object.keys(carrerasPorNivel).filter(
+      (nivel) => !NIVELES.includes(nivel as (typeof NIVELES)[number]),
+    ),
+  ]
+
   const carreraSeleccionada = rawCarreras.find(
     (c: any) => c.id === wizard.datosBasicos.carrera.id,
   )
@@ -43,12 +68,6 @@ export function PasoBasicosForm({
       ? `${nivelNombre} en`
       : ''
 
-  const filteredCarreras = rawCarreras.filter((c: any) => {
-    const facId = wizard.datosBasicos.facultad.id
-    if (!facId) return true
-    // soportar ambos shapes: `facultad_id` (BD) o `facultadId` (local)
-    return c.facultad_id ? c.facultad_id === facId : c.facultadId === facId
-  })
   return (
     <div className="flex flex-col gap-2">
       <div className="grid gap-4 sm:grid-cols-2">
@@ -100,7 +119,9 @@ export function PasoBasicosForm({
           <Select
             value={wizard.datosBasicos.carrera.id}
             onValueChange={(value) => {
-              const selected = filteredCarreras.find((c: any) => c.id === value)
+              const selected = carrerasFiltradas.find(
+                (c: any) => c.id === value,
+              )
               const nivel = String(selected?.nivel ?? '').trim()
 
               // Defaults based on nivel
@@ -154,13 +175,18 @@ export function PasoBasicosForm({
               <SelectValue placeholder="Ej. Ingeniería en Cibernética y Sistemas Computacionales" />
             </SelectTrigger>
             <SelectContent>
-              {filteredCarreras.map((c: any) => (
-                <SelectItem key={c.id} value={c.id}>
-                  <Activity mode={c.nivel === 'Otro' ? 'hidden' : 'visible'}>
-                    {`${c.nivel} en `}
-                  </Activity>
-                  {c.nombre}
-                </SelectItem>
+              {nivelesCarreras.map((nivel, index) => (
+                <SelectGroup key={nivel}>
+                  <SelectLabel>{nivel}</SelectLabel>
+                  {(carrerasPorNivel[nivel] ?? []).map((c: any) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.nombre}
+                    </SelectItem>
+                  ))}
+                  {index < nivelesCarreras.length - 1 ? (
+                    <SelectSeparator />
+                  ) : null}
+                </SelectGroup>
               ))}
             </SelectContent>
           </Select>
