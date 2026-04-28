@@ -1,6 +1,7 @@
 name: 'backup-database'
 on:
-  pull_request:
+  push:
+    branches: ['main']
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -11,10 +12,10 @@ jobs:
       - uses: supabase/setup-cli@v1
         with:
           version: latest
-      - name: Backup roles
-        run: supabase db dump -f supabase/roles.sql --role-only
-      - name: Backup schema
-        run: supabase db dump -f supabase/schema.sql
+      # - name: Backup roles
+      #   run: supabase db dump -f supabase/roles.sql --role-only
+      # - name: Backup schema
+      #   run: supabase db dump -f supabase/schema.sql
       - name: Backup data
         run: supabase db dump -f supabase/seed.sql --data-only
       - name: Generar tipos de Supabase
