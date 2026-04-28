@@ -210,7 +210,7 @@ function DatosGeneralesPage() {
         planId: planId,
       },
       state: {
-        campo_edit: campo,
+        campo_edit: campo.clave,
       } as any,
     })
   }
