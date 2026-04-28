@@ -9,11 +9,9 @@ import {
 import * as Icons from 'lucide-react'
 import { useMemo } from 'react'
 
-import { defaultPlanesSearch } from './search'
-
-import type { PlanesListaSearch } from './search'
-
 // Componentes
+import type { PlanesListaSearch } from '@/types/search'
+
 import BarraBusqueda from '@/components/planes/BarraBusqueda'
 import Filtro from '@/components/planes/Filtro'
 import PlanEstudiosCard from '@/components/planes/PlanEstudiosCard'
@@ -22,6 +20,7 @@ import { Button } from '@/components/ui/button'
 import { getCatalogos, qk } from '@/data'
 import { usePlanes } from '@/data/hooks/usePlans'
 import { getIconByName } from '@/features/planes/utils/icon-utils'
+import { defaultPlanesSearch } from '@/types/search'
 
 const parsePlanesSearch = (
   search: Record<string, unknown>,

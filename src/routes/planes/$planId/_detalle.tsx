@@ -8,8 +8,6 @@ import {
 } from 'lucide-react'
 import { useState, useEffect, forwardRef, Activity } from 'react'
 
-import { defaultPlanesSearch } from '../search'
-
 import type { Database } from '@/types/supabase'
 
 import { Badge } from '@/components/ui/badge'
@@ -20,6 +18,7 @@ import { plans_get } from '@/data/api/plans.api'
 import { usePlan, useUpdatePlanFields } from '@/data/hooks/usePlans'
 import { qk } from '@/data/query/keys'
 import { cn } from '@/lib/utils'
+import { defaultPlanesSearch } from '@/types/search'
 
 type NivelPlanEstudio = Database['public']['Enums']['nivel_plan_estudio']
 

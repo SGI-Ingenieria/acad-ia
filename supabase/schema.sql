@@ -1248,7 +1248,7 @@ CREATE TABLE IF NOT EXISTS "public"."planes_estudio" (
     "carrera_id" "uuid" NOT NULL,
     "estructura_id" "uuid" NOT NULL,
     "nombre" "text" NOT NULL,
-    "nivel" "public"."nivel_plan_estudio" NOT NULL,
+    "nivel" "public"."nivel_plan_estudio",
     "tipo_ciclo" "public"."tipo_ciclo" NOT NULL,
     "numero_ciclos" integer NOT NULL,
     "datos" "jsonb" DEFAULT '{}'::"jsonb" NOT NULL,
