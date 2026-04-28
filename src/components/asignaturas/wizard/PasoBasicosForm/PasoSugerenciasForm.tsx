@@ -215,7 +215,7 @@ export default function PasoSugerenciasForm({
           </h3>
           <p className="text-muted-foreground text-xs">
             Basadas en el plan{' '}
-            {plan ? `${plan.nivel} en ${plan.nombre}` : '...'}
+            {plan ? `${plan.carreras?.nivel ?? ''} en ${plan.nombre}` : '...'}
           </p>
         </div>
         <Tooltip open={showConservacionTooltip}>

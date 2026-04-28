@@ -3,6 +3,7 @@ import { Minus, Pencil, Plus, Sparkles } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 import type { AsignaturaDetail } from '@/data'
+import type { Asignatura } from '@/data/types/domain'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -62,6 +63,13 @@ type CriterioEvaluacionRowDraft = {
   porcentaje: string // allow empty while editing
 }
 
+type RequisitoAsignatura = {
+  type: 'Pre-requisito'
+  code: string | null
+  name: string
+  id: string
+}
+
 export const Route = createFileRoute(
   '/planes/$planId/asignaturas/$asignaturaId',
 )({
@@ -76,8 +84,7 @@ export default function AsignaturaDetailPage() {
     from: '/planes/$planId/asignaturas/$asignaturaId',
   })
   const { data: asignaturaApi } = useSubject(asignaturaId)
-  const { data: asignaturasApi, isLoading: loadingAsig } =
-    usePlanAsignaturas(planId)
+  const { data: asignaturasApi } = usePlanAsignaturas(planId)
   const [asignatura, setAsignatura] = useState<AsignaturaDetail | null>(null)
   const updateAsignatura = useUpdateAsignatura()
 
@@ -106,7 +113,7 @@ export default function AsignaturaDetailPage() {
       (asig) => asig.id === asignaturaApi.prerrequisito_asignatura_id,
     )
   }, [asignaturaApi, asignaturasApi])
-  const requisitosFormateados = useMemo(() => {
+  const requisitosFormateados: Array<RequisitoAsignatura> = useMemo(() => {
     if (!asignaturaSeriada) return []
     return [
       {
@@ -118,14 +125,6 @@ export default function AsignaturaDetailPage() {
     ]
   }, [asignaturaSeriada])
 
-  const handleUpdatePrerrequisito = (newId: string | null) => {
-    updateAsignatura.mutate({
-      asignaturaId,
-      patch: {
-        prerrequisito_asignatura_id: newId,
-      },
-    })
-  }
   /* ---------- sincronizar API ---------- */
   useEffect(() => {
     if (asignaturaApi) setAsignatura(asignaturaApi)
@@ -146,6 +145,8 @@ function DatosGenerales({
   availableSubjects,
 }: {
   onPersistDato: (clave: string, value: string) => void
+  pre: Array<RequisitoAsignatura>
+  availableSubjects?: Array<Asignatura>
 }) {
   const { asignaturaId, planId } = useParams({
     from: '/planes/$planId/asignaturas/$asignaturaId',
@@ -204,6 +205,9 @@ function DatosGenerales({
 
     return rows
   }, [data])
+
+  const numeroCicloActual =
+    typeof data?.numero_ciclo === 'number' ? data.numero_ciclo : null
 
   const openEvaluationEditor = () => {
     evaluationCardRef.current?.scrollIntoView({
@@ -322,11 +326,12 @@ function DatosGenerales({
               // Pasamos las materias del plan para el Select (excluyendo la actual)
               availableSubjects={
                 availableSubjects?.filter(
-                  (a) =>
+                  (a: Asignatura) =>
                     a.id !== asignaturaId &&
-                    a.numero_ciclo < data?.numero_ciclo &&
-                    a.numero_ciclo,
-                ) || []
+                    typeof a.numero_ciclo === 'number' &&
+                    numeroCicloActual !== null &&
+                    a.numero_ciclo < numeroCicloActual,
+                ) ?? []
               }
               onPersist={({ value }) => {
                 updateAsignatura.mutate({
@@ -376,7 +381,7 @@ interface InfoCardProps {
   containerRef?: React.RefObject<HTMLDivElement | null>
   forceEditToken?: number
   highlightToken?: number
-  availableSubjects?: any
+  availableSubjects?: Array<Asignatura>
 }
 
 function InfoCard({
@@ -503,12 +508,10 @@ function InfoCard({
     setData(tempText)
     setIsEditing(false)
 
-    if (type === 'text') {
-      void onPersist?.({ type, clave, value: String(tempText ?? '') })
-    }
+    void onPersist?.({ type, clave, value: String(tempText ?? '') })
   }
 
-  const handleIARequest = (campoClave: string) => {
+  const handleIARequest = (campoClave?: string) => {
     let targetClave = campoClave
     if (type === 'evaluation' && !targetClave) {
       targetClave = 'criterios_de_evaluacion'
@@ -628,9 +631,9 @@ function InfoCard({
               {/* Condicionales de edición según el tipo */}
               {type === 'requirements' ? (
                 <div className="space-y-3">
-                  <label className="text-xs font-medium text-slate-500">
+                  <p className="text-xs font-medium text-slate-500">
                     Materia de Seriación
-                  </label>
+                  </p>
                   <Select
                     value={
                       Array.isArray(tempText) && tempText.length > 0
@@ -639,7 +642,7 @@ function InfoCard({
                     }
                     onValueChange={(val) => {
                       const selected = availableSubjects?.find(
-                        (s) => s.id === val,
+                        (s: Asignatura) => s.id === val,
                       )
                       if (val === 'none' || !selected) {
                         setTempText([])
@@ -670,11 +673,11 @@ function InfoCard({
                         Ninguna (Sin seriación)
                       </SelectItem>
 
-                      {availableSubjects?.map((asig) => (
+                      {availableSubjects?.map((asig: Asignatura) => (
                         <SelectItem
                           key={asig.id}
                           value={asig.id}
-                          className="max-w-[300px] sm:max-w-[500px]"
+                          className="w-full max-w-75 sm:max-w-125"
                         >
                           <span className="text-primary font-bold">
                             [C{asig.numero_ciclo}]

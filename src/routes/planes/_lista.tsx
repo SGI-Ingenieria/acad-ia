@@ -9,6 +9,10 @@ import {
 import * as Icons from 'lucide-react'
 import { useMemo } from 'react'
 
+import { defaultPlanesSearch } from './search'
+
+import type { PlanesListaSearch } from './search'
+
 // Componentes
 import BarraBusqueda from '@/components/planes/BarraBusqueda'
 import Filtro from '@/components/planes/Filtro'
@@ -18,22 +22,6 @@ import { Button } from '@/components/ui/button'
 import { getCatalogos, qk } from '@/data'
 import { usePlanes } from '@/data/hooks/usePlans'
 import { getIconByName } from '@/features/planes/utils/icon-utils'
-
-type PlanesListaSearch = {
-  q: string
-  facultad: string
-  carrera: string
-  estado: string
-  page: number
-}
-
-const defaultPlanesSearch: PlanesListaSearch = {
-  q: '',
-  facultad: 'todas',
-  carrera: 'todas',
-  estado: 'todos',
-  page: 0,
-}
 
 const parsePlanesSearch = (
   search: Record<string, unknown>,
@@ -310,7 +298,7 @@ function RouteComponent() {
                     <PlanEstudiosCard
                       Icono={getIconByName(facultad?.icono ?? null)}
                       nombrePrograma={plan.nombre}
-                      nivel={plan.nivel}
+                      nivel={plan.carreras?.nivel ?? ''}
                       ciclos={`${plan.numero_ciclos} ${plan.tipo_ciclo.toLowerCase()}s`}
                       facultad={facultad?.nombre ?? 'Sin Facultad'}
                       estado={estado?.etiqueta ?? 'Desconocido'}

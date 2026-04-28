@@ -77,7 +77,8 @@ export default function PlanEstudiosCard({
 
           {/* Título del Programa */}
           <h4 className="line-clamp-2 text-lg leading-tight font-bold tracking-tight">
-            {nivel == 'Otro' || `${nivel} en`} {nombrePrograma}
+            {nivel === 'Otro' ? '' : `${nivel} en `}
+            {nombrePrograma}
           </h4>
         </CardHeader>
 

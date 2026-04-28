@@ -8,6 +8,8 @@ import {
 } from 'lucide-react'
 import { useState, useEffect, forwardRef, Activity } from 'react'
 
+import { defaultPlanesSearch } from '../search'
+
 import type { Database } from '@/types/supabase'
 
 import { Badge } from '@/components/ui/badge'
@@ -26,14 +28,6 @@ import { qk } from '@/data/query/keys'
 import { cn } from '@/lib/utils'
 
 type NivelPlanEstudio = Database['public']['Enums']['nivel_plan_estudio']
-
-const defaultPlanesSearch = {
-  q: '',
-  facultad: 'todas',
-  carrera: 'todas',
-  estado: 'todos',
-  page: 0,
-}
 
 export const Route = createFileRoute('/planes/$planId/_detalle')({
   loader: async ({ context: { queryClient }, params: { planId } }) => {
@@ -76,7 +70,7 @@ function RouteComponent() {
   useEffect(() => {
     if (data) {
       setNombrePlan(data.nombre || '')
-      setNivelPlan(data.nivel)
+      setNivelPlan(data.carreras?.nivel ?? undefined)
     }
   }, [data])
 
@@ -234,7 +228,7 @@ function RouteComponent() {
                 onValueChange={(value) => {
                   const nuevoNivel = value as NivelPlanEstudio
                   setNivelPlan(nuevoNivel)
-                  if (nuevoNivel !== data?.nivel) {
+                  if (nuevoNivel !== data?.carreras?.nivel) {
                     mutate({ planId, patch: { nivel: nuevoNivel } })
                   }
                 }}
