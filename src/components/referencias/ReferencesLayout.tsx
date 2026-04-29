@@ -6,6 +6,7 @@ import { Plus, Upload } from "lucide-react"
 import { Input } from "../ui/input"
 import { RepositoryGrid } from "./RepositoryGrid"
 import { FileTableDetailed } from "./FileTableDetailed"
+import { RecentActivityGrid } from "./RecentActivityGrid"
 
 export function ReferencesLayout() {
   return (
@@ -36,6 +37,9 @@ export function ReferencesLayout() {
         </TabsContent>
         <TabsContent value="archivos">
           <FileTableDetailed />
+        </TabsContent>
+        <TabsContent value="recientes">
+          <RecentActivityGrid />
         </TabsContent>
       </Tabs>
     </div>
