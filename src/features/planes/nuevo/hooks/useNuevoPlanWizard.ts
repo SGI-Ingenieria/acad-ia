@@ -50,14 +50,15 @@ export function useNuevoPlanWizard() {
     wizard.tipoOrigen === 'CLONADO_TRADICIONAL'
 
   const canContinueDesdeBasicos =
-    !!wizard.datosBasicos.nombrePlan &&
-    !!wizard.datosBasicos.carrera.id &&
-    !!wizard.datosBasicos.facultad.id &&
-    !!wizard.datosBasicos.nivel &&
-    wizard.datosBasicos.numCiclos !== null &&
-    wizard.datosBasicos.numCiclos > 0 &&
-    // Requerir ambas plantillas (plan y mapa) con versión
-    !!wizard.datosBasicos.estructuraPlanId
+    wizard.tipoOrigen === 'CLONADO_TRADICIONAL'
+      ? !!wizard.datosBasicos.estructuraPlanId
+      : !!wizard.datosBasicos.nombrePlan &&
+        !!wizard.datosBasicos.carrera.id &&
+        !!wizard.datosBasicos.facultad.id &&
+        !!wizard.datosBasicos.nivel &&
+        wizard.datosBasicos.numCiclos !== null &&
+        wizard.datosBasicos.numCiclos > 0 &&
+        !!wizard.datosBasicos.estructuraPlanId
 
   const canContinueDesdeDetalles = (() => {
     if (wizard.tipoOrigen === 'MANUAL') return true

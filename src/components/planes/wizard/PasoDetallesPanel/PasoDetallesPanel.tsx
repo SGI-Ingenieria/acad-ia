@@ -248,11 +248,11 @@ export function PasoDetallesPanel({
     return (
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-1">
-          <Label htmlFor="word">Word del plan de estudios</Label>
+          <Label htmlFor="word">Word o PDF del plan de estudios</Label>
 
           <FileDropzone
-            title="Word del plan de estudios"
-            acceptedTypes=".doc,.docx"
+            title="Word o PDF del plan de estudios"
+            acceptedTypes=".doc,.docx,.pdf"
             maxFiles={1}
             autoScrollToDropzone={true}
             enableSha256Dedupe={true}

@@ -266,13 +266,6 @@ export function WizardControls({
       }
 
       if (wizard.tipoOrigen === 'CLONADO_TRADICIONAL') {
-        const tipoCicloSafe = (wizard.datosBasicos.tipoCiclo ||
-          'Semestre') as any
-        const numCiclosSafe =
-          typeof wizard.datosBasicos.numCiclos === 'number'
-            ? wizard.datosBasicos.numCiclos
-            : 1
-
         const attached = wizard.clonTradicional?.archivoPlanId
         if (!attached) {
           throw new Error(
@@ -292,22 +285,12 @@ export function WizardControls({
         }
 
         const aiInput: AIGeneratePlanInput = {
+          clonacionPlan: true,
           datosBasicos: {
-            nombrePlan: wizard.datosBasicos.nombrePlan,
-            carreraId: wizard.datosBasicos.carrera.id,
-            facultadId: wizard.datosBasicos.facultad.id,
-            nivel: wizard.datosBasicos.nivel as string,
-            tipoCiclo: tipoCicloSafe,
-            numCiclos: numCiclosSafe,
             estructuraPlanId: wizard.datosBasicos.estructuraPlanId as string,
           },
           iaConfig: {
-            descripcionEnfoqueAcademico:
-              'Clonar el plan de estudios mediante extracción textual del documento Word adjunto: extrae literal y estructuralmente ciclos, asignaturas, créditos, prerrequisitos, contenidos y toda información relevante. No inventes materias ni datos; si falta información, marca las secciones faltantes.',
-            instruccionesAdicionalesIA:
-              'Procesa el texto extraído del Word y genera un plan que siga la estructura esperada por el sistema. Mantén nombres, códigos y contenidos tal cual aparecen en el documento. Devuelve el resultado listo para insertarse en la base de datos siguiendo las convenciones del backend.',
             archivosReferencia: [openaiFileId],
-            repositoriosIds: [],
           },
         }
 
@@ -317,7 +300,7 @@ export function WizardControls({
 
         setIsSpinningIA(true)
         const resp: any = await generatePlanAI.mutateAsync(aiInput as any)
-        const planId = resp?.plan?.id ?? resp?.id
+        const planId = resp?.id ?? resp?.plan?.id
         console.log(
           `${new Date().toISOString()} - Plan IA generado (clon)`,
           resp,
@@ -327,7 +310,10 @@ export function WizardControls({
           throw new Error('No se pudo obtener el id del plan generado por IA')
         }
 
-        beginPlanWatch(String(planId))
+        navigate({
+          to: `/planes/${String(planId)}`,
+          state: { showConfetti: true },
+        })
         return
       }
 

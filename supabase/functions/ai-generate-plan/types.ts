@@ -1,15 +1,16 @@
 export type AIGeneratePlanInput = {
+  clonacionPlan?: boolean
   datosBasicos: {
-    nombrePlan: string
-    carreraId: string
+    nombrePlan?: string
+    carreraId?: string
     facultadId?: string
-    nivel: string
-    tipoCiclo: 'Semestre' | 'Cuatrimestre' | 'Trimestre' | 'Otro'
-    numCiclos: number
+    nivel?: string
+    tipoCiclo?: 'Semestre' | 'Cuatrimestre' | 'Trimestre' | 'Otro'
+    numCiclos?: number
     estructuraPlanId: string
   }
   iaConfig: {
-    descripcionEnfoqueAcademico: string
+    descripcionEnfoqueAcademico?: string
     instruccionesAdicionalesIA?: string
     archivosReferencia?: Array<string>
     repositoriosIds?: Array<string>
