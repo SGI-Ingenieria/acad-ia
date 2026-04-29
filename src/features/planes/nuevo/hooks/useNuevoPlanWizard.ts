@@ -10,7 +10,6 @@ export function useNuevoPlanWizard() {
       nombrePlan: '',
       facultad: { id: '', nombre: '' },
       carrera: { id: '', nombre: '' },
-      nivel: '',
       tipoCiclo: '',
       numCiclos: null,
       estructuraPlanId: null,
@@ -55,7 +54,6 @@ export function useNuevoPlanWizard() {
       : !!wizard.datosBasicos.nombrePlan &&
         !!wizard.datosBasicos.carrera.id &&
         !!wizard.datosBasicos.facultad.id &&
-        !!wizard.datosBasicos.nivel &&
         wizard.datosBasicos.numCiclos !== null &&
         wizard.datosBasicos.numCiclos > 0 &&
         !!wizard.datosBasicos.estructuraPlanId

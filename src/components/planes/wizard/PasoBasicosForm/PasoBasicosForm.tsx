@@ -1,7 +1,6 @@
 import type {
   EstructuraPlanRow,
   FacultadRow,
-  NivelPlanEstudio,
   TipoCiclo,
 } from '@/data/types/domain'
 import type { NewPlanWizardState } from '@/features/planes/nuevo/types'
@@ -11,7 +10,10 @@ import { Label } from '@/components/ui/label'
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
+  SelectSeparator,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
@@ -27,18 +29,18 @@ export function PasoBasicosForm({
   onChange: React.Dispatch<React.SetStateAction<NewPlanWizardState>>
 }) {
   const { data: catalogos } = useCatalogosPlanes()
-  const nivelNombre = wizard.datosBasicos.nivel.trim()
-  const nivelDisplayPrefix =
-    nivelNombre && nivelNombre.toLowerCase() !== 'otro'
-      ? `${nivelNombre} en`
-      : ''
+  // const nivelNombre = wizard.datosBasicos.nivel.trim()
+  // const nivelDisplayPrefix =
+  //   nivelNombre && nivelNombre.toLowerCase() !== 'otro'
+  //     ? `${nivelNombre} en`
+  //     : ''
 
   // Preferir los catálogos remotos si están disponibles; si no, usar los locales
   const facultadesList = catalogos?.facultades ?? []
   const rawCarreras = catalogos?.carreras ?? []
   const estructurasPlanList = catalogos?.estructurasPlan ?? []
 
-  const filteredCarreras = rawCarreras.filter((c: any) => {
+  const carrerasFiltradas = rawCarreras.filter((c: any) => {
     const facId = wizard.datosBasicos.facultad.id
     if (!facId) return true
     // soportar ambos shapes: `facultad_id` (BD) o `facultadId` (local)
@@ -87,59 +89,35 @@ export function PasoBasicosForm({
     )
   }
 
+  const carrerasPorNivel = carrerasFiltradas.reduce<Record<string, Array<any>>>(
+    (acc, carrera: any) => {
+      const nivel = String(carrera.nivel ?? '').trim() || 'Otro'
+      acc[nivel] = acc[nivel] ?? []
+      acc[nivel].push(carrera)
+      return acc
+    },
+    {},
+  )
+
+  const nivelesCarreras = [
+    ...NIVELES.filter((nivel) => (carrerasPorNivel[nivel] ?? []).length > 0),
+    ...Object.keys(carrerasPorNivel).filter(
+      (nivel) => !NIVELES.includes(nivel as (typeof NIVELES)[number]),
+    ),
+  ]
+
+  const carreraSeleccionada = rawCarreras.find(
+    (c: any) => c.id === wizard.datosBasicos.carrera.id,
+  )
+  const nivelNombre = String(carreraSeleccionada?.nivel ?? '').trim()
+  const nivelDisplayPrefix =
+    nivelNombre && nivelNombre.toLowerCase() !== 'otro'
+      ? `${nivelNombre} en`
+      : ''
+
   return (
     <div className="flex flex-col gap-2">
       <div className="grid gap-4 sm:grid-cols-2">
-        <div className="grid gap-1 sm:col-span-2">
-          <Label htmlFor="nombrePlan">
-            Nombre del plan {/* <span className="text-destructive">*</span> */}
-          </Label>
-          {nivelDisplayPrefix ? (
-            <div className="flex w-full min-w-0 items-stretch">
-              <div className="border-input bg-muted text-muted-foreground inline-flex shrink-0 items-center rounded-l-md border px-3 text-sm font-medium select-none">
-                {nivelDisplayPrefix}
-              </div>
-              <Input
-                id="nombrePlan"
-                placeholder="Ej. Ingeniería en Sistemas (2026)"
-                value={wizard.datosBasicos.nombrePlan}
-                maxLength={200}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                  onChange(
-                    (w): NewPlanWizardState => ({
-                      ...w,
-                      datosBasicos: {
-                        ...w.datosBasicos,
-                        nombrePlan: e.target.value,
-                      },
-                    }),
-                  )
-                }
-                className="placeholder:text-muted-foreground/70 min-w-0 rounded-l-none font-medium not-italic placeholder:font-normal placeholder:italic"
-              />
-            </div>
-          ) : (
-            <Input
-              id="nombrePlan"
-              placeholder="Ej. Ingeniería en Sistemas (2026)"
-              value={wizard.datosBasicos.nombrePlan}
-              maxLength={200}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                onChange(
-                  (w): NewPlanWizardState => ({
-                    ...w,
-                    datosBasicos: {
-                      ...w.datosBasicos,
-                      nombrePlan: e.target.value,
-                    },
-                  }),
-                )
-              }
-              className="placeholder:text-muted-foreground/70 font-medium not-italic placeholder:font-normal placeholder:italic"
-            />
-          )}
-        </div>
-
         <div className="grid gap-1">
           <Label htmlFor="facultad">Facultad</Label>
           <Select
@@ -187,7 +165,32 @@ export function PasoBasicosForm({
           <Label htmlFor="carrera">Carrera</Label>
           <Select
             value={wizard.datosBasicos.carrera.id}
-            onValueChange={(value) =>
+            onValueChange={(value) => {
+              const selected = carrerasFiltradas.find(
+                (c: any) => c.id === value,
+              )
+              const nivel = String(selected?.nivel ?? '').trim()
+
+              // Defaults based on nivel
+              const defaults: {
+                tipoCiclo?: TipoCiclo
+                numCiclos?: number | null
+              } = {}
+              if (nivel === 'Maestría' || nivel === 'Especialidad') {
+                defaults.tipoCiclo = 'Cuatrimestre' as any
+                defaults.numCiclos = 6
+              } else if (nivel === 'Licenciatura') {
+                defaults.tipoCiclo = 'Semestre' as any
+                defaults.numCiclos = 9
+              } else if (nivel === 'Doctorado') {
+                defaults.tipoCiclo = 'Semestre' as any
+                defaults.numCiclos = 8
+              }
+
+              const defaultNombre = selected
+                ? `${selected.nombre} (${new Date().getFullYear()})`
+                : ''
+
               onChange(
                 (w): NewPlanWizardState => ({
                   ...w,
@@ -195,14 +198,16 @@ export function PasoBasicosForm({
                     ...w.datosBasicos,
                     carrera: {
                       id: value,
-                      nombre:
-                        filteredCarreras.find((c) => c.id === value)?.nombre ||
-                        '',
+                      nombre: selected?.nombre || '',
                     },
+                    // Always reset to defaults whenever carrera changes
+                    nombrePlan: defaultNombre,
+                    tipoCiclo: (defaults.tipoCiclo || '') as any,
+                    numCiclos: defaults.numCiclos ?? null,
                   },
                 }),
               )
-            }
+            }}
             disabled={!wizard.datosBasicos.facultad.id}
           >
             <SelectTrigger
@@ -217,47 +222,72 @@ export function PasoBasicosForm({
               <SelectValue placeholder="Ej. Ingeniería en Cibernética y Sistemas Computacionales" />
             </SelectTrigger>
             <SelectContent>
-              {filteredCarreras.map((c: any) => (
-                <SelectItem key={c.id} value={c.id}>
-                  {c.nombre}
-                </SelectItem>
+              {nivelesCarreras.map((nivel, index) => (
+                <SelectGroup key={nivel}>
+                  <SelectLabel>{nivel}</SelectLabel>
+                  {(carrerasPorNivel[nivel] ?? []).map((c: any) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.nombre}
+                    </SelectItem>
+                  ))}
+                  {index < nivelesCarreras.length - 1 ? (
+                    <SelectSeparator />
+                  ) : null}
+                </SelectGroup>
               ))}
             </SelectContent>
           </Select>
         </div>
 
-        <div className="grid gap-1">
-          <Label htmlFor="nivel">Nivel</Label>
-          <Select
-            value={wizard.datosBasicos.nivel}
-            onValueChange={(value: NivelPlanEstudio) =>
-              onChange(
-                (w): NewPlanWizardState => ({
-                  ...w,
-                  datosBasicos: { ...w.datosBasicos, nivel: value },
-                }),
-              )
-            }
-          >
-            <SelectTrigger
-              id="nivel"
-              className={cn(
-                'w-full min-w-0 [&>span]:block! [&>span]:truncate!',
-                !wizard.datosBasicos.nivel
-                  ? 'text-muted-foreground font-normal italic opacity-70' // Es Placeholder
-                  : 'font-medium not-italic', // Tiene Valor (Medium)
-              )}
-            >
-              <SelectValue placeholder="Ej. Licenciatura" />
-            </SelectTrigger>
-            <SelectContent>
-              {NIVELES.map((n) => (
-                <SelectItem key={n} value={n}>
-                  {n}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <div className="grid gap-1 sm:col-span-2">
+          <Label htmlFor="nombrePlan">
+            Nombre del plan {/* <span className="text-destructive">*</span> */}
+          </Label>
+          {nivelDisplayPrefix ? (
+            <div className="flex w-full min-w-0 items-stretch">
+              <div className="border-input bg-muted text-muted-foreground inline-flex shrink-0 items-center rounded-l-md border px-3 text-sm font-medium select-none">
+                {nivelDisplayPrefix}
+              </div>
+              <Input
+                id="nombrePlan"
+                placeholder="Ej. Ingeniería en Sistemas (2026)"
+                value={wizard.datosBasicos.nombrePlan}
+                maxLength={200}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  onChange(
+                    (w): NewPlanWizardState => ({
+                      ...w,
+                      datosBasicos: {
+                        ...w.datosBasicos,
+                        nombrePlan: e.target.value,
+                      },
+                    }),
+                  )
+                }
+                className="placeholder:text-muted-foreground/70 min-w-0 rounded-l-none font-medium not-italic placeholder:font-normal placeholder:italic"
+              />
+            </div>
+          ) : (
+            <Input
+              id="nombrePlan"
+              placeholder="Ej. Ingeniería en Sistemas (2026)"
+              value={wizard.datosBasicos.nombrePlan}
+              disabled={!wizard.datosBasicos.carrera.id}
+              maxLength={200}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                onChange(
+                  (w): NewPlanWizardState => ({
+                    ...w,
+                    datosBasicos: {
+                      ...w.datosBasicos,
+                      nombrePlan: e.target.value,
+                    },
+                  }),
+                )
+              }
+              className="placeholder:text-muted-foreground/70 font-medium not-italic placeholder:font-normal placeholder:italic"
+            />
+          )}
         </div>
 
         <div className="grid gap-1">

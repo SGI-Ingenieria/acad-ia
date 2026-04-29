@@ -311,7 +311,20 @@ export async function plans_create_manual(
     throw new Error(estadoError.message)
   }
 
-  // 2. Preparar insert
+  // 2. Guardar el nivel en la carrera, que ahora es la fuente de verdad.
+  const { error: carreraError } = await supabase
+    .from('carreras')
+    .update({
+      nivel: input.nivel,
+      actualizado_en: new Date().toISOString(),
+    })
+    .eq('id', input.carreraId)
+
+  if (carreraError) {
+    throw new Error(carreraError.message)
+  }
+
+  // 3. Preparar insert
   const planInsert: Database['public']['Tables']['planes_estudio']['Insert'] = {
     activo: true,
     actualizado_en: new Date().toISOString(),
@@ -320,14 +333,13 @@ export async function plans_create_manual(
     datos: input.datos || {},
     estado_actual_id: estado?.id || null,
     estructura_id: input.estructuraId,
-    nivel: input.nivel,
     nombre: input.nombre,
     numero_ciclos: input.numCiclos,
     tipo_ciclo: input.tipoCiclo,
     tipo_origen: 'MANUAL',
   }
 
-  // 3. Insertar
+  // 4. Insertar
   const { data: nuevoPlan, error: planError } = await supabase
     .from('planes_estudio')
     .insert([planInsert])
@@ -400,8 +412,9 @@ export async function plans_persist_from_ai(payload: {
 export async function plans_clone_from_existing(payload: {
   planOrigenId: UUID
   overrides: Partial<
-    Pick<PlanEstudio, 'nombre' | 'nivel' | 'tipo_ciclo' | 'numero_ciclos'>
+    Pick<PlanEstudio, 'nombre' | 'tipo_ciclo' | 'numero_ciclos'>
   > & {
+    nivel?: NivelPlanEstudio
     carrera_id?: UUID
     estructura_id?: UUID
     datos?: Partial<PlanDatosSep> & Record<string, any>
@@ -441,22 +454,37 @@ export async function plans_update_fields(
 ): Promise<PlanEstudio> {
   const supabase = supabaseBrowser()
 
-  const { data, error } = await supabase
-    .from('planes_estudio')
-    .update(patch)
-    .eq('id', planId)
-    .select(
-      `
-      *,
-      carreras (*, facultades(*)),
-      estructuras_plan (*),
-      estados_plan (*)
-    `,
-    )
-    .single()
+  const { nivel, ...planPatch } = patch
 
-  throwIfError(error)
-  return requireData(data, 'No se pudo actualizar el plan.')
+  if (nivel !== undefined) {
+    const currentPlan = await plans_get(planId)
+    const carreraId = currentPlan.carreras?.id
+
+    if (!carreraId) {
+      throw new Error('No se pudo resolver la carrera asociada al plan.')
+    }
+
+    const { error: carreraError } = await supabase
+      .from('carreras')
+      .update({
+        nivel,
+        actualizado_en: new Date().toISOString(),
+      })
+      .eq('id', carreraId)
+
+    throwIfError(carreraError)
+  }
+
+  if (Object.keys(planPatch).length > 0) {
+    const { error } = await supabase
+      .from('planes_estudio')
+      .update(planPatch)
+      .eq('id', planId)
+
+    throwIfError(error)
+  }
+
+  return plans_get(planId)
   // Alternativa Edge Function:
   // return invokeEdge<PlanEstudio>(EDGE.plans_update_fields, { planId, patch })
 }

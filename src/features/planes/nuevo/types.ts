@@ -27,7 +27,6 @@ export type NewPlanWizardState = {
       id: string
       nombre: string
     }
-    nivel: NivelPlanEstudio | ''
     tipoCiclo: TipoCiclo | ''
     numCiclos: number | null
     // Selección de plantillas (obligatorias)

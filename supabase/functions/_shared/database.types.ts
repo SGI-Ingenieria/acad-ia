@@ -7,6 +7,11 @@
   | Json[]
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.4"
+  }
   graphql_public: {
     Tables: {
       [_ in never]: never
@@ -463,6 +468,7 @@ export type Database = {
           creado_en: string
           facultad_id: string
           id: string
+          nivel: Database["public"]["Enums"]["nivel_plan_estudio"]
           nombre: string
           nombre_corto: string | null
         }
@@ -473,6 +479,7 @@ export type Database = {
           creado_en?: string
           facultad_id: string
           id?: string
+          nivel?: Database["public"]["Enums"]["nivel_plan_estudio"]
           nombre: string
           nombre_corto?: string | null
         }
@@ -483,6 +490,7 @@ export type Database = {
           creado_en?: string
           facultad_id?: string
           id?: string
+          nivel?: Database["public"]["Enums"]["nivel_plan_estudio"]
           nombre?: string
           nombre_corto?: string | null
         }
@@ -994,7 +1002,6 @@ export type Database = {
           estructura_id: string
           id: string
           meta_origen: Json
-          nivel: Database["public"]["Enums"]["nivel_plan_estudio"]
           nombre: string
           nombre_search: string | null
           numero_ciclos: number
@@ -1014,7 +1021,6 @@ export type Database = {
           estructura_id: string
           id?: string
           meta_origen?: Json
-          nivel: Database["public"]["Enums"]["nivel_plan_estudio"]
           nombre: string
           nombre_search?: string | null
           numero_ciclos: number
@@ -1034,7 +1040,6 @@ export type Database = {
           estructura_id?: string
           id?: string
           meta_origen?: Json
-          nivel?: Database["public"]["Enums"]["nivel_plan_estudio"]
           nombre?: string
           nombre_search?: string | null
           numero_ciclos?: number
@@ -1477,7 +1482,7 @@ export type Database = {
       fuente_cambio: "HUMANO" | "IA"
       nivel_plan_estudio:
         | "Licenciatura"
-        | "Maestr├¡a"
+        | "Maestría"
         | "Doctorado"
         | "Especialidad"
         | "Diplomado"
@@ -1652,7 +1657,7 @@ export const Constants = {
       fuente_cambio: ["HUMANO", "IA"],
       nivel_plan_estudio: [
         "Licenciatura",
-        "Maestr├¡a",
+        "Maestría",
         "Doctorado",
         "Especialidad",
         "Diplomado",
@@ -1702,4 +1707,3 @@ export const Constants = {
     },
   },
 } as const
-

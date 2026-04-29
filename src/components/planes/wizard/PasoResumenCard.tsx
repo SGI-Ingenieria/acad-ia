@@ -13,9 +13,15 @@ import {
   ARCHIVOS,
   REPOSITORIOS,
 } from '@/features/planes/nuevo/catalogs'
+import { useCatalogosPlanes } from '@/data/hooks/usePlans'
 import { formatFileSize } from '@/features/planes/utils/format-file-size'
 
 export function PasoResumenCard({ wizard }: { wizard: NewPlanWizardState }) {
+  const { data: catalogos } = useCatalogosPlanes()
+  const nivelSeleccionado =
+    catalogos?.carreras.find((c) => c.id === wizard.datosBasicos.carrera.id)
+      ?.nivel ?? ''
+
   return (
     <Card>
       <CardHeader>
@@ -52,7 +58,7 @@ export function PasoResumenCard({ wizard }: { wizard: NewPlanWizardState }) {
                 <div>
                   <span className="text-muted-foreground">Nivel: </span>
                   <span className="font-medium">
-                    {wizard.datosBasicos.nivel || '—'}
+                    {nivelSeleccionado || '—'}
                   </span>
                 </div>
                 <div>

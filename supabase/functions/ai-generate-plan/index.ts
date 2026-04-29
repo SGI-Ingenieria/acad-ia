@@ -17,8 +17,6 @@ import type { AIGeneratePlanInput } from './types.ts'
 import type { Database, Json } from '../_shared/database.types.ts'
 import type { StructuredResponseOptions } from '../_shared/openai-service.ts'
 // Typed aliases for strict field unions.
-type NivelType =
-  Database['public']['Tables']['planes_estudio']['Insert']['nivel']
 
 type BeforeUnloadWithDetail = Event & { detail?: { reason?: unknown } }
 
@@ -356,7 +354,6 @@ ${carrerasText}
         .from('planes_estudio')
         .insert({
           nombre: out.nombre,
-          nivel: out.nivel as NivelType,
           tipo_ciclo: out.tipo_ciclo,
           numero_ciclos: out.numero_ciclos,
           carrera_id: out.carrera_id,
@@ -399,7 +396,6 @@ ${carrerasText}
       const userPrompt = `Genera un borrador completo del PLAN DE ESTUDIOS con base en lo siguiente:
       - Nombre de la institución: Universidad La Salle México
     - Nombre del plan: ${String(payload.datosBasicos.nombrePlan)}
-    - Nivel: ${String(payload.datosBasicos.nivel)}
     - Tipo de ciclo: ${String(payload.datosBasicos.tipoCiclo)}
     - Número de ciclos: ${String(payload.datosBasicos.numCiclos)}
     - Descripción del enfoque académico (sobre el contenido de la respuesta generada): ${String(
@@ -449,7 +445,6 @@ ${carrerasText}
           carrera_id: carrera.id,
           estructura_id: estructuraPlan.id,
           nombre: String(payload.datosBasicos.nombrePlan),
-          nivel: String(payload.datosBasicos.nivel) as NivelType,
           tipo_ciclo: String(
             payload.datosBasicos.tipoCiclo,
           ) as Database['public']['Tables']['planes_estudio']['Insert']['tipo_ciclo'],
@@ -479,7 +474,7 @@ ${carrerasText}
         .from('planes_estudio')
         .insert(planInsert)
         .select(
-          'id,nombre,nivel,tipo_ciclo,numero_ciclos,carrera_id,estructura_id,estado_actual_id,activo,tipo_origen,meta_origen,creado_por,actualizado_por,creado_en,actualizado_en,datos',
+          'id,nombre,tipo_ciclo,numero_ciclos,carrera_id,estructura_id,estado_actual_id,activo,tipo_origen,meta_origen,creado_por,actualizado_por,creado_en,actualizado_en,datos',
         )
         .single()
 
@@ -645,7 +640,6 @@ const DatosBasicosSchema: z.ZodType<AIGeneratePlanInput['datosBasicos']> =
     nombrePlan: z.string().min(1, 'El nombre es requerido'),
     carreraId: z.string().uuid('carreraId debe ser un UUID'),
     facultadId: z.string().uuid('facultadId debe ser un UUID').optional(),
-    nivel: z.string().min(1, 'Nivel es requerido'),
     tipoCiclo: z.enum(['Semestre', 'Cuatrimestre', 'Trimestre', 'Otro']),
     numCiclos: z.number().int().positive(),
     estructuraPlanId: z.string().uuid('estructuraPlanId debe ser un UUID'),

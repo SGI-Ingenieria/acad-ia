@@ -369,19 +369,32 @@ function RouteComponent() {
     messages,
   ])
 
-  useEffect(() => {
-    const state = routerState.location.state as any
-    if (!state?.campo_edit || availableFields.length === 0) return
-    const field = availableFields.find(
-      (f) =>
-        f.value === state.campo_edit.label || f.key === state.campo_edit.clave,
-    )
-    if (!field) return
-    setSelectedFields([field])
-    setInput((prev) =>
-      injectFieldsIntoInput(prev || 'Mejora este campo:', [field]),
-    )
-  }, [availableFields, routerState.location.state])
+ const [initialized, setInitialized] = useState(false)
+useEffect(() => {
+  if (initialized) return
+
+  const state = routerState.location.state as any
+
+  if (!state?.campo_edit) {
+    setInitialized(true)
+    return
+  }
+
+  const field = availableFields.find(
+    (f) =>
+      f.value === state.campo_edit || f.key === state.campo_edit,
+  )
+
+  if (!field) {
+    setInitialized(true)
+    return
+  }
+
+  setSelectedFields([field])
+  setInput(injectFieldsIntoInput('Mejora este campo:', [field]))
+  setInitialized(true)
+}, [availableFields, routerState.location.state, initialized])
+
 
   const createNewChat = () => {
     setActiveChatId(undefined)
@@ -555,6 +568,9 @@ function RouteComponent() {
   }, [selectedArchivoIds, selectedRepositorioIds, uploadedFiles])
 
   const removeSelectedField = (fieldKey: string) => {
+    console.log("aqui");
+    console.log(fieldKey);
+    
     setSelectedFields((prev) => prev.filter((f) => f.key !== fieldKey))
   }
 
@@ -1001,7 +1017,7 @@ function RouteComponent() {
                     >
                       <span className="opacity-70">Campo:</span> {field.label}
                       <button
-                        onClick={() => toggleField(field)}
+                        onClick={() => removeSelectedField(field.key)}
                         className="hover:bg-primary/20 ml-1 rounded-full p-0.5 transition-colors"
                       >
                         <X size={10} />

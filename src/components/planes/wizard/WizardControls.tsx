@@ -11,7 +11,11 @@ import type { RealtimeChannel } from '@supabase/supabase-js'
 
 import { Button } from '@/components/ui/button'
 import { plans_get_maybe } from '@/data/api/plans.api'
-import { useCreatePlanManual, useGeneratePlanAI } from '@/data/hooks/usePlans'
+import {
+  useCreatePlanManual,
+  useGeneratePlanAI,
+  useCatalogosPlanes,
+} from '@/data/hooks/usePlans'
 import { supabaseBrowser } from '@/data/supabase/client'
 
 export function WizardControls({
@@ -39,6 +43,7 @@ export function WizardControls({
   const queryClient = useQueryClient()
   const generatePlanAI = useGeneratePlanAI()
   const createPlanManual = useCreatePlanManual()
+  const { data: catalogos } = useCatalogosPlanes()
   const [isSpinningIA, setIsSpinningIA] = useState(false)
   const cancelledRef = useRef(false)
   const realtimeChannelRef = useRef<RealtimeChannel | null>(null)
@@ -76,6 +81,10 @@ export function WizardControls({
       stopPlanWatch()
     }
   }, [stopPlanWatch])
+
+  const nivelSeleccionado =
+    catalogos?.carreras.find((c) => c.id === wizard.datosBasicos.carrera.id)
+      ?.nivel ?? ''
 
   const checkPlanStateAndAct = useCallback(
     async (planId: string) => {
@@ -234,7 +243,7 @@ export function WizardControls({
             nombrePlan: wizard.datosBasicos.nombrePlan,
             carreraId: wizard.datosBasicos.carrera.id,
             facultadId: wizard.datosBasicos.facultad.id,
-            nivel: wizard.datosBasicos.nivel as string,
+            nivel: nivelSeleccionado,
             tipoCiclo: tipoCicloSafe,
             numCiclos: numCiclosSafe,
             estructuraPlanId: wizard.datosBasicos.estructuraPlanId as string,
@@ -323,7 +332,7 @@ export function WizardControls({
           carreraId: wizard.datosBasicos.carrera.id,
           estructuraId: wizard.datosBasicos.estructuraPlanId as string,
           nombre: wizard.datosBasicos.nombrePlan,
-          nivel: wizard.datosBasicos.nivel as NivelPlanEstudio,
+          nivel: nivelSeleccionado as NivelPlanEstudio,
           tipoCiclo: wizard.datosBasicos.tipoCiclo as TipoCiclo,
           numCiclos: (wizard.datosBasicos.numCiclos as number) || 1,
           datos: {},

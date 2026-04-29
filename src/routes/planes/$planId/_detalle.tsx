@@ -6,24 +6,19 @@ import {
   Hash,
   CalendarDays,
 } from 'lucide-react'
-import { useState, useEffect, forwardRef } from 'react'
+import { useState, useEffect, forwardRef, Activity } from 'react'
 
 import type { Database } from '@/types/supabase'
 
 import { Badge } from '@/components/ui/badge'
 import { NotFoundPage } from '@/components/ui/NotFoundPage'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+// Nivel is derived from `carreras` and must not be editable here.
 import { Skeleton } from '@/components/ui/skeleton'
 import { plans_get } from '@/data/api/plans.api'
 import { usePlan, useUpdatePlanFields } from '@/data/hooks/usePlans'
 import { qk } from '@/data/query/keys'
 import { cn } from '@/lib/utils'
+import { defaultPlanesSearch } from '@/types/search'
 
 type NivelPlanEstudio = Database['public']['Enums']['nivel_plan_estudio']
 
@@ -51,6 +46,7 @@ export const Route = createFileRoute('/planes/$planId/_detalle')({
     )
   },
   component: RouteComponent,
+  preload: true,
 })
 
 function RouteComponent() {
@@ -67,18 +63,11 @@ function RouteComponent() {
   useEffect(() => {
     if (data) {
       setNombrePlan(data.nombre || '')
-      setNivelPlan(data.nivel)
+      setNivelPlan(data.carreras?.nivel ?? undefined)
     }
   }, [data])
 
-  const niveles: Array<NivelPlanEstudio> = [
-    'Licenciatura',
-    'Maestría',
-    'Doctorado',
-    'Especialidad',
-    'Diplomado',
-    'Otro',
-  ]
+  // Nivel values are kept for reference only; UI must not allow editing nivel here.
 
   const MAX_CHARACTERS = 200
 
@@ -124,6 +113,7 @@ function RouteComponent() {
         <div className="px-6 py-2">
           <Link
             to="/planes"
+            search={defaultPlanesSearch}
             className="text-muted-foreground hover:text-foreground flex w-fit items-center gap-1 text-xs transition-colors"
           >
             <ChevronLeft size={14} /> Volver a planes
@@ -145,10 +135,13 @@ function RouteComponent() {
             <div>
               <h1 className="text-foreground flex flex-wrap items-baseline gap-2 text-3xl leading-tight font-bold tracking-tight">
                 {/* El prefijo "Nivel en" lo mantenemos simple */}
-
-                <span className="shrink-0">
-                  {nivelPlan?.toLowerCase() !== 'otro' && `${nivelPlan} en`}
-                </span>
+                <Activity
+                  mode={
+                    nivelPlan?.toLowerCase() !== 'otro' ? 'visible' : 'hidden'
+                  }
+                >
+                  <span className="shrink-0">{nivelPlan} en</span>
+                </Activity>
                 <span
                   role="textbox"
                   tabIndex={0}
@@ -216,34 +209,22 @@ function RouteComponent() {
               <p className="text-muted-foreground mb-0.5 truncate text-[10px] font-bold tracking-wider uppercase">
                 Nivel
               </p>
-              <Select
-                value={nivelPlan}
-                onValueChange={(value) => {
-                  const nuevoNivel = value as NivelPlanEstudio
-                  setNivelPlan(nuevoNivel)
-                  if (nuevoNivel !== data?.nivel) {
-                    mutate({ planId, patch: { nivel: nuevoNivel } })
-                  }
-                }}
-              >
-                <SelectTrigger className="w-full" size="sm">
-                  <SelectValue placeholder="---" />
-                </SelectTrigger>
-                <SelectContent>
-                  {niveles.map((n) => (
-                    <SelectItem key={n} value={n}>
-                      {n}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <p className="text-foreground truncate text-sm font-semibold">
+                {data?.carreras?.nivel || '---'}
+              </p>
             </div>
           </div>
 
           <InfoCard
             icon={<Clock className="text-muted-foreground" />}
             label="Duración"
-            value={`${data?.numero_ciclos || 0} Ciclos`}
+            value={`${data?.numero_ciclos || 0} ${
+              data?.tipo_ciclo === 'Otro'
+                ? 'ciclos'
+                : data?.tipo_ciclo
+                  ? `${data.tipo_ciclo.toLocaleLowerCase()}s`
+                  : ''
+            }`}
           />
           <InfoCard
             icon={<Hash className="text-muted-foreground" />}

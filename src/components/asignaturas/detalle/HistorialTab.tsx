@@ -97,7 +97,7 @@ export function HistorialTab() {
     }
 
     // 3. Caso: Es un OBJETO (como cada unidad con titulo, temas, etc.)
-    if (typeof value === 'object') {
+    if (typeof value === 'object' && value !== null) {
       return (
         <div className="grid gap-2">
           {Object.entries(value).map(([key, val]) => (
@@ -126,20 +126,27 @@ export function HistorialTab() {
   }
 
   const historialTransformado = useMemo(() => {
-    if (!rawData) return []
-    return rawData.map((item: any) => ({
+  if (!rawData) return []
+
+  return rawData.map((item: any) => {
+    const campo = item.campo ?? 'desconocido'
+
+    return {
       id: item.id,
-      tipo: item.campo === 'contenido_tematico' ? 'contenido' : 'datos',
-      descripcion: `Se actualizó el campo ${item.campo.replace('_', ' ')}`,
-      fecha: parseISO(item.cambiado_en),
+      tipo: campo === 'contenido_tematico' ? 'contenido' : 'datos',
+      descripcion: `Se actualizó el campo ${campo.replace(/_/g, ' ')}`,
+      fecha: item.cambiado_en
+        ? parseISO(item.cambiado_en)
+        : new Date(),
       usuario: item.fuente === 'HUMANO' ? 'Usuario Staff' : 'Sistema IA',
       detalles: {
-        campo: item.campo,
-        valor_anterior: item.valor_anterior || 'Sin datos previos', // Asumiendo que existe en tu API
+        campo,
+        valor_anterior: item.valor_anterior || 'Sin datos previos',
         valor_nuevo: item.valor_nuevo,
       },
-    }))
-  }, [rawData])
+    }
+  })
+}, [rawData])
 
   const openCompareModal = (cambio: any) => {
     setSelectedChange(cambio)
@@ -346,7 +353,7 @@ export function HistorialTab() {
 
           <div className="mt-4 flex flex-shrink-0 items-center justify-center gap-2 rounded-lg border border-slate-100 bg-slate-50 p-3 text-xs text-slate-500">
             Campo modificado:{' '}
-            <Badge variant="secondary">{selectedChange?.detalles.campo}</Badge>
+            <Badge variant="secondary">{selectedChange?.detalles.campo ?? 'Sin campo'}</Badge>
           </div>
         </DialogContent>
       </Dialog>
