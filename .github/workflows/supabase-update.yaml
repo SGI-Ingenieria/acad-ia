@@ -26,11 +26,10 @@ jobs:
         id: git_status
         run: |
           if [[ -n "$(git status --porcelain)" ]]; then
-            echo "changed=true" >> $GITEA_OUTPUT
+             echo "changed=true" >> "$GITHUB_OUTPUT"
           else
-            echo "changed=false" >> $GITEA_OUTPUT
+             echo "changed=false" >> "$GITHUB_OUTPUT"
           fi
-
       - name: Commit changes
         if: steps.git_status.outputs.changed == 'true'
         run: |
