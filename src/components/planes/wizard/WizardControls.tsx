@@ -319,6 +319,8 @@ export function WizardControls({
           throw new Error('No se pudo obtener el id del plan generado por IA')
         }
 
+        queryClient.invalidateQueries({ queryKey: ['planes', 'list'] })
+
         navigate({
           to: `/planes/${String(planId)}`,
           state: { showConfetti: true },

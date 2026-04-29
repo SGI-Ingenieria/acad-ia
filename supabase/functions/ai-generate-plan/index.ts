@@ -227,16 +227,31 @@ Deno.serve(async (req: Request): Promise<Response> => {
         type: 'object',
         additionalProperties: false,
         required: [
+          'analisis_documento',
+          'refusal',
           'nombre',
-          'nivel',
           'tipo_ciclo',
           'numero_ciclos',
           'carrera_id',
           'datos',
         ],
         properties: {
-          nombre: { type: 'string', minLength: 1 },
-          nivel: { type: 'string', minLength: 1 },
+          analisis_documento: {
+            type: 'string',
+            description:
+              'Paso 1: Analiza brevemente de qué trata el documento. Determina explícitamente si contiene una tira de materias, créditos y estructura académica, o si es un documento técnico/informativo diferente.',
+          },
+          refusal: {
+            type: 'string',
+            description:
+              'Paso 2: Basado en el analisis_documento, si el texto NO es un plan de estudios, escribe aquí el motivo exacto del rechazo. Si sí es un plan válido, deja vacío este campo.',
+          },
+          nombre: {
+            type: 'string',
+            minLength: 1,
+            description:
+              'No debe incluir el nivel del plan. Por lo tanto no debe empezar con Licenciatura en, Ingeniería en, etc.',
+          },
           tipo_ciclo: {
             type: 'string',
             enum: ['Semestre', 'Cuatrimestre', 'Trimestre', 'Otro'],
@@ -259,9 +274,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
       const systemPromptClone = `Eres un extractor de datos altamente preciso. Tu único objetivo es volcar información de un documento adjunto hacia un formato estructurado JSON. Eres un puente de transferencia de información, no un redactor.
 
 Reglas de Extracción:
-1. Copia Textual (Verbatim): Extrae el contenido del documento y cópialo de manera EXACTA. Está estrictamente prohibido parafrasear, resumir, alucinar información o modificar la redacción original.
-2. Mapeo Inteligente de Campos: Relaciona las secciones del documento con los campos de la estructura esperada basándote en similitud semántica. Por ejemplo, mapea "FIN DEL APRENDIZAJE" o "fines de aprendizaje" hacia el campo equivalente en el esquema (ej. "Fines de aprendizaje o formación").
-3. Manejo de Ausencias: Si un campo de la estructura esperada no existe en el documento adjunto o no hay un equivalente claro, déjalo vacío (string vacío, null, o array vacío según el esquema). Si el campo es un listado cerrado (enum) y es obligatorio, selecciona la opción que tenga más sentido lógico. Nunca inventes información para rellenar vacíos.
+1. Validación Estricta del Documento (Gatekeeper): evalúa si el documento es genuinamente un Plan de Estudios. Un plan de estudios real DEBE contener elementos como: fines de aprendizaje, perfil de ingreso, modalidad, etc. Si no es un documento que describe un plan de estudios o si el documento trata de cualquier otro tema (por ejemplo, manuales técnicos, presentaciones, artículos), ESTÁ ESTRICTAMENTE PROHIBIDO extraer información. En su lugar, debes llenar ÚNICAMENTE el campo "refusal" con el motivo (ej. "El documento es una presentación sobre redes, no un plan de estudios") y dejar todos los demás campos vacíos o nulos.
+2. Copia Textual (Verbatim): Extrae el contenido del documento y cópialo de manera EXACTA. Está estrictamente prohibido parafrasear, resumir, alucinar información o modificar la redacción original.
+3. Mapeo Inteligente de Campos: Relaciona las secciones del documento con los campos de la estructura esperada basándote en similitud semántica. Por ejemplo, mapea "FIN DEL APRENDIZAJE" o "fines de aprendizaje" hacia el campo equivalente en el esquema (ej. "Fines de aprendizaje o formación").
+4. Manejo de Ausencias: Si un campo de la estructura esperada no existe en el documento adjunto o no hay un equivalente claro, déjalo vacío (string vacío, null, o array vacío según el esquema). Si el campo es un listado cerrado (enum) y es obligatorio, selecciona la opción que tenga más sentido lógico. Nunca inventes información para rellenar vacíos.
 
 Reglas de Formato (Aplicables al contenido extraído):
 1. Estilo Visual: Redacta el contenido exclusivamente para visualización en texto plano (estilo 'white-space: pre-wrap').
@@ -288,7 +304,7 @@ ${carrerasText}
       }
 
       const structuredPayload: StructuredResponseOptions = {
-        model: 'gpt-5-mini',
+        model: 'gpt-4o-mini',
         background: false,
         input: [
           { role: 'system', content: systemPromptClone },
@@ -336,6 +352,16 @@ ${carrerasText}
         numero_ciclos: number
         carrera_id: string
         datos: Json
+        refusal: string
+      }
+
+      if (out.refusal) {
+        throw new HttpError(
+          422,
+          'La IA no pudo generar el plan.',
+          'AI_GENERATION_FAILED',
+          { refusal: out.refusal },
+        )
       }
 
       const carreraOk = carrerasList.some((c) => c.id === out.carrera_id)
