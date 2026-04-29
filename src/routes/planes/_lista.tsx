@@ -9,11 +9,9 @@ import {
 import * as Icons from 'lucide-react'
 import { useMemo } from 'react'
 
-import { defaultPlanesSearch } from './search'
-
-import type { PlanesListaSearch } from './search'
-
 // Componentes
+import type { PlanesListaSearch } from '@/types/search'
+
 import BarraBusqueda from '@/components/planes/BarraBusqueda'
 import Filtro from '@/components/planes/Filtro'
 import PlanEstudiosCard from '@/components/planes/PlanEstudiosCard'
@@ -22,6 +20,7 @@ import { Button } from '@/components/ui/button'
 import { getCatalogos, qk } from '@/data'
 import { usePlanes } from '@/data/hooks/usePlans'
 import { getIconByName } from '@/features/planes/utils/icon-utils'
+import { defaultPlanesSearch } from '@/types/search'
 
 const parsePlanesSearch = (
   search: Record<string, unknown>,
@@ -120,11 +119,21 @@ function RouteComponent() {
       routeSearch.facultad === 'todas'
         ? rawCarreras
         : rawCarreras.filter((c) => c.facultad_id === routeSearch.facultad)
+    // Agrupamos por `nivel` para mostrar secciones en el selector
+    const groups = new Map<string, Array<{ value: string; label: string }>>()
+    filtered.forEach((c) => {
+      const nivel = c.nivel ?? 'Sin nivel'
+      const arr = groups.get(nivel) ?? []
+      arr.push({ value: c.id, label: c.nombre })
+      groups.set(nivel, arr)
+    })
 
-    return [
-      { value: 'todas', label: 'Todas las carreras' },
-      ...filtered.map((c) => ({ value: c.id, label: c.nombre })),
-    ]
+    const grouped = Array.from(groups.entries()).map(([nivel, opts]) => ({
+      label: nivel,
+      options: opts,
+    }))
+
+    return [{ value: 'todas', label: 'Todas las carreras' }, ...grouped]
   }, [catalogos.carreras, routeSearch.facultad])
 
   const estadosOptions = useMemo(

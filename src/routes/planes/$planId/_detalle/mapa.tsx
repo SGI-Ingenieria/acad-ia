@@ -2,7 +2,15 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { Plus, AlertTriangle, Trash2, Download } from 'lucide-react'
 import * as Icons from 'lucide-react'
-import { useMemo, useState, useEffect, Fragment, useRef } from 'react'
+import {
+  useMemo,
+  useState,
+  useEffect,
+  Fragment,
+  useRef,
+  useLayoutEffect,
+  useCallback,
+} from 'react'
 
 import type { TipoAsignatura } from '@/data'
 import type { Asignatura } from '@/types/plan'
@@ -35,7 +43,6 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import {
-  useAsignaturaConflictos,
   useCreateLinea,
   useDeleteLinea,
   usePlan,
@@ -65,6 +72,13 @@ type LineaCurricularUI = {
   nombre: string
   orden: number
   color: string
+}
+
+type CardRect = {
+  x: number
+  y: number
+  width: number
+  height: number
 }
 
 const mapLineasToLineaCurricular = (
@@ -129,7 +143,6 @@ function StatItem({
   )
 }
 
-
 function hexToRgba(hex: string, alpha: number) {
   const clean = hex.replace('#', '')
   const bigint = parseInt(clean, 16)
@@ -139,6 +152,60 @@ function hexToRgba(hex: string, alpha: number) {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`
 }
 
+function getBezierPath(source: CardRect, target: CardRect): string {
+  const startX = source.x + source.width
+  const startY = source.y + source.height / 2
+  const endX = target.x
+  const endY = target.y + target.height / 2
+  const bend = Math.max(64, Math.abs(endX - startX) * 0.35)
+
+  return `M ${startX} ${startY} C ${startX + bend} ${startY}, ${endX - bend} ${endY}, ${endX} ${endY}`
+}
+
+function buildChainIds(
+  hoveredId: string | null,
+  asignaturas: Array<Asignatura>,
+): Set<string> | null {
+  if (!hoveredId) return null
+
+  const childrenByParent = new Map<string, Array<string>>()
+  const parentByChild = new Map<string, string>()
+
+  asignaturas.forEach((asignatura) => {
+    if (asignatura.prerrequisito_asignatura_id) {
+      parentByChild.set(asignatura.id, asignatura.prerrequisito_asignatura_id)
+
+      const children =
+        childrenByParent.get(asignatura.prerrequisito_asignatura_id) ?? []
+      children.push(asignatura.id)
+      childrenByParent.set(asignatura.prerrequisito_asignatura_id, children)
+    }
+  })
+
+  const visited = new Set<string>([hoveredId])
+  const queue = [hoveredId]
+
+  while (queue.length > 0) {
+    const currentId = queue.pop()
+    if (!currentId) continue
+
+    const parentId = parentByChild.get(currentId)
+    if (parentId && !visited.has(parentId)) {
+      visited.add(parentId)
+      queue.push(parentId)
+    }
+
+    const children = childrenByParent.get(currentId) ?? []
+    children.forEach((childId) => {
+      if (!visited.has(childId)) {
+        visited.add(childId)
+        queue.push(childId)
+      }
+    })
+  }
+
+  return visited
+}
 
 export const Route = createFileRoute('/planes/$planId/_detalle/mapa')({
   component: MapaCurricularPage,
@@ -169,20 +236,29 @@ function MapaCurricularPage() {
   const [ultimoHue, setUltimoHue] = useState<number | null>(null)
   const { mutate: updateAsignatura } = useUpdateAsignatura()
   const inputRef = useRef<HTMLInputElement>(null)
-  const { validarCambioCiclo } = useAsignaturaConflictos()
   const [confirmState, setConfirmState] = useState<{
     isOpen: boolean
     resolve: (value: boolean) => void
     mensaje: string
   } | null>(null)
 
-  const [selectedVisualizacion, setSelectedVisualizacion] = useState<Asignatura | null>(null);
-const [isVisualizadorOpen, setIsVisualizadorOpen] = useState(false);
+  const [hoveredAsignaturaId, setHoveredAsignaturaId] = useState<string | null>(
+    null,
+  )
+  const [cardRects, setCardRects] = useState<Partial<Record<string, CardRect>>>(
+    {},
+  )
+  const mapOverlayRef = useRef<HTMLDivElement>(null)
+  const cardRefs = useRef<Record<string, HTMLDivElement | null>>({})
 
-const handleViewSeriacion = (asignatura: Asignatura) => {
-  setSelectedVisualizacion(asignatura);
-  setIsVisualizadorOpen(true);
-};
+  const [selectedVisualizacion, setSelectedVisualizacion] =
+    useState<Asignatura | null>(null)
+  const [isVisualizadorOpen, setIsVisualizadorOpen] = useState(false)
+
+  const handleViewSeriacion = (asignatura: Asignatura) => {
+    setSelectedVisualizacion(asignatura)
+    setIsVisualizadorOpen(true)
+  }
   const validarConInterrupcion = async (
     asignaturaId: string,
     nuevoCiclo: number,
@@ -233,7 +309,6 @@ const handleViewSeriacion = (asignatura: Asignatura) => {
       inputRef.current.focus()
     }
   }, [selectedLineaOption])
-
 
   const manejarAgregarLinea = (nombre: string, color: string, hue: number) => {
     const nombreNormalizado = nombre.trim()
@@ -406,7 +481,7 @@ const handleViewSeriacion = (asignatura: Asignatura) => {
     ) {
       const acepto = await validarConInterrupcion(
         asignaturaId,
-        nuevosDatos.ciclo ?? 0
+        nuevosDatos.ciclo ?? 0,
       )
       setConfirmState(null)
       if (!acepto) return // El usuario canceló, no guardamos nada
@@ -613,6 +688,71 @@ const handleViewSeriacion = (asignatura: Asignatura) => {
     }
   }
 
+  const seriacionEdges = useMemo(
+    () =>
+      asignaturas
+        .filter((asignatura) => asignatura.prerrequisito_asignatura_id)
+        .map((asignatura) => ({
+          source: asignatura.prerrequisito_asignatura_id as string,
+          target: asignatura.id,
+        })),
+    [asignaturas],
+  )
+
+  const highlightedChainIds = useMemo(
+    () => buildChainIds(hoveredAsignaturaId, asignaturas),
+    [hoveredAsignaturaId, asignaturas],
+  )
+
+  const refreshCardRects = useCallback(() => {
+    const overlay = mapOverlayRef.current
+    if (!overlay) return
+
+    const overlayBox = overlay.getBoundingClientRect()
+    const nextRects: Record<string, CardRect> = {}
+
+    Object.entries(cardRefs.current).forEach(([id, element]) => {
+      if (!element) return
+
+      const box = element.getBoundingClientRect()
+      nextRects[id] = {
+        x: box.left - overlayBox.left,
+        y: box.top - overlayBox.top,
+        width: box.width,
+        height: box.height,
+      }
+    })
+
+    setCardRects(nextRects)
+  }, [])
+
+  useLayoutEffect(() => {
+    if (!asignaturas.length) return
+
+    const frame = window.requestAnimationFrame(() => {
+      refreshCardRects()
+    })
+
+    return () => window.cancelAnimationFrame(frame)
+  }, [asignaturas, lineas, totalCiclos, refreshCardRects])
+
+  useEffect(() => {
+    const overlay = mapOverlayRef.current
+    if (!overlay) return
+
+    const observer = new ResizeObserver(() => {
+      refreshCardRects()
+    })
+
+    observer.observe(overlay)
+    window.addEventListener('resize', refreshCardRects)
+
+    return () => {
+      observer.disconnect()
+      window.removeEventListener('resize', refreshCardRects)
+    }
+  }, [refreshCardRects])
+
   if (loadingAsig || loadingLineas)
     return <div className="p-10 text-center">Cargando mapa curricular...</div>
 
@@ -640,13 +780,9 @@ const handleViewSeriacion = (asignatura: Asignatura) => {
             onClick={() => generateExcel()}
             className={cn(
               'inline-flex h-11 w-full items-center justify-start gap-2 rounded-md px-8 text-sm font-medium shadow-sm transition-colors',
-              // Fondo verde claro y texto oscuro para contraste
               'bg-green-100 text-green-900 hover:bg-green-200/80',
-              // Borde verde más oscuro y definido
               'border border-green-600/30',
-              // Enfoque y estados (Accesibilidad)
               'ring-offset-background focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:outline-none',
-              // Soporte para modo oscuro (opcional pero recomendado)
               'dark:border-green-500/40 dark:bg-green-900/30 dark:text-green-100 dark:hover:bg-green-900/50',
             )}
           >
@@ -657,7 +793,6 @@ const handleViewSeriacion = (asignatura: Asignatura) => {
             Exportar a Excel
           </Button>
 
-          {/* Barra Totales */}
           <div className="border-border bg-card/60 col-span-2 grid grid-cols-2 gap-3 rounded-2xl border p-3 shadow-sm md:grid-cols-4">
             <StatItem label="Total Créditos" value={stats.cr} total={320} />
             <StatItem label="Total HD" value={stats.hd} />
@@ -668,177 +803,251 @@ const handleViewSeriacion = (asignatura: Asignatura) => {
       </div>
 
       <div className="overflow-x-auto pb-6">
-        <div
-          className="grid gap-3 pl-1"
-          style={{
-            gridTemplateColumns: `140px repeat(${ciclosTotales}, 188px) 120px`,
-          }}
-        >
-          <div className="text-muted-foreground self-end px-2 text-xs font-bold">
-            LÍNEA CURRICULAR
-          </div>
+        <div ref={mapOverlayRef} className="relative">
+          <svg
+            aria-hidden
+            className="pointer-events-none absolute inset-0 h-full w-full overflow-visible"
+          >
+            <defs>
+              <marker
+                id="seriacion-circle-active"
+                viewBox="0 0 10 10"
+                refX="5"
+                refY="5"
+                markerWidth="6"
+                markerHeight="6"
+              >
+                <circle
+                  cx="5"
+                  cy="5"
+                  r="3.5"
+                  fill="oklch(0.5332 0.2596 262.6358)"
+                />
+              </marker>
+            </defs>
 
-          {ciclosArray.map((n) => (
-            <div
-              key={`header-${n}`}
-              className="bg-muted/70 text-muted-foreground border-border/70 rounded-xl border p-2 text-center text-sm font-bold"
-            >
-              Ciclo {n}
+            {seriacionEdges.map((edge) => {
+              const sourceRect = cardRects[edge.source]
+              const targetRect = cardRects[edge.target]
+
+              if (!sourceRect || !targetRect) return null
+
+              const isHighlighted =
+                highlightedChainIds !== null &&
+                highlightedChainIds.has(edge.source) &&
+                highlightedChainIds.has(edge.target)
+
+              return (
+                <path
+                  key={`${edge.source}-${edge.target}`}
+                  d={getBezierPath(sourceRect, targetRect)}
+                  fill="none"
+                  stroke={
+                    isHighlighted
+                      ? 'oklch(0.5332 0.2596 262.6358)'
+                      : 'rgba(100, 116, 139, 0.24)'
+                  }
+                  strokeWidth={isHighlighted ? 2.2 : 1.5}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  markerEnd={
+                    isHighlighted
+                      ? 'url(#seriacion-circle-active)'
+                      : 'url(#seriacion-circle-low)'
+                  }
+                  opacity={isHighlighted ? 1 : 0.35}
+                />
+              )
+            })}
+          </svg>
+
+          <div
+            className="grid gap-3 pl-1"
+            style={{
+              gridTemplateColumns: `140px repeat(${ciclosTotales}, 188px) 120px`,
+            }}
+          >
+            <div className="text-muted-foreground self-end px-2 text-xs font-bold">
+              LÍNEA CURRICULAR
             </div>
-          ))}
 
-          <div className="text-muted-foreground self-end text-center text-xs font-bold">
-            SUBTOTAL
-          </div>
+            {ciclosArray.map((n) => (
+              <div
+                key={`header-${n}`}
+                className="bg-muted/70 text-muted-foreground border-border/70 rounded-xl border p-2 text-center text-sm font-bold"
+              >
+                Ciclo {n}
+              </div>
+            ))}
 
-          {lineas.map((linea) => {
-            const sub = getSubtotalLinea(linea.id)
+            <div className="text-muted-foreground self-end text-center text-xs font-bold">
+              SUBTOTAL
+            </div>
 
-            return (
-              <Fragment key={linea.id}>
-                <div
-                  className={`group relative flex flex-col gap-2 rounded-xl border p-3 transition-all ${editingLineaId === linea.id ? 'ring-primary/30 ring-2' : 'cursor-text'}`}
-                  style={{
-                    borderColor: hexToRgba(linea.color || '#1976d2', 0.24),
-                    backgroundColor:
-                      editingLineaId === linea.id
-                        ? hexToRgba(linea.color || '#1976d2', 0.12)
-                        : hexToRgba(linea.color || '#1976d2', 0.08),
-                  }}
-                >
-                  <div className="min-w-0 flex-1">
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <span
-                          contentEditable
-                          role="textbox"
-                          tabIndex={0}
-                          aria-label={`Nombre de línea ${linea.nombre}`}
-                          suppressContentEditableWarning
-                          spellCheck={false}
-                          onFocus={() => setEditingLineaId(linea.id)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              e.preventDefault()
-                              e.currentTarget.blur()
+            {lineas.map((linea) => {
+              const sub = getSubtotalLinea(linea.id)
+
+              return (
+                <Fragment key={linea.id}>
+                  <div
+                    className={`group relative flex flex-col gap-2 rounded-xl border p-3 transition-all ${editingLineaId === linea.id ? 'ring-primary/30 ring-2' : 'cursor-text'}`}
+                    style={{
+                      borderColor: hexToRgba(linea.color || '#1976d2', 0.24),
+                      backgroundColor:
+                        editingLineaId === linea.id
+                          ? hexToRgba(linea.color || '#1976d2', 0.12)
+                          : hexToRgba(linea.color || '#1976d2', 0.08),
+                    }}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span
+                            contentEditable
+                            role="textbox"
+                            tabIndex={0}
+                            aria-label={`Nombre de línea ${linea.nombre}`}
+                            suppressContentEditableWarning
+                            spellCheck={false}
+                            onFocus={() => setEditingLineaId(linea.id)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault()
+                                e.currentTarget.blur()
+                              }
+                              if (e.key === 'Escape') {
+                                e.preventDefault()
+                                e.currentTarget.textContent = linea.nombre
+                                e.currentTarget.blur()
+                              }
+                            }}
+                            onBlur={(e) =>
+                              confirmarEdicionLinea(
+                                linea.id,
+                                e.currentTarget.textContent,
+                              )
                             }
-                            if (e.key === 'Escape') {
-                              e.preventDefault()
-                              e.currentTarget.textContent = linea.nombre
-                              e.currentTarget.blur()
-                            }
-                          }}
-                          onBlur={(e) =>
-                            confirmarEdicionLinea(
-                              linea.id,
-                              e.currentTarget.textContent,
-                            )
-                          }
-                          className="text-foreground hover:text-foreground/85 block w-full cursor-text text-sm leading-snug wrap-break-word transition-colors outline-none"
-                        >
+                            className="text-foreground hover:text-foreground/85 block w-full cursor-text text-sm leading-snug wrap-break-word transition-colors outline-none"
+                          >
+                            {linea.nombre}
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="max-w-xs text-sm">
                           {linea.nombre}
-                        </span>
-                      </TooltipTrigger>
-                      <TooltipContent side="top" className="max-w-xs text-sm">
-                        {linea.nombre}
-                      </TooltipContent>
-                    </Tooltip>
-                  </div>
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
 
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <div
-                        className="border-border/70 bg-background relative inline-flex h-8 w-8 items-center justify-center rounded-md border"
-                        style={{
-                          borderColor: hexToRgba(
-                            linea.color || '#1976d2',
-                            0.35,
-                          ),
-                        }}
-                      >
-                        <input
-                          type="color"
-                          aria-label="Cambiar color de línea"
-                          value={linea.color || '#1976d2'}
-                          onChange={(e) =>
-                            cambiarColorLinea(linea.id, e.target.value)
-                          }
-                          className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-                        />
-                        <Icons.Palette
-                          className="text-muted-foreground h-4 w-4"
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="border-border/70 bg-background relative inline-flex h-8 w-8 items-center justify-center rounded-md border"
+                          style={{
+                            borderColor: hexToRgba(
+                              linea.color || '#1976d2',
+                              0.35,
+                            ),
+                          }}
+                        >
+                          <input
+                            type="color"
+                            aria-label="Cambiar color de línea"
+                            value={linea.color || '#1976d2'}
+                            onChange={(e) =>
+                              cambiarColorLinea(linea.id, e.target.value)
+                            }
+                            className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                          />
+                          <Icons.Palette
+                            className="text-muted-foreground h-4 w-4"
+                            aria-hidden
+                          />
+                        </div>
+
+                        <div
+                          className="border-border/70 h-5 w-5 rounded-full border"
+                          style={{ backgroundColor: linea.color || '#1976d2' }}
                           aria-hidden
                         />
                       </div>
 
-                      <div
-                        className="border-border/70 h-5 w-5 rounded-full border"
-                        style={{ backgroundColor: linea.color || '#1976d2' }}
-                        aria-hidden
-                      />
+                      <button
+                        type="button"
+                        aria-label="Eliminar línea"
+                        onClick={() => borrarLinea(linea.id)}
+                        className="text-destructive/80 hover:text-destructive hover:bg-destructive/10 inline-flex h-8 w-8 items-center justify-center rounded-md transition-colors"
+                      >
+                        <Trash2 size={14} />
+                      </button>
                     </div>
-
-                    <button
-                      type="button"
-                      aria-label="Eliminar línea"
-                      onClick={() => borrarLinea(linea.id)}
-                      className="text-destructive/80 hover:text-destructive hover:bg-destructive/10 inline-flex h-8 w-8 items-center justify-center rounded-md transition-colors"
-                    >
-                      <Trash2 size={14} />
-                    </button>
                   </div>
-                </div>
 
-                {ciclosArray.map((cicloNumero) => (
+                  {ciclosArray.map((cicloNumero) => (
+                    <div
+                      key={`${linea.id}-${cicloNumero}`}
+                      onDragOver={handleDragOver}
+                      onDrop={(e) => handleDrop(e, cicloNumero, linea.id)}
+                      className={`min-h-35 space-y-2 rounded-xl border border-dashed p-1.5 transition-colors ${
+                        draggedAsignatura
+                          ? 'border-primary/35 bg-primary/6'
+                          : 'border-border/70 bg-muted/15'
+                      }`}
+                    >
+                      {asignaturas
+                        .filter(
+                          (m) =>
+                            m.ciclo === cicloNumero &&
+                            m.lineaCurricularId === linea.id,
+                        )
+                        .map((m) => (
+                          <div
+                            key={m.id}
+                            ref={(element) => {
+                              cardRefs.current[m.id] = element
+                            }}
+                            onMouseEnter={() => setHoveredAsignaturaId(m.id)}
+                            onMouseLeave={() => setHoveredAsignaturaId(null)}
+                            className={[
+                              'w-fit shrink-0 transition-opacity duration-200',
+                              highlightedChainIds &&
+                              !highlightedChainIds.has(m.id)
+                                ? 'opacity-25'
+                                : 'opacity-100',
+                            ].join(' ')}
+                          >
+                            <AsignaturaCardItem
+                              asignatura={m}
+                              lineaColor={linea.color || '#1976d2'}
+                              lineaNombre={linea.nombre}
+                              isDragging={draggedAsignatura === m.id}
+                              onDragStart={handleDragStart}
+                              onClick={() => {
+                                setEditingData(m)
+                                setIsEditModalOpen(true)
+                              }}
+                              onViewSeriacion={handleViewSeriacion}
+                              hasSeriacion={
+                                !!m.prerrequisito_asignatura_id ||
+                                asignaturas.some(
+                                  (a) => a.prerrequisito_asignatura_id === m.id,
+                                )
+                              }
+                            />
+                          </div>
+                        ))}
+                    </div>
+                  ))}
+
                   <div
-                    key={`${linea.id}-${cicloNumero}`}
-                    onDragOver={handleDragOver}
-                    onDrop={(e) => handleDrop(e, cicloNumero, linea.id)}
-                    className={`min-h-35 space-y-2 rounded-xl border border-dashed p-1.5 transition-colors ${
-                      draggedAsignatura
-                        ? 'border-primary/35 bg-primary/6'
-                        : 'border-border/70 bg-muted/15'
+                    className={`flex flex-col justify-center rounded-xl border p-4 text-[11px] font-medium ${
+                      sub.cr === 0 && sub.hd === 0 && sub.hi === 0
+                        ? 'border-border/50 bg-muted/20 text-muted-foreground/70'
+                        : 'border-border bg-card text-muted-foreground'
                     }`}
                   >
-                    {asignaturas
-                      .filter(
-                        (m) =>
-                          m.ciclo === cicloNumero &&
-                          m.lineaCurricularId === linea.id,
-                      )
-                      .map((m) => (
-                        <AsignaturaCardItem
-                          key={m.id}
-                          asignatura={m}
-                          lineaColor={linea.color || '#1976d2'}
-                          lineaNombre={linea.nombre}
-                          isDragging={draggedAsignatura === m.id}
-                          onDragStart={handleDragStart}
-                          onClick={() => {
-                            setEditingData(m)
-                            setIsEditModalOpen(true)
-                          }}
-                          onViewSeriacion={handleViewSeriacion} 
-                          hasSeriacion={
-                            !!m.prerrequisito_asignatura_id ||
-                            asignaturas.some(a => a.prerrequisito_asignatura_id === m.id)
-                          } 
-                        />
-                      ))}
-                  </div>
-                ))}
-
-                <div
-                  className={`flex flex-col justify-center rounded-xl border p-4 text-[11px] font-medium ${
-                    sub.cr === 0 && sub.hd === 0 && sub.hi === 0
-                      ? 'border-border/50 bg-muted/20 text-muted-foreground/70'
-                      : 'border-border bg-card text-muted-foreground'
-                  }`}
-                >
-                  {sub.cr === 0 && sub.hd === 0 && sub.hi === 0 ? (
-                    <div className="text-muted-foreground">—</div>
-                  ) : (
-                    <>
+                    {sub.cr === 0 && sub.hd === 0 && sub.hi === 0 ? (
+                      <div className="text-muted-foreground">—</div>
+                    ) : (
                       <div className="space-y-1">
                         <div className="text-foreground font-bold">
                           Cr: {sub.cr}
@@ -847,63 +1056,62 @@ const handleViewSeriacion = (asignatura: Asignatura) => {
                           HD: {sub.hd} • HI: {sub.hi}
                         </div>
                       </div>
+                    )}
+                  </div>
+                </Fragment>
+              )
+            })}
+
+            <div className="col-span-full">
+              <div className="sticky left-0 z-10 w-35">
+                <Button
+                  className="shadow-md"
+                  onClick={() => setIsAddLineaDialogOpen(true)}
+                >
+                  <Plus size={14} /> Agregar línea
+                </Button>
+              </div>
+            </div>
+
+            <div className="border-border col-span-full my-2 border-t"></div>
+
+            <div className="text-foreground self-center p-2 font-bold">
+              Totales por Ciclo
+            </div>
+
+            {ciclosArray.map((cicloNumero) => {
+              const t = getTotalesCiclo(cicloNumero)
+              const isEmpty = t.cr === 0 && t.hd === 0 && t.hi === 0
+
+              return (
+                <div
+                  key={`footer-${cicloNumero}`}
+                  className={`rounded-xl border p-2 text-center text-[11px] ${
+                    isEmpty
+                      ? 'border-border/50 bg-muted/30 text-muted-foreground'
+                      : 'border-border bg-card'
+                  }`}
+                >
+                  {isEmpty ? (
+                    <div className="text-muted-foreground py-1 text-xs">—</div>
+                  ) : (
+                    <>
+                      <div className="text-foreground font-bold">
+                        Cr: {t.cr}
+                      </div>
+                      <div>
+                        HD: {t.hd} • HI: {t.hi}
+                      </div>
                     </>
                   )}
                 </div>
-              </Fragment>
-            )
-          })}
+              )
+            })}
 
-          {/* Agregar línea (sticky dentro del overflow-x)
-              Nota: Se envuelve en un row `col-span-full` para evitar bugs de sticky en mobile/iOS
-              cuando el sticky es un grid-item. */}
-          <div className="col-span-full">
-            <div className="sticky left-0 z-10 w-35">
-              <Button
-                className="shadow-md"
-                onClick={() => setIsAddLineaDialogOpen(true)}
-              >
-                <Plus size={14} /> Agregar línea
-              </Button>
+            <div className="text-accent-foreground border-accent/40 bg-accent flex flex-col justify-center rounded-xl border p-2 text-center text-xs font-bold shadow-sm">
+              <div>{stats.cr} Cr</div>
+              <div>{stats.hd + stats.hi} Hrs</div>
             </div>
-          </div>
-
-          <div className="border-border col-span-full my-2 border-t"></div>
-
-          <div className="text-foreground self-center p-2 font-bold">
-            Totales por Ciclo
-          </div>
-
-          {ciclosArray.map((cicloNumero) => {
-            const t = getTotalesCiclo(cicloNumero)
-            const isEmpty = t.cr === 0 && t.hd === 0 && t.hi === 0
-
-            return (
-              <div
-                key={`footer-${cicloNumero}`}
-                className={`rounded-xl border p-2 text-center text-[11px] ${
-                  isEmpty
-                    ? 'border-border/50 bg-muted/30 text-muted-foreground'
-                    : 'border-border bg-card'
-                }`}
-              >
-                {isEmpty ? (
-                  <div className="text-muted-foreground py-1 text-xs">—</div>
-                ) : (
-                  <>
-                    <div className="text-foreground font-bold">Cr: {t.cr}</div>
-                    <div>
-                      HD: {t.hd} • HI: {t.hi}
-                    </div>
-                  </>
-                )}
-              </div>
-            )
-          })}
-
-          <div className="text-accent-foreground border-accent/40 bg-accent flex flex-col justify-center rounded-xl border p-2 text-center text-xs font-bold shadow-sm">
-            <div>{stats.cr} Cr</div>
-            <div>{stats.hd + stats.hi} Hrs</div>
           </div>
         </div>
       </div>
@@ -955,7 +1163,15 @@ const handleViewSeriacion = (asignatura: Asignatura) => {
           {unassignedAsignaturas.length > 0 ? (
             <div className="flex flex-wrap gap-4">
               {unassignedAsignaturas.map((m) => (
-                <div key={m.id} className="w-fit shrink-0">
+                <div
+                  key={m.id}
+                  className={[
+                    'w-fit shrink-0 transition-opacity duration-200',
+                    highlightedChainIds && !highlightedChainIds.has(m.id)
+                      ? 'opacity-25'
+                      : 'opacity-100',
+                  ].join(' ')}
+                >
                   <AsignaturaCardItem
                     asignatura={m}
                     lineaColor="#94A3B8"
@@ -1022,7 +1238,7 @@ const handleViewSeriacion = (asignatura: Asignatura) => {
               </div>
 
               {/* Tarjeta: Matemáticas */}
-              <div className="border-input has-[[data-state=checked]]:border-primary/50 has-[[data-state=checked]]:bg-primary/5 hover:bg-muted/50 relative flex w-full items-start gap-3 rounded-md border p-4 shadow-sm transition-all outline-none">
+              <div className="border-input has-data-[state=checked]:border-primary/50 has-data-[state=checked]:bg-primary/5 hover:bg-muted/50 relative flex w-full items-start gap-3 rounded-md border p-4 shadow-sm transition-all outline-none">
                 <RadioGroupItem
                   id="linea-matematicas"
                   value="matematicas"
@@ -1042,7 +1258,7 @@ const handleViewSeriacion = (asignatura: Asignatura) => {
               </div>
 
               {/* Tarjeta: Área Común */}
-              <div className="border-input has-[[data-state=checked]]:border-primary/50 has-[[data-state=checked]]:bg-primary/5 hover:bg-muted/50 relative flex w-full items-start gap-3 rounded-md border p-4 shadow-sm transition-all outline-none">
+              <div className="border-input has-data-[state=checked]:border-primary/50 has-data-[state=checked]:bg-primary/5 hover:bg-muted/50 relative flex w-full items-start gap-3 rounded-md border p-4 shadow-sm transition-all outline-none">
                 <RadioGroupItem
                   id="linea-area-comun"
                   value="area_comun"
@@ -1447,13 +1663,13 @@ const handleViewSeriacion = (asignatura: Asignatura) => {
         />
       )}
 
-      <VisualizadorSeriacionModal 
-      asignatura={selectedVisualizacion}
-      todasLasAsignaturas={asignaturas}
-      lineas={lineas}
-      isOpen={isVisualizadorOpen}
-      onClose={() => setIsVisualizadorOpen(false)}
-    />
+      <VisualizadorSeriacionModal
+        asignatura={selectedVisualizacion}
+        todasLasAsignaturas={asignaturas}
+        lineas={lineas}
+        isOpen={isVisualizadorOpen}
+        onClose={() => setIsVisualizadorOpen(false)}
+      />
     </div>
   )
 }
