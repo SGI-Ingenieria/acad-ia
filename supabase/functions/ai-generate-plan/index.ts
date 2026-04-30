@@ -281,11 +281,11 @@ Reglas de Extracción:
 
 Reglas de Formato (Aplicables al contenido extraído):
 1. Estilo Visual: Redacta el contenido exclusivamente para visualización en texto plano (estilo 'white-space: pre-wrap').
-2. Estructura Vertical: Utiliza saltos de línea explícitos (\n) para romper líneas y doble salto de línea (\n\n) para separar párrafos.
+2. Estructura Vertical: Utiliza saltos de línea explícitos (\\n) para romper líneas y doble salto de línea (\\n\\n) para separar párrafos.
 3. Indentación Estricta: Usa exactamente 2 espacios para la indentación jerárquica. No uses tabuladores.
 4. Listas: Utiliza un guion seguido de un espacio ("- ") para los elementos de lista.
-5. Prohibiciones: No incluyas etiquetas HTML, sintaxis Markdown (asteriscos, numerales, etc.) ni caracteres de escape literales visibles en el texto final. Asegúrate de que el JSON final contenga saltos de línea válidos ('\n') y no texto escapado.`
-
+5. Prohibiciones: No incluyas etiquetas HTML, sintaxis Markdown (asteriscos, numerales, etc.) ni caracteres de escape literales visibles en el texto final. Asegúrate de que el JSON final contenga saltos de línea válidos ('\\n') y no texto escapado.`
+      
       const userPromptClone = `Clonar plan de estudios a partir del Word o pdf adjunto. Requisitos:
 - Elegir 'carrera_id' de esta lista, seleccionando la más cercana por nombre:
 ${carrerasText}
